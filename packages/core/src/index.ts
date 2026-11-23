@@ -5,3 +5,6 @@ export * from "./storage/types";
 export { SqliteStorage } from "./storage/sqlite";
 export { parseEntityPage, renderEntityPage, PageFormatError } from "./markdown/entity-page";
 export { exportWorld, importWorld, readFiles, writeFiles, entityPath, type Files } from "./markdown/world";
+export * from "./rules/result";
+export * from "./rules/precedence";
+export * from "./rules/engine";

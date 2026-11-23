@@ -25,6 +25,7 @@ import {
   UpdateType,
   Visibility,
   type CampaignSettings,
+  type ConflictRef,
   type SeverityPolicy,
 } from "./enums";
 
@@ -135,6 +136,8 @@ export const updates = sqliteTable(
     sceneId: text("scene_id"),
     bodyMd: text("body_md").notNull(),
     supersedesId: text("supersedes_id"),
+    /** Set when the update is parked as a conflict (SPEC "Conflicts"). Not in the data model table; added in M2. */
+    conflictsWith: json<ConflictRef>("conflicts_with"),
     author: text("author", { enum: values(Author) }).notNull(),
   },
   (t) => [uniqueIndex("updates_campaign_seq").on(t.campaignId, t.seq)],

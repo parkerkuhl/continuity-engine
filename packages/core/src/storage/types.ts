@@ -10,6 +10,11 @@ import type {
   ApprovalMode,
   Author,
   CampaignSettings,
+  ConflictRef,
+  RulingOrigin,
+  Severity,
+  UpdateStatus,
+  UpdateType,
   Depth,
   EditKind,
   EntityType,
@@ -136,6 +141,77 @@ export type EntityPatch = Partial<Pick<Entity, "type" | "name" | "aliases" | "so
 export type SectionPatch = Partial<Pick<Section, "heading" | "bodyMd" | "visibility" | "order" | "lockedByUser">>;
 export type WorldPatch = Partial<Pick<World, "name" | "pitch" | "depth" | "defaultApprovalMode">>;
 
+export type CampaignPatch = Partial<
+  Pick<Campaign, "name" | "settings" | "approvalMode" | "severityPolicy" | "asOfStoryTime" | "currentChapter" | "spoilersOn">
+>;
+
+export interface Update {
+  id: string;
+  campaignId: string;
+  seq: number;
+  entityIds: string[];
+  tags: string[];
+  type: UpdateType;
+  severity: Severity;
+  status: UpdateStatus;
+  storyTime: string | null;
+  chapter: number | null;
+  sceneId: string | null;
+  bodyMd: string;
+  supersedesId: string | null;
+  conflictsWith: ConflictRef | null;
+  author: Author;
+}
+
+export interface NewUpdate {
+  campaignId: string;
+  entityIds: string[];
+  tags: string[];
+  type: UpdateType;
+  severity: Severity;
+  status: UpdateStatus;
+  storyTime?: string | null;
+  chapter?: number | null;
+  sceneId?: string | null;
+  bodyMd: string;
+  supersedesId?: string | null;
+  conflictsWith?: ConflictRef | null;
+  /** Entity ids of everyone who knows this. Stored as `knowledge` rows in the same write. */
+  knows?: string[];
+}
+
+export type UpdatePatch = Partial<Pick<Update, "status" | "severity" | "bodyMd" | "conflictsWith">>;
+
+export interface Ruling {
+  id: string;
+  worldId: string;
+  campaignId: string | null;
+  text: string;
+  origin: RulingOrigin;
+  createdAt: string;
+}
+
+export interface Scene {
+  id: string;
+  campaignId: string;
+  chapter: number;
+  number: number;
+  placeEntityId: string | null;
+  presentEntityIds: string[];
+  summaryMd: string;
+  startedAt: string;
+  loggedAt: string | null;
+}
+
+export type ScenePatch = Partial<Pick<Scene, "placeEntityId" | "presentEntityIds" | "summaryMd" | "loggedAt">>;
+
+export interface Session {
+  id: string;
+  campaignId: string;
+  openedAt: string;
+  closedAt: string | null;
+}
+
 export type Resolution =
   | { status: "resolved"; entity: Entity; matchedOn: "id" | "slug" | "name" | "alias" }
   | { status: "ambiguous"; ref: string; candidates: Entity[] }
@@ -163,11 +239,14 @@ export interface Storage {
   getCampaign(id: string): Promise<Campaign | null>;
   listCampaigns(worldId: string): Promise<Campaign[]>;
 
+  updateCampaign(id: string, patch: CampaignPatch, meta: WriteMeta): Promise<Campaign>;
+
   // entities and sections
   createEntity(input: NewEntity, meta: WriteMeta): Promise<EntityPage>;
   updateEntity(id: string, patch: EntityPatch, meta: WriteMeta): Promise<Entity>;
   addSection(entityId: string, input: NewSection & { campaignId?: string | null }, meta: WriteMeta): Promise<Section>;
   updateSection(id: string, patch: SectionPatch, meta: WriteMeta): Promise<Section>;
+  getSection(id: string): Promise<Section | null>;
   getEntity(id: string): Promise<Entity | null>;
   getEntityBySlug(worldId: string, slug: string): Promise<Entity | null>;
   /** World sections, with same-key campaign sections overriding them when `campaignId` is given. */
@@ -175,19 +254,44 @@ export interface Storage {
   /** World canon only by default; pass `campaignId` to include that campaign's own entities too. */
   listEntities(worldId: string, opts?: { campaignId?: string | null; type?: EntityType }): Promise<Entity[]>;
 
+  // updates, knowledge, rulings, scenes
+  createUpdate(input: NewUpdate, meta: WriteMeta): Promise<Update>;
+  updateUpdate(id: string, patch: UpdatePatch, meta: WriteMeta): Promise<Update>;
+  getUpdate(id: string): Promise<Update | null>;
+  getUpdateBySeq(campaignId: string, seq: number): Promise<Update | null>;
+  /** In seq order. `entityId` keeps updates that touch that entity. */
+  listUpdates(campaignId: string, filter?: { entityId?: string; status?: UpdateStatus[] }): Promise<Update[]>;
+  /** Entity ids of everyone who knows the given update or section. */
+  listKnowers(targetType: "update" | "section", targetId: string): Promise<string[]>;
+  createRuling(input: { worldId: string; campaignId?: string | null; text: string; origin: RulingOrigin }, meta: WriteMeta): Promise<Ruling>;
+  /** World rulings plus, when given, that campaign's own. Oldest first. */
+  listRulings(worldId: string, campaignId?: string | null): Promise<Ruling[]>;
+  createScene(input: { campaignId: string; chapter: number; placeEntityId?: string | null; presentEntityIds?: string[] }, meta: WriteMeta): Promise<Scene>;
+  updateScene(id: string, patch: ScenePatch, meta: WriteMeta): Promise<Scene>;
+  getLatestScene(campaignId: string): Promise<Scene | null>;
+
+  // sessions and reads: bookkeeping, not content, so these write no `versions` row
+  /** Closes any open session of the campaign, opens a new one, and stamps `campaigns.last_session_at`. */
+  openSession(campaignId: string): Promise<{ session: Session; previous: Session | null }>;
+  closeSession(id: string): Promise<Session>;
+  getSession(id: string): Promise<Session | null>;
+  recordReads(sessionId: string, entityIds: string[]): Promise<void>;
+  hasRead(sessionId: string, entityId: string): Promise<boolean>;
+
   // lookup
   resolveEntity(worldId: string, ref: string, opts?: { campaignId?: string | null }): Promise<Resolution>;
   search(worldId: string, query: string, opts?: { campaignId?: string | null; type?: EntityType; limit?: number }): Promise<SearchHit[]>;
 
   // history
-  listVersions(filter?: { objectType?: ObjectType; objectId?: string }): Promise<Version[]>;
+  listVersions(filter?: { objectType?: ObjectType; objectId?: string; author?: Author; since?: string }): Promise<Version[]>;
+  getVersion(id: string): Promise<Version | null>;
 
   close(): void;
 }
 
 export class StorageError extends Error {
   constructor(
-    public readonly code: "not_found" | "duplicate" | "invalid",
+    public readonly code: "not_found" | "duplicate" | "invalid" | "closed",
     message: string,
   ) {
     super(message);

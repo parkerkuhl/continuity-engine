@@ -1,10 +1,15 @@
-import { and, asc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { openDb, type Db } from "../db";
 import {
   ApprovalMode,
   CampaignSettings,
+  ConflictRef,
+  RulingOrigin,
+  Severity,
+  UpdateStatus,
+  UpdateType,
   DEFAULT_SEVERITY_POLICY,
   Depth,
   EntityType,
@@ -20,6 +25,14 @@ import { hasLevel2Heading } from "../markdown/sections";
 import {
   StorageError,
   type Campaign,
+  type CampaignPatch,
+  type Ruling,
+  type Scene,
+  type ScenePatch,
+  type Session,
+  type Update,
+  type UpdatePatch,
+  type NewUpdate,
   type Entity,
   type EntityPage,
   type EntityPatch,
@@ -64,7 +77,26 @@ function checkBody(body: string): string {
 }
 
 export class SqliteStorage implements Storage {
+  private lastStamp = "";
+
   constructor(private readonly db: Db) {}
+
+  /** Strictly increasing ISO-8601 timestamps, so "since" comparisons never tie. */
+  private stamp(): string {
+    let t = new Date().toISOString();
+    if (t <= this.lastStamp) t = new Date(Date.parse(this.lastStamp) + 1).toISOString();
+    this.lastStamp = t;
+    return t;
+  }
+
+  /** Every row of every table, for tests that prove a refused write changed nothing. Not on `Storage`. */
+  dump(): Record<string, unknown[]> {
+    const c = this.db.$client;
+    const tables = c
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle%' AND name NOT LIKE 'entities_fts_%' ORDER BY name")
+      .all() as { name: string }[];
+    return Object.fromEntries(tables.map(({ name }) => [name, c.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]));
+  }
 
   static open(path = ":memory:"): SqliteStorage {
     return new SqliteStorage(openDb(path));
@@ -92,6 +124,7 @@ export class SqliteStorage implements Storage {
           author: meta.author,
           editKind: meta.editKind ?? null,
           reason: meta.reason ?? null,
+          createdAt: this.stamp(),
         })
         .run();
       return result;
@@ -192,6 +225,234 @@ export class SqliteStorage implements Storage {
     return this.db.select().from(s.campaigns).where(eq(s.campaigns.worldId, worldId)).orderBy(asc(s.campaigns.name)).all();
   }
 
+  async updateCampaign(id: string, patch: CampaignPatch, meta: WriteMeta): Promise<Campaign> {
+    return this.write("campaign", meta, (tx) => {
+      const before = this.requireCampaign(tx, id);
+      const after: Campaign = { ...before, ...patch };
+      check(ApprovalMode, after.approvalMode, "approval mode");
+      check(SeverityPolicy, after.severityPolicy, "severity policy");
+      check(CampaignSettings, after.settings, "settings");
+      tx.update(s.campaigns).set(patch).where(eq(s.campaigns.id, id)).run();
+      return { result: after, objectId: id, before, after };
+    });
+  }
+
+  private requireCampaign(tx: Tx | Db, id: string): Campaign {
+    const c = tx.select().from(s.campaigns).where(eq(s.campaigns.id, id)).get();
+    if (!c) throw new StorageError("not_found", `campaign ${id} not found`);
+    return c;
+  }
+
+  // ---- updates, knowledge, rulings, scenes ----
+
+  async createUpdate(input: NewUpdate, meta: WriteMeta): Promise<Update> {
+    const tags = check(z.array(Kebab), input.tags, "tags");
+    return this.write("update", meta, (tx) => {
+      this.requireCampaign(tx, input.campaignId);
+      for (const eid of [...input.entityIds, ...(input.knows ?? [])]) this.requireEntity(tx, eid);
+      const last = tx
+        .select({ seq: s.updates.seq })
+        .from(s.updates)
+        .where(eq(s.updates.campaignId, input.campaignId))
+        .orderBy(desc(s.updates.seq))
+        .get();
+      const update: Update = {
+        id: randomUUID(),
+        campaignId: input.campaignId,
+        seq: (last?.seq ?? 0) + 1,
+        entityIds: [...new Set(input.entityIds)],
+        tags: [...new Set(tags)],
+        type: check(UpdateType, input.type, "type"),
+        severity: check(Severity, input.severity, "severity"),
+        status: check(UpdateStatus, input.status, "status"),
+        storyTime: input.storyTime ?? null,
+        chapter: input.chapter ?? null,
+        sceneId: input.sceneId ?? null,
+        bodyMd: input.bodyMd.replace(/\s+$/, ""),
+        supersedesId: input.supersedesId ?? null,
+        conflictsWith: input.conflictsWith ? check(ConflictRef, input.conflictsWith, "conflicts_with") : null,
+        author: meta.author,
+      };
+      tx.insert(s.updates).values(update).run();
+      const knows = [...new Set(input.knows ?? [])];
+      if (knows.length) {
+        tx.insert(s.knowledge)
+          .values(knows.map((holderEntityId) => ({ holderEntityId, targetType: "update" as const, targetId: update.id })))
+          .run();
+      }
+      return { result: update, objectId: update.id, before: null, after: { ...update, knows } };
+    });
+  }
+
+  async updateUpdate(id: string, patch: UpdatePatch, meta: WriteMeta): Promise<Update> {
+    return this.write("update", meta, (tx) => {
+      const before = tx.select().from(s.updates).where(eq(s.updates.id, id)).get();
+      if (!before) throw new StorageError("not_found", `update ${id} not found`);
+      const after: Update = { ...before, ...patch };
+      check(UpdateStatus, after.status, "status");
+      check(Severity, after.severity, "severity");
+      tx.update(s.updates).set(patch).where(eq(s.updates.id, id)).run();
+      return { result: after, objectId: id, before, after };
+    });
+  }
+
+  async getUpdate(id: string): Promise<Update | null> {
+    return this.db.select().from(s.updates).where(eq(s.updates.id, id)).get() ?? null;
+  }
+
+  async getUpdateBySeq(campaignId: string, seq: number): Promise<Update | null> {
+    return this.db.select().from(s.updates).where(and(eq(s.updates.campaignId, campaignId), eq(s.updates.seq, seq))).get() ?? null;
+  }
+
+  async listUpdates(campaignId: string, filter: { entityId?: string; status?: Update["status"][] } = {}): Promise<Update[]> {
+    const conds: SQL[] = [eq(s.updates.campaignId, campaignId)];
+    if (filter.status?.length) conds.push(inArray(s.updates.status, filter.status));
+    const rows = this.db.select().from(s.updates).where(and(...conds)).orderBy(asc(s.updates.seq)).all();
+    return filter.entityId ? rows.filter((u) => u.entityIds.includes(filter.entityId!)) : rows;
+  }
+
+  async listKnowers(targetType: "update" | "section", targetId: string): Promise<string[]> {
+    return this.db
+      .select({ id: s.knowledge.holderEntityId })
+      .from(s.knowledge)
+      .where(and(eq(s.knowledge.targetType, targetType), eq(s.knowledge.targetId, targetId)))
+      .all()
+      .map((r) => r.id);
+  }
+
+  async createRuling(
+    input: { worldId: string; campaignId?: string | null; text: string; origin: Ruling["origin"] },
+    meta: WriteMeta,
+  ): Promise<Ruling> {
+    if (!input.text.trim()) throw new StorageError("invalid", "ruling text is required");
+    const ruling: Ruling = {
+      id: randomUUID(),
+      worldId: input.worldId,
+      campaignId: input.campaignId ?? null,
+      text: input.text,
+      origin: check(RulingOrigin, input.origin, "origin"),
+      createdAt: this.stamp(),
+    };
+    return this.write("ruling", meta, (tx) => {
+      this.requireWorld(tx, input.worldId);
+      if (ruling.campaignId) this.requireCampaign(tx, ruling.campaignId);
+      tx.insert(s.rulings).values(ruling).run();
+      return { result: ruling, objectId: ruling.id, before: null, after: ruling };
+    });
+  }
+
+  async listRulings(worldId: string, campaignId?: string | null): Promise<Ruling[]> {
+    const scope = campaignId ? or(isNull(s.rulings.campaignId), eq(s.rulings.campaignId, campaignId)) : isNull(s.rulings.campaignId);
+    return this.db
+      .select()
+      .from(s.rulings)
+      .where(and(eq(s.rulings.worldId, worldId), scope))
+      .orderBy(asc(s.rulings.createdAt))
+      .all();
+  }
+
+  async createScene(
+    input: { campaignId: string; chapter: number; placeEntityId?: string | null; presentEntityIds?: string[] },
+    meta: WriteMeta,
+  ): Promise<Scene> {
+    return this.write("scene", meta, (tx) => {
+      this.requireCampaign(tx, input.campaignId);
+      const last = tx
+        .select({ number: s.scenes.number })
+        .from(s.scenes)
+        .where(and(eq(s.scenes.campaignId, input.campaignId), eq(s.scenes.chapter, input.chapter)))
+        .orderBy(desc(s.scenes.number))
+        .get();
+      const scene: Scene = {
+        id: randomUUID(),
+        campaignId: input.campaignId,
+        chapter: input.chapter,
+        number: (last?.number ?? 0) + 1,
+        placeEntityId: input.placeEntityId ?? null,
+        presentEntityIds: input.presentEntityIds ?? [],
+        summaryMd: "",
+        startedAt: this.stamp(),
+        loggedAt: null,
+      };
+      tx.insert(s.scenes).values(scene).run();
+      return { result: scene, objectId: scene.id, before: null, after: scene };
+    });
+  }
+
+  async updateScene(id: string, patch: ScenePatch, meta: WriteMeta): Promise<Scene> {
+    return this.write("scene", meta, (tx) => {
+      const before = tx.select().from(s.scenes).where(eq(s.scenes.id, id)).get();
+      if (!before) throw new StorageError("not_found", `scene ${id} not found`);
+      const after: Scene = { ...before, ...patch };
+      tx.update(s.scenes).set(patch).where(eq(s.scenes.id, id)).run();
+      return { result: after, objectId: id, before, after };
+    });
+  }
+
+  async getLatestScene(campaignId: string): Promise<Scene | null> {
+    return (
+      this.db
+        .select()
+        .from(s.scenes)
+        .where(eq(s.scenes.campaignId, campaignId))
+        .orderBy(desc(s.scenes.startedAt))
+        .get() ?? null
+    );
+  }
+
+  // ---- sessions and reads (bookkeeping: no versions row) ----
+
+  async openSession(campaignId: string): Promise<{ session: Session; previous: Session | null }> {
+    return this.db.transaction((tx) => {
+      this.requireCampaign(tx, campaignId);
+      const previous =
+        tx.select().from(s.sessions).where(eq(s.sessions.campaignId, campaignId)).orderBy(desc(s.sessions.openedAt)).get() ?? null;
+      const at = this.stamp();
+      tx.update(s.sessions)
+        .set({ closedAt: at })
+        .where(and(eq(s.sessions.campaignId, campaignId), isNull(s.sessions.closedAt)))
+        .run();
+      const session: Session = { id: randomUUID(), campaignId, openedAt: at, closedAt: null };
+      tx.insert(s.sessions).values(session).run();
+      tx.update(s.campaigns).set({ lastSessionAt: at }).where(eq(s.campaigns.id, campaignId)).run();
+      return { session, previous };
+    });
+  }
+
+  async closeSession(id: string): Promise<Session> {
+    const session = await this.getSession(id);
+    if (!session) throw new StorageError("not_found", `session ${id} not found`);
+    if (session.closedAt) return session;
+    const closed = { ...session, closedAt: this.stamp() };
+    this.db.update(s.sessions).set({ closedAt: closed.closedAt }).where(eq(s.sessions.id, id)).run();
+    return closed;
+  }
+
+  async getSession(id: string): Promise<Session | null> {
+    return this.db.select().from(s.sessions).where(eq(s.sessions.id, id)).get() ?? null;
+  }
+
+  async recordReads(sessionId: string, entityIds: string[]): Promise<void> {
+    if (!entityIds.length) return;
+    this.db.transaction((tx) => {
+      const session = tx.select().from(s.sessions).where(eq(s.sessions.id, sessionId)).get();
+      if (!session) throw new StorageError("not_found", `session ${sessionId} not found`);
+      if (session.closedAt) throw new StorageError("closed", `session ${sessionId} is closed`);
+      const at = this.stamp();
+      tx.insert(s.reads)
+        .values([...new Set(entityIds)].map((entityId) => ({ sessionId, entityId, readAt: at })))
+        .run();
+    });
+  }
+
+  async hasRead(sessionId: string, entityId: string): Promise<boolean> {
+    return !!this.db
+      .select({ e: s.reads.entityId })
+      .from(s.reads)
+      .where(and(eq(s.reads.sessionId, sessionId), eq(s.reads.entityId, entityId)))
+      .get();
+  }
+
   // ---- entities and sections ----
 
   async createEntity(input: NewEntity, meta: WriteMeta): Promise<EntityPage> {
@@ -269,6 +530,10 @@ export class SqliteStorage implements Storage {
       this.refreshFts(tx, before.entityId);
       return { result: after, objectId: id, before, after };
     });
+  }
+
+  async getSection(id: string): Promise<Section | null> {
+    return this.db.select().from(s.sections).where(eq(s.sections.id, id)).get() ?? null;
   }
 
   async getEntity(id: string): Promise<Entity | null> {
@@ -418,15 +683,23 @@ export class SqliteStorage implements Storage {
 
   // ---- history ----
 
-  async listVersions(filter: { objectType?: ObjectType; objectId?: string } = {}): Promise<Version[]> {
+  async getVersion(id: string): Promise<Version | null> {
+    return this.db.select().from(s.versions).where(eq(s.versions.id, id)).get() ?? null;
+  }
+
+  async listVersions(
+    filter: { objectType?: ObjectType; objectId?: string; author?: Version["author"]; since?: string } = {},
+  ): Promise<Version[]> {
     const conds: SQL[] = [];
+    if (filter.author) conds.push(eq(s.versions.author, filter.author));
+    if (filter.since) conds.push(gt(s.versions.createdAt, filter.since));
     if (filter.objectType) conds.push(eq(s.versions.objectType, filter.objectType));
     if (filter.objectId) conds.push(eq(s.versions.objectId, filter.objectId));
     return this.db
       .select()
       .from(s.versions)
       .where(conds.length ? and(...conds) : undefined)
-      .orderBy(asc(s.versions.createdAt), asc(sql`rowid`))
+      .orderBy(asc(s.versions.createdAt))
       .all();
   }
 }
