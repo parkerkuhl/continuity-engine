@@ -6,7 +6,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const OPEN = [/^\/login/, /^\/auth\//, /^\/\.well-known\//, /^\/oauth\/(token|register)/, /^\/mcp/, /^\/_next\//, /^\/favicon/];
+const OPEN = [/^\/healthz/, /^\/login/, /^\/auth\//, /^\/\.well-known\//, /^\/oauth\/(token|register)/, /^\/mcp/, /^\/_next\//, /^\/favicon/];
 
 export async function middleware(req: NextRequest) {
   if (!process.env.CONTINUITY_DATABASE_URL) return NextResponse.next();
