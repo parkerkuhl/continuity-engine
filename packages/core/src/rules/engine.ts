@@ -71,6 +71,27 @@ export interface ChangeGroup {
   changes: Version[];
 }
 
+/**
+ * Each stored tag and its type: `time` for ch-NN, otherwise the type of the entity it names. Tags are a
+ * fixed set of types for now (Parker, 2026-11-24); free-form tags are planned for later.
+ */
+export type TagTypes = Record<string, "time" | Entity["type"]>;
+
+export interface ChangelogEntry {
+  at: string;
+  author: "ai" | "user";
+  editKind: "retcon" | "forward" | null;
+  reason: string | null;
+  objectType: Version["objectType"];
+  objectId: string;
+  /** Entity slugs the change touches, or a group name such as "rulings" or "scenes". */
+  about: string[];
+  action: "created" | "changed";
+  /** Fields that differ between before and after; empty for a creation. */
+  fields: string[];
+  versionId: string;
+}
+
 export interface CampaignOpened {
   session: Session;
   campaign: Campaign;
@@ -88,7 +109,7 @@ export interface SceneContext {
 }
 
 export type UpdateResult =
-  | { index: number; ok: true; update: Update; status: UpdateStatus; forcedMajor: boolean }
+  | { index: number; ok: true; update: Update; status: UpdateStatus; forcedMajor: boolean; tagTypes: TagTypes }
   | { index: number; ok: false; refusal: Refusal };
 
 export interface SceneLogged {
@@ -142,54 +163,87 @@ export class RulesEngine {
 
   /** Every user-authored version after `since` that belongs to this campaign or its world, grouped by entity. */
   async changeFeed(campaign: Campaign, since: string): Promise<ChangeGroup[]> {
-    const versions = await this.storage.listVersions({ author: "user", since });
     const groups = new Map<string, ChangeGroup>();
-    const add = (key: string, entity: Entity | null, label: string, v: Version) => {
-      const g = groups.get(key) ?? { entity, label, changes: [] };
-      g.changes.push(v);
-      groups.set(key, g);
-    };
-    const inScope = (e: Entity | null) => !!e && e.worldId === campaign.worldId && (e.campaignId === null || e.campaignId === campaign.id);
-
-    for (const v of versions) {
-      const snap = (v.after ?? v.before) as Record<string, unknown> | null;
-      switch (v.objectType) {
-        case "entity": {
-          const e = await this.storage.getEntity(v.objectId);
-          if (inScope(e)) add(e!.id, e, e!.slug, v);
-          break;
-        }
-        case "section": {
-          const sec = snap as unknown as Section;
-          if (sec.campaignId && sec.campaignId !== campaign.id) break;
-          const e = await this.storage.getEntity(sec.entityId);
-          if (inScope(e)) add(e!.id, e, e!.slug, v);
-          break;
-        }
-        case "update": {
-          const u = snap as unknown as Update;
-          if (u.campaignId !== campaign.id) break;
-          if (!u.entityIds.length) add("(updates)", null, "updates", v);
-          for (const id of u.entityIds) {
-            const e = await this.storage.getEntity(id);
-            if (e) add(e.id, e, e.slug, v);
-          }
-          break;
-        }
-        case "ruling": {
-          const r = snap as unknown as Ruling;
-          if (r.worldId === campaign.worldId && (r.campaignId === null || r.campaignId === campaign.id)) add("(rulings)", null, "rulings", v);
-          break;
-        }
-        case "campaign":
-          if (v.objectId === campaign.id) add("(campaign)", null, "campaign settings", v);
-          break;
-        case "world":
-          if (v.objectId === campaign.worldId) add("(world)", null, "world", v);
-          break;
+    for (const v of await this.storage.listVersions({ author: "user", since })) {
+      for (const place of await this.placesOf(v, campaign)) {
+        const g = groups.get(place.key) ?? { entity: place.entity, label: place.label, changes: [] };
+        g.changes.push(v);
+        groups.set(place.key, g);
       }
     }
     return [...groups.values()];
+  }
+
+  /**
+   * The changelog: every change, AI and user, to this campaign and its world, oldest first.
+   * Built from `versions`, so nothing is ever missing from it.
+   */
+  async changelog(campaignId: string, opts: { since?: string; author?: "ai" | "user" } = {}): Promise<Result<ChangelogEntry[]>> {
+    const campaign = await this.storage.getCampaign(campaignId);
+    if (!campaign) return refuse("not_found", `No campaign ${campaignId}.`);
+    const entries: ChangelogEntry[] = [];
+    for (const v of await this.storage.listVersions({ ...(opts.since && { since: opts.since }), ...(opts.author && { author: opts.author }) })) {
+      const places = await this.placesOf(v, campaign);
+      if (!places.length) continue;
+      entries.push({
+        at: v.createdAt,
+        author: v.author,
+        editKind: v.editKind,
+        reason: v.reason,
+        objectType: v.objectType,
+        objectId: v.objectId,
+        about: places.map((p) => p.label),
+        action: v.before === null ? "created" : "changed",
+        fields: changedFields(v.before, v.after),
+        versionId: v.id,
+      });
+    }
+    return ok(entries);
+  }
+
+  /** Where a version belongs for this campaign: one entry per entity it touches, or none if out of scope. */
+  private async placesOf(v: Version, campaign: Campaign): Promise<{ key: string; entity: Entity | null; label: string }[]> {
+    const snap = (v.after ?? v.before) as Record<string, unknown> | null;
+    const inScope = (e: Entity | null): e is Entity =>
+      !!e && e.worldId === campaign.worldId && (e.campaignId === null || e.campaignId === campaign.id);
+    const forEntity = (e: Entity) => [{ key: e.id, entity: e, label: e.slug }];
+    switch (v.objectType) {
+      case "entity": {
+        const e = await this.storage.getEntity(v.objectId);
+        return inScope(e) ? forEntity(e) : [];
+      }
+      case "section": {
+        const sec = snap as unknown as Section;
+        if (sec.campaignId && sec.campaignId !== campaign.id) return [];
+        const e = await this.storage.getEntity(sec.entityId);
+        return inScope(e) ? forEntity(e) : [];
+      }
+      case "update": {
+        const u = snap as unknown as Update;
+        if (u.campaignId !== campaign.id) return [];
+        if (!u.entityIds.length) return [{ key: "(updates)", entity: null, label: "updates" }];
+        const out = [];
+        for (const id of u.entityIds) {
+          const e = await this.storage.getEntity(id);
+          if (e) out.push(...forEntity(e));
+        }
+        return out;
+      }
+      case "ruling": {
+        const r = snap as unknown as Ruling;
+        return r.worldId === campaign.worldId && (r.campaignId === null || r.campaignId === campaign.id)
+          ? [{ key: "(rulings)", entity: null, label: "rulings" }]
+          : [];
+      }
+      case "scene":
+        return (snap as unknown as Scene).campaignId === campaign.id ? [{ key: "(scenes)", entity: null, label: "scenes" }] : [];
+      case "campaign":
+        return v.objectId === campaign.id ? [{ key: "(campaign)", entity: null, label: "campaign settings" }] : [];
+      case "world":
+        return v.objectId === campaign.worldId ? [{ key: "(world)", entity: null, label: "world" }] : [];
+      default:
+        return [];
+    }
   }
 
   // ================= reads =================
@@ -243,7 +297,9 @@ export class RulesEngine {
 
   /**
    * AI edit of a page during play. Needs a read this session; refused on user-locked sections.
-   * Section edits go to the campaign layer, so world canon is untouched.
+   * Edits apply directly to the page (Parker's call, 2026-11-24): an existing section is changed where it
+   * lives, and a new section joins the entity's own layer. Every edit is a `versions` row, so it shows in
+   * `changelog`.
    */
   async editEntity(input: { sessionId: string; entity: string; summary?: string; sections?: SectionEdit[] }): Promise<Result<EntityPage>> {
     const open = await this.openSession(input.sessionId);
@@ -280,26 +336,21 @@ export class RulesEngine {
     }
 
     if (input.summary !== undefined) {
-      await this.storage.updateEntity(entity.id, { summary: input.summary }, AI("edit_entity"));
+      await this.storage.updateEntity(entity.id, { summary: input.summary }, AI(`edit_entity in campaign "${campaign.name}"`));
     }
     for (const { edit, world, overlay } of edits) {
-      if (overlay) {
+      const target = overlay ?? world;
+      if (target) {
         await this.storage.updateSection(
-          overlay.id,
+          target.id,
           { ...(edit.heading && { heading: edit.heading }), ...(edit.body !== undefined && { bodyMd: edit.body }), ...(edit.visibility && { visibility: edit.visibility }) },
-          AI("edit_entity"),
+          AI(`edit_entity in campaign "${campaign.name}"`),
         );
       } else {
         await this.storage.addSection(
           entity.id,
-          {
-            campaignId: campaign.id,
-            key: edit.key,
-            heading: edit.heading ?? world!.heading,
-            bodyMd: edit.body ?? world?.bodyMd ?? "",
-            visibility: edit.visibility ?? world?.visibility ?? "public",
-          },
-          AI("edit_entity"),
+          { campaignId: entity.campaignId, key: edit.key, heading: edit.heading!, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
+          AI(`edit_entity in campaign "${campaign.name}"`),
         );
       }
     }
@@ -327,7 +378,7 @@ export class RulesEngine {
     }
 
     // Check every update before writing anything, so a refusal never depends on write order.
-    const prepared: ({ ok: true; value: NewUpdate & { forcedMajor: boolean } } | { ok: false; refusal: Refusal })[] = [];
+    const prepared: ({ ok: true; value: NewUpdate & { forcedMajor: boolean; tagTypes: TagTypes } } | { ok: false; refusal: Refusal })[] = [];
     for (const raw of input.updates) prepared.push(await this.prepareUpdate(campaign, input.sessionId, raw));
 
     let scene = await this.unloggedScene(campaign.id);
@@ -351,9 +402,9 @@ export class RulesEngine {
         results.push({ index, ok: false, refusal: p.refusal });
         continue;
       }
-      const { forcedMajor, ...newUpdate } = p.value;
+      const { forcedMajor, tagTypes, ...newUpdate } = p.value;
       const update = await this.storage.createUpdate({ ...newUpdate, sceneId: scene.id }, AI("log_scene"));
-      results.push({ index, ok: true, update, status: update.status, forcedMajor });
+      results.push({ index, ok: true, update, status: update.status, forcedMajor, tagTypes });
     }
     return ok({ scene, results });
   }
@@ -363,7 +414,7 @@ export class RulesEngine {
     campaign: Campaign,
     sessionId: string,
     raw: UpdateInput,
-  ): Promise<{ ok: true; value: NewUpdate & { forcedMajor: boolean } } | { ok: false; refusal: Refusal }> {
+  ): Promise<{ ok: true; value: NewUpdate & { forcedMajor: boolean; tagTypes: TagTypes } } | { ok: false; refusal: Refusal }> {
     const parsed = UpdateInput.safeParse(raw);
     if (!parsed.success) return refuse("invalid", `Update: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
     const u = parsed.data;
@@ -374,22 +425,25 @@ export class RulesEngine {
     if (!knows.ok) return knows;
 
     const tags: string[] = [];
+    const tagTypes: TagTypes = {};
     for (const tag of u.tags) {
       if (!Kebab.safeParse(tag).success) {
         return refuse("invalid_tag", `Tag "${tag}" must be lowercase kebab-case, e.g. "${slugish(tag)}".`, { ref: tag });
       }
       if (TIME_TAG.test(tag)) {
         tags.push(tag);
+        tagTypes[tag] = "time";
         continue;
       }
       const r = await this.resolve(campaign, tag);
       if (!r.ok) {
-        return refuse("invalid_tag", `Tag "${tag}" isn't a time tag (ch-NN) or a known entity. ${r.refusal.message}`, {
+        return refuse("invalid_tag", `Tag "${tag}" isn't a time tag (ch-NN) or a known character, place, faction, item, event, concept or rule. Free-form tags aren't supported yet. ${r.refusal.message}`, {
           ref: tag,
           suggestions: r.refusal.suggestions ?? [],
         });
       }
       tags.push(r.value.slug);
+      tagTypes[r.value.slug] = r.value.type;
     }
 
     for (const e of entities.value) {
@@ -437,6 +491,7 @@ export class RulesEngine {
       conflictsWith,
       knows: knows.value.map((e) => e.id),
       forcedMajor,
+      tagTypes,
     });
   }
 
@@ -639,6 +694,26 @@ export function statusFor(campaign: Pick<Campaign, "approvalMode" | "severityPol
 
 function unloggedWarning(scene: Scene): string {
   return `Scene ch-${String(scene.chapter).padStart(2, "0")}-s${scene.number} was never logged. Call log_scene for it before narrating.`;
+}
+
+function changedFields(before: unknown, after: unknown): string[] {
+  if (!before || !after) return [];
+  const b = before as Record<string, unknown>;
+  const a = after as Record<string, unknown>;
+  return Object.keys(a).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
+}
+
+/** The changelog as compact Markdown, one line per change. */
+export function formatChangelog(entries: ChangelogEntry[]): string {
+  if (!entries.length) return "_No changes._";
+  return entries
+    .map((e) => {
+      const what = e.action === "created" ? `${e.objectType} created` : `${e.objectType} changed (${e.fields.join(", ") || "no fields"})`;
+      const kind = e.editKind ? `, ${e.editKind}` : "";
+      const why = e.reason ? `: ${e.reason}` : "";
+      return `- ${e.at.slice(0, 16).replace("T", " ")} · ${e.author.toUpperCase()}${kind} · ${e.about.join(", ")} · ${what}${why}`;
+    })
+    .join("\n");
 }
 
 function dedupe(es: Entity[]): Entity[] {

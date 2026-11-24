@@ -3,7 +3,7 @@
 //  - A write refused by a rule changes nothing in storage
 // Each `describe` below is one rule. Refused paths compare a dump of every table before and after.
 import { describe, expect, it } from "vitest";
-import { RulesEngine, SqliteStorage, type Campaign, type UpdateInput } from "../src";
+import { RulesEngine, SqliteStorage, formatChangelog, type Campaign, type UpdateInput } from "../src";
 import { AI, USER, seed, setup } from "./helpers";
 
 async function game(approvalMode: Campaign["approvalMode"] = "autopilot") {
@@ -102,6 +102,7 @@ describe("Rule: alias resolution", () => {
     if (!res.ok) throw new Error(res.refusal.message);
     expect(res.update.entityIds).toEqual([g.rickard.id]);
     expect(res.update.tags).toEqual(["volantis", "golden-company", "ch-12"]);
+    expect(res.tagTypes).toEqual({ volantis: "place", "golden-company": "faction", "ch-12": "time" });
     expect(await g.storage.listKnowers("update", res.update.id)).toEqual([g.company.id]);
     expect(r.value.scene).toMatchObject({ presentEntityIds: [g.rickard.id, g.company.id], placeEntityId: g.volantis.id });
   });
@@ -120,7 +121,9 @@ describe("Rule: alias resolution", () => {
   it("refused: an unknown tag or a non-kebab tag", async () => {
     const g = await game();
     await g.engine.getContext({ sessionId: g.sessionId, present: ["rickard-snow"] });
-    expect(await logOne(g, fact({ tags: ["braavos"] }))).toMatchObject({ ok: false, refusal: { rule: "invalid_tag" } });
+    const freeForm = await logOne(g, fact({ tags: ["braavos"] }));
+    expect(freeForm).toMatchObject({ ok: false, refusal: { rule: "invalid_tag" } });
+    expect(!freeForm.ok && freeForm.refusal.message).toMatch(/Free-form tags aren't supported yet/);
     expect(await logOne(g, fact({ tags: ["Ch 12"] }))).toMatchObject({ ok: false, refusal: { rule: "invalid_tag" } });
     expect(await g.storage.listUpdates(g.campaign.id)).toEqual([]);
   });
@@ -138,9 +141,9 @@ describe("Rule: precedence", () => {
     const g = await game("mixed"); // minor -> confirmed, major -> proposed
     // rank 1: a user-edited world section
     await g.engine.userEditSection({ entityId: g.rickard.id, key: "wants", body: "A pardon.", editKind: "retcon" });
-    // rank 2: a campaign overlay section, and a confirmed update
+    // rank 2: a campaign-layer section, and a confirmed update
+    await g.storage.addSection(g.rickard.id, { campaignId: g.campaign.id, heading: "Hiding", bodyMd: "Campaign secret." }, AI);
     await g.engine.readEntity({ sessionId: g.sessionId, ref: "rickard-snow" });
-    await g.engine.editEntity({ sessionId: g.sessionId, entity: "rickard-snow", sections: [{ key: "hiding", body: "Campaign secret." }] });
     await logOne(g, fact({ severity: "minor", body: "Limps." }));
     // rank 4: a proposed update
     await logOne(g, fact({ severity: "major", body: "Lost the arm." }));
@@ -242,13 +245,17 @@ describe("Rule: forced-major types", () => {
 });
 
 describe("Rule: user locks", () => {
-  it("allowed: an AI edit to an unlocked section goes to the campaign layer and leaves world canon alone", async () => {
+  it("allowed: an AI edit to an unlocked section is applied to the page directly and logged in the changelog", async () => {
     const g = await game();
     await g.engine.readEntity({ sessionId: g.sessionId, ref: "rickard-snow" });
     const r = await g.engine.editEntity({ sessionId: g.sessionId, entity: "rickard-snow", sections: [{ key: "wants", body: "Revenge." }] });
     if (!r.ok) throw new Error(r.refusal.message);
-    expect(r.value.sections.find((s) => s.key === "wants")).toMatchObject({ bodyMd: "Revenge.", campaignId: g.campaign.id });
-    expect((await g.storage.getPage(g.rickard.id))!.sections.find((s) => s.key === "wants")!.bodyMd).toMatch(/^Land of his own/);
+    const wants = (await g.storage.getPage(g.rickard.id))!.sections.find((s) => s.key === "wants")!;
+    expect(wants).toMatchObject({ bodyMd: "Revenge.", campaignId: null, lockedByUser: false });
+    const log = await g.engine.changelog(g.campaign.id, { author: "ai" });
+    if (!log.ok) throw new Error();
+    expect(log.value.at(-1)).toMatchObject({ objectType: "section", objectId: wants.id, about: ["rickard-snow"], action: "changed", fields: ["bodyMd"] });
+    expect(log.value.at(-1)!.reason).toContain("Run 1");
   });
 
   it("refused: once the user edits a section it is locked, and an AI edit to it is refused with no change", async () => {
@@ -409,6 +416,27 @@ describe("Rule: unlogged scenes", () => {
       [1, true],
       [2, false],
     ]);
+  });
+});
+
+describe("Changelog", () => {
+  it("lists every AI and user change to the campaign and its world, oldest first, and leaves out other campaigns", async () => {
+    const g = await game("autopilot");
+    const other = await g.storage.createCampaign({ worldId: g.world.id, ownerId: g.user.id, name: "Run 2", approvalMode: "batch" }, USER);
+    await g.engine.userEditSection({ entityId: g.rickard.id, key: "wants", body: "A pardon.", editKind: "retcon" });
+    await g.engine.getContext({ sessionId: g.sessionId, present: ["rickard-snow"] });
+    await logOne(g, fact());
+    await g.engine.userEditSection({ entityId: g.rickard.id, key: "notes", campaignId: other.id, heading: "Notes", body: "Run 2 only.", editKind: "forward" });
+
+    const log = await g.engine.changelog(g.campaign.id);
+    if (!log.ok) throw new Error();
+    const lines = log.value.map((e) => `${e.author}:${e.objectType}:${e.action}`);
+    const start = lines.indexOf("user:section:changed");
+    expect(lines.slice(start)).toEqual(["user:section:changed", "ai:scene:created", "ai:scene:changed", "ai:update:created"]);
+    expect(log.value.map((e) => e.at)).toEqual([...log.value.map((e) => e.at)].sort());
+    expect(log.value.some((e) => e.reason === null && e.about.includes("rickard-snow") && e.editKind === "retcon")).toBe(true);
+    expect(log.value.some((e) => e.editKind === "forward")).toBe(false); // Run 2's edit is left out
+    expect(formatChangelog(log.value)).toMatch(/USER, retcon · rickard-snow · section changed \(bodyMd, lockedByUser\)/);
   });
 });
 
