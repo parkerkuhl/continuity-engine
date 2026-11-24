@@ -15,7 +15,7 @@ function shape(tables: unknown[], config: (t: never) => ReturnType<typeof pgConf
     out[c.name] = {
       columns: Object.fromEntries(c.columns.map((col) => [col.name, { notNull: col.notNull, primary: col.primary }])),
       pk: c.primaryKeys.map((k) => k.columns.map((col) => col.name)),
-      indexes: c.indexes.map((i) => i.config.name).sort(),
+      indexes: c.indexes.map((i) => i.config.name ?? "").sort(),
     };
   }
   return out;
