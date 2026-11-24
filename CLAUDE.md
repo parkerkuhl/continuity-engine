@@ -78,16 +78,17 @@ pnpm --filter @continuity/mcp build          # bundle the MCP server for Claude 
 
 - [x] **Milestone 1, Storage core** (done 2026-11-23, PR #2): monorepo scaffold, Drizzle schema and migrations, storage interface, one `versions` row per write, alias resolution, FTS5 search, Markdown export and import of a world.
 - [x] **Milestone 2, Rules engine** (done 2026-11-24, PR #3): sessions and reads, every server-enforced rule, changelog, tag types.
-- [ ] **Milestone 3, MCP server (local)** (current)
-- [ ] Milestones 4 to 8: see SPEC "Build plan".
+- [x] **Milestone 3, MCP server (local)** (accepted 2026-11-24, PR #4; Parker still runs the Claude Desktop check by hand): stdio server with every SPEC tool, `GM ONLY` block, README setup.
+- [ ] **Milestone 4, Prompt modules** (current)
+- [ ] Milestones 5 to 8: see SPEC "Build plan".
 
-## Current milestone: Milestone 3, MCP server (local)
+## Current milestone: Milestone 4, Prompt modules
 
-Scope: a stdio MCP server in `apps/mcp` exposing every tool in SPEC "MCP tools", with Zod schemas, compact Markdown results, and the `GM ONLY` block. Document how to add it to Claude Desktop.
+Scope: the four GM prompt modules in `prompts/` (SPEC "GM prompt refactor"): `00-protocol.md` (when to call each tool, always loaded), `10-worldbuilding.md` (Phase 0 paths A, B, C), `20-intake.md` (Phases 1 and 2, hidden story design), `30-play.md` (priority order, narration, interior voice, voice audit, companions, mechanics, OOC commands). The storytelling rules come from the existing GM prompt; its storage duties (ledger, chapter-end restatement, file-read tracking, load-guide lookup, save blocks) are removed because the server does them. `(OOC) save` confirms the last scene is logged; `ledger`, `recap`, `rulings`, `sheet` and `canon` call the tools (player view where answers are limited to what the character knows).
 
-Acceptance checks:
+Every tool name and argument a module mentions must match `apps/mcp/src/server.ts`; `apps/mcp/test/m4-prompts.test.ts` checks this.
 
-- [ ] From Claude Desktop: create a world and entities, open a campaign, get context, log a scene
-- [ ] A refusal (unread entity, locked section, unknown alias) shows Claude a message that says how to fix it
+Acceptance checks (Parker plays one short chapter by hand):
 
-Tools call `RulesEngine` methods only; each returns compact Markdown for Claude plus a small JSON status, and every write reports what was stored and whether it is `proposed` or `confirmed`.
+- [ ] Every scene in the chapter was logged without a reminder
+- [ ] A new chat resumes the campaign from `open_campaign` alone, with no save block
