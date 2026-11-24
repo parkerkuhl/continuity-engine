@@ -139,6 +139,13 @@ export async function editAliases(_: ActionState, f: FormData): Promise<ActionSt
   return done(f, "Aliases saved.");
 }
 
+/** Upgrade an unverified page once the user has checked it (SPEC Phase 0, path C). */
+export async function markCanon(_: ActionState, f: FormData): Promise<ActionState> {
+  const r = await app().engine.userEditEntity({ entityId: req(f, "entityId"), patch: { source: "canon" }, reason: "checked by the user" });
+  if (!r.ok) return fail(r.refusal.message);
+  return done(f, "Marked as canon. The GM no longer sees it labeled unverified.");
+}
+
 export async function restoreVersion(_: ActionState, f: FormData): Promise<ActionState> {
   const kind = editKind(f);
   if (!kind) return fail("Choose retcon or change from now on.");

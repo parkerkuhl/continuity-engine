@@ -132,7 +132,24 @@ export interface ImportReport {
     duplicateOf: string | null;
     /** fields where the file disagrees with the existing page */
     disagreements: { field: string; existing: string; incoming: string }[];
+    /** aliases this item adds to the existing page it duplicates */
+    newAliases: string[];
+    /** the same entity in another file of this world's pending imports, or earlier in this file */
+    alsoIn: { importId: string; title: string; index: number; name: string; disagreements: { field: string; existing: string; incoming: string }[] }[];
   }[];
+}
+
+/** Where an incoming import item disagrees with an existing page or another file's item: type, summary, same-key sections. */
+function compareItem(existing: { type: Entity["type"]; summary: string; sections: { key: string; body: string }[] }, e: ImportItemInput) {
+  const out: { field: string; existing: string; incoming: string }[] = [];
+  if (existing.type !== e.type) out.push({ field: "type", existing: existing.type, incoming: e.type });
+  if (e.summary?.trim() && existing.summary.trim() && e.summary.trim() !== existing.summary.trim()) out.push({ field: "summary", existing: existing.summary, incoming: e.summary });
+  for (const sec of e.sections ?? []) {
+    const key = sec.key ?? slugify(sec.heading);
+    const have = existing.sections.find((x) => x.key === key);
+    if (have && have.body.trim() !== sec.body.trim()) out.push({ field: `section ${key}`, existing: have.body, incoming: sec.body });
+  }
+  return out;
 }
 
 export interface ChapterClosed {
@@ -779,29 +796,45 @@ export class RulesEngine {
 
   private imports = new Map<string, PendingImport>();
 
-  /** Checks Claude's split of a file against the wiki. Writes nothing until confirm_import. */
+  /**
+   * Checks Claude's split of a file against the wiki. Writes nothing until confirm_import.
+   * A multi-file bible is several imports: each item is also checked against this world's other
+   * pending imports (and earlier items in the same file), so a character described in two files
+   * is flagged before either is confirmed.
+   */
   async importDocument(input: { worldId: string; title: string; entities: ImportItemInput[] }): Promise<Result<ImportReport>> {
     const world = await this.storage.getWorld(input.worldId);
     if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
-    const items: ImportReport["items"] = [];
     for (const [index, e] of input.entities.entries()) {
       if (!EntityType.safeParse(e.type).success) return refuse("invalid", `Item ${index} ("${e.name}"): type must be one of ${EntityType.options.join(", ")}.`);
-      const dup = await this.findDuplicate(world.id, null, [e.name, ...(e.aliases ?? [])]);
-      const disagreements: ImportReport["items"][number]["disagreements"] = [];
-      if (dup) {
-        const page = (await this.storage.getPage(dup.entity.id))!;
-        if (e.summary && page.summary && e.summary.trim() !== page.summary.trim()) {
-          disagreements.push({ field: "summary", existing: page.summary, incoming: e.summary });
-        }
-        for (const s of e.sections ?? []) {
-          const key = s.key ?? slugify(s.heading);
-          const existing = page.sections.find((x) => x.key === key);
-          if (existing && existing.bodyMd.trim() !== s.body.trim()) disagreements.push({ field: `section ${key}`, existing: existing.bodyMd, incoming: s.body });
-        }
-      }
-      items.push({ index, name: e.name, type: e.type, duplicateOf: dup?.entity.slug ?? null, disagreements });
+      if (!e.name.trim()) return refuse("invalid", `Item ${index} needs a name.`);
     }
     const importId = crypto.randomUUID();
+    const pendingHere = [...this.imports.entries()].filter(([, p]) => p.worldId === world.id);
+    const items: ImportReport["items"] = [];
+    for (const [index, e] of input.entities.entries()) {
+      const dup = await this.findDuplicate(world.id, null, [e.name, ...(e.aliases ?? [])]);
+      let disagreements: ImportReport["items"][number]["disagreements"] = [];
+      let newAliases: string[] = [];
+      if (dup) {
+        const page = (await this.storage.getPage(dup.entity.id))!;
+        disagreements = compareItem({ type: page.type, summary: page.summary, sections: page.sections.map((x) => ({ key: x.key, body: x.bodyMd })) }, e);
+        const known = new Set([page.name, page.slug, ...page.aliases].map(slugify));
+        newAliases = [e.name, ...(e.aliases ?? [])].filter((a) => !known.has(slugify(a)));
+      }
+      const names = new Set([e.name, ...(e.aliases ?? [])].map(slugify));
+      const alsoIn: ImportReport["items"][number]["alsoIn"] = [];
+      const others: [string, string, number, ImportItemInput][] = [
+        ...pendingHere.flatMap(([id, p]) => p.entities.map((x, i) => [id, p.title, i, x] as [string, string, number, ImportItemInput])),
+        ...input.entities.slice(0, index).map((x, i) => [importId, input.title, i, x] as [string, string, number, ImportItemInput]),
+      ];
+      for (const [id, title, i, x] of others) {
+        if (![x.name, ...(x.aliases ?? [])].some((n) => names.has(slugify(n)))) continue;
+        const other = { type: x.type, summary: x.summary ?? "", sections: (x.sections ?? []).map((sec) => ({ key: sec.key ?? slugify(sec.heading), body: sec.body })) };
+        alsoIn.push({ importId: id, title, index: i, name: x.name, disagreements: compareItem(other, e) });
+      }
+      items.push({ index, name: e.name, type: e.type, duplicateOf: dup?.entity.slug ?? null, disagreements, newAliases, alsoIn });
+    }
     this.imports.set(importId, { worldId: world.id, title: input.title, entities: input.entities });
     return ok({ importId, title: input.title, items });
   }

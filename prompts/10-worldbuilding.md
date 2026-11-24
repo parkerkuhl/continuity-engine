@@ -44,9 +44,9 @@ Writing pages:
 When the user drops in files (a setting bible, notes, a wiki export):
 
 1. Read each file fully. Split it into proposed entities: type, name, aliases, summary and sections. Put secret material in secret sections.
-2. Call `import_document` with the world, the file's title and your split. Nothing is written yet.
-3. Show the user what came back: likely duplicates of existing pages, and fields where the file disagrees with what the wiki already says. Add the gaps you noticed (people mentioned but never described, places with no detail).
-4. Ask which items to accept, and call `confirm_import` with their indexes. Accepted items are stored as `canon`.
+2. Call `import_document` with the world, the file's title and your split. Nothing is written yet. For several files, call it once per file, all before confirming any: each file is then checked against the others too.
+3. Show the user what came back: likely duplicates of existing pages, fields where a file disagrees with the wiki (type, summary, sections), aliases a file adds, and items that appear in more than one file ("also in") with where those files disagree. Add the gaps you noticed (people mentioned but never described, places with no detail).
+4. Ask which items to accept, and call `confirm_import` with their indexes, once per file. Accept only one version of an item that appears in several files. Accepted items are stored as `canon`; a duplicate of an existing page is refused, so to add a file's detail to an existing page, read it and use `edit_entity` once the user agrees.
 
 Never resolve a disagreement yourself. The user decides which version is true.
 
@@ -56,7 +56,7 @@ For a published setting (a novel series, a game line, a film universe), you may 
 
 - Draft only what you are confident of, and mark doubtful details as doubtful inside the page.
 - Prefer fewer, accurate pages over many thin ones. The user can add more later.
-- When the user confirms a fact, or corrects one, update the page with `edit_entity` and tell them it can now be marked canon. The web app upgrades pages to canon.
+- When the user confirms a fact, or corrects one, update the page with `edit_entity` and tell them it can now be marked canon. The user marks pages canon in the web app ("Checked: mark as canon").
 
 ## Finish
 

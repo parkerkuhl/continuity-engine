@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Scope, Version } from "@continuity/core";
 import { notFound } from "next/navigation";
-import { addSection, editAliases, editSection, editSummary, restoreVersion, setSectionVisibility } from "@/app/actions";
+import { addSection, editAliases, editSection, editSummary, markCanon, restoreVersion, setSectionVisibility } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
@@ -210,9 +210,12 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
       </div>
 
       {page.source === "unverified" && (
-        <p className="rounded-xl border border-dashed border-warn-dash bg-warn-tint px-5 py-3 font-semibold text-warn">
-          Unverified: drafted from an established setting and not yet checked. The GM sees it labeled as such. Confirm or correct it.
-        </p>
+        <ActionForm action={markCanon} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-warn-dash bg-warn-tint px-5 py-3">
+          <input type="hidden" name="entityId" value={page.id} />
+          <input type="hidden" name="path" value={path} />
+          <p className="font-semibold text-warn">Unverified: drafted from an established setting and not yet checked. The GM sees it labeled as such.</p>
+          <button className="btn btn-sm">Checked: mark as canon</button>
+        </ActionForm>
       )}
 
       <div className="flex flex-wrap items-start gap-6">

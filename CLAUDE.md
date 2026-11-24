@@ -94,20 +94,20 @@ pnpm --filter @continuity/web e2e            # browser acceptance run (build mcp
 - [x] **Milestone 2, Rules engine** (done 2026-11-24, PR #3): sessions and reads, every server-enforced rule, changelog, tag types.
 - [x] **Milestone 3, MCP server (local)** (accepted 2026-11-24, PR #4; Parker still runs the Claude Desktop check by hand): stdio server with every SPEC tool, `GM ONLY` block, README setup.
 - [x] **Milestone 4, Prompt modules** (accepted 2026-11-24, PR #5; Parker still plays the test chapter by hand): the four modules in `prompts/`, plus `update_campaign` and a fuller `open_campaign` (SPEC.md updated with Parker's OK).
-- [ ] **Milestone 5, Web app** (current)
-- [ ] Milestones 6 to 8: see SPEC "Build plan".
+- [x] **Milestone 5, Web app** (accepted 2026-11-24, PR #6): Next.js app in `apps/web` with every SPEC screen, styled to Parker's UI design, plus a per-type entity outline and a profile drawn from play.
+- [ ] **Milestone 6, Phase 0 flows** (current)
+- [ ] Milestones 7 and 8: see SPEC "Build plan".
 
 ## Prompt modules (Milestone 4)
 
 `prompts/` holds the GM prompt as four modules (SPEC "GM prompt refactor"): `00-protocol.md` (when to call each tool, always loaded), `10-worldbuilding.md` (Phase 0), `20-intake.md` (Phases 1 and 2, hidden story design), `30-play.md` (play rules and OOC commands). The storytelling rules come from Parker's GM prompt; its storage duties live in the server. Added in M4 with Parker's OK (SPEC.md updated): an `update_campaign` tool (settings, as-of moment, PC sheet outside a scene), and `open_campaign` also returns every ruling and this chapter's logged scenes. `close_chapter` restarts the voice-audit scene count, since the play module audits at every chapter opening. Every tool name, argument and enum value a module mentions in a code span must match `apps/mcp/src/server.ts`; `apps/mcp/test/m4-prompts.test.ts` checks this.
 
-## Current milestone: Milestone 5, Web app
+## Current milestone: Milestone 6, Phase 0 flows
 
-Scope: a local Next.js app in `apps/web` with the screens in SPEC "Web app screens" (home, wiki browser, entity page, edit confirm, review queue, campaign dashboard, GM notes), reading the same SQLite file as the MCP server through `packages/core` only. The spoiler toggle sits in the top bar on every campaign screen and defaults to off.
+Scope (SPEC "Phase 0: building the world"): the worldbuilding module and the import tools. Guided interview (path A), import of uploaded files with duplicates and disagreements flagged before `confirm_import` (path B), and established-universe skeletons stored as `unverified` and labeled in context (path C).
 
 Acceptance checks:
 
-- [ ] Editing a section locks it, and an AI write to it is then refused
-- [ ] A user edit appears in the next `open_campaign` change feed with its edit kind
-- [ ] Approving in the review queue flips the update to confirmed; restore from history works
-- [ ] Spoiler toggle off hides secret sections, `gm/` notes, and updates the PC doesn't know
+- [ ] A compact world built entirely by interview, every page approved
+- [ ] A multi-file world bible imported, with duplicates and disagreements flagged before confirm
+- [ ] An established-universe skeleton stored as `unverified` and labeled in context

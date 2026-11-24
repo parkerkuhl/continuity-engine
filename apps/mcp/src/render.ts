@@ -120,7 +120,11 @@ function itemText(i: ContextItem): string {
 /** One entity's context. Secret items are returned separately for the GM ONLY block. */
 function entityBlock(ctx: EntityContext): { open: string; secret: string[] } {
   const e = ctx.entity;
-  const open = [`## ${e.name} (${e.type}, ${e.slug})${e.aliases.length ? ` aka ${e.aliases.join(", ")}` : ""}`];
+  const open = [
+    `## ${e.name} (${e.type}, ${e.slug})${e.aliases.length ? ` aka ${e.aliases.join(", ")}` : ""}${
+      e.source === "unverified" ? " — UNVERIFIED page: drafted from an established setting, not yet checked; don't treat it as settled canon" : ""
+    }`,
+  ];
   const secret: string[] = [];
   const updates: string[] = [];
   for (const i of ctx.items) {
@@ -220,6 +224,12 @@ export function renderImport(r: ImportReport): string {
   for (const i of r.items) {
     lines.push(`- [${i.index}] ${i.name} (${i.type})${i.duplicateOf ? ` — likely duplicate of **${i.duplicateOf}**` : " — new"}`);
     for (const d of i.disagreements) lines.push(`  - disagrees on ${d.field}: wiki says "${d.existing}", file says "${d.incoming}"`);
+    if (i.newAliases.length) lines.push(`  - adds aliases the wiki lacks: ${i.newAliases.join(", ")}`);
+    for (const o of i.alsoIn) {
+      const where = o.importId === r.importId ? `item [${o.index}] of this file` : `item [${o.index}] of pending import "${o.title}" (${o.importId})`;
+      lines.push(`  - also in ${where} as ${o.name}; confirm only one of them`);
+      for (const d of o.disagreements) lines.push(`    - the files disagree on ${d.field}: "${d.existing}" vs "${d.incoming}"`);
+    }
   }
   return lines.join("\n");
 }
