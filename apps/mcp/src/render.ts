@@ -66,6 +66,11 @@ function changeLine(v: Version): string {
   } else if (v.objectType === "ruling" && after) {
     what = "ruling";
     text = `"${after.text}"`;
+  } else if (v.objectType === "voice_anchor" && after) {
+    const before = (v.before ?? {}) as Record<string, unknown>;
+    const fields = ["sampleVerbatim", "profileMd", "interiorLevel", "avoidList"].filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k]));
+    what = "voice anchor (write against the new version from the next turn)";
+    text = fields.map((f) => `${f}: ${Array.isArray(after[f]) ? (after[f] as string[]).join("; ") : String(after[f])}`).join("\n");
   }
   return `- ${what} [${kind}]${text ? `\n  > ${text.replace(/\n/g, "\n  > ")}` : ""}`;
 }
@@ -145,6 +150,12 @@ export function renderContext(c: SceneContext): string {
   const lines = [`# Scene context (${sceneTag(c.scene.chapter, c.scene.number)})`];
   if (c.warnings.length) lines.push(...c.warnings.map((w) => `> ⚠ ${w}`));
   if (c.rulings.length) lines.push("", "## Rulings (top precedence)", ...c.rulings.map((r) => `- "${r.text}"`));
+  if (c.voiceAnchor) {
+    const a = c.voiceAnchor;
+    lines.push("", "## Voice (check this scene's prose against the sample)", `> ${a.sampleVerbatim.replace(/\n/g, "\n> ")}`, `Interior level: ${a.interiorLevel}`);
+    if (a.avoidList.length) lines.push(`Avoid: ${a.avoidList.join("; ")}`);
+    if (a.voiceRulings.length) lines.push("Voice rulings:", ...a.voiceRulings.map((r) => `- "${r}"`));
+  }
   const secret: string[] = [];
   for (const e of c.entities) {
     const b = entityBlock(e);
@@ -202,6 +213,7 @@ export function renderLogged(r: SceneLogged): string {
   if (r.secretsLearned.length) {
     lines.push("", "Secrets learned:", ...r.secretsLearned.map((x) => `- "${x.section.heading}" of ${x.entity.name}: now known by ${x.knowers.map((k) => k.name).join(", ")}`));
   }
+  if (r.voiceAuditDue) lines.push("", "Voice audit due: before the next turn, compare the last few turns against the voice sample and the avoid list, and correct any drift silently.");
   return lines.join("\n");
 }
 

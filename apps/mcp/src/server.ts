@@ -353,7 +353,7 @@ export function createServer(engine: RulesEngine, opts: ServerOptions = {}): Mcp
     "get_context",
     {
       title: "Get context",
-      description: "Call before each scene with everyone present, the place and the threads in play. Returns summaries, updates, what each character knows and rulings, ranked by precedence, and marks each entity as read.",
+      description: "Call before each scene with everyone present, the place and the threads in play. Returns summaries, updates, what each character knows, rulings and the voice sample to write this scene against, ranked by precedence, and marks each entity as read.",
       inputSchema: { campaign_id: campaignId, present: z.array(z.string()).describe("names, aliases or slugs"), place: z.string().optional(), threads: z.array(z.string()).default([]) },
     },
     (a) =>
@@ -468,6 +468,7 @@ export function createServer(engine: RulesEngine, opts: ServerOptions = {}): Mcp
         return reply(md.renderLogged(r.value), {
           scene_id: r.value.scene.id,
           updates: r.value.results.map((x) => (x.ok ? { seq: x.update.seq, status: x.status } : { status: "refused", rule: x.refusal.rule })),
+          voice_audit_due: r.value.voiceAuditDue,
         });
       })(),
   );

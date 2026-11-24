@@ -168,17 +168,17 @@ Few, chunky tools, so a turn costs one or two calls. Every tool returns compact 
 | `import_document` | world\_id, title, proposed entities\[\] (Claude's split of the file) | Import id, likely duplicates, disagreements with existing pages | Nothing is written until `confirm_import` |
 | `confirm_import` | import\_id, accepted items | Created entity ids |  |
 | `create_campaign` | world\_id, name, settings, approval\_mode, severity\_policy | Campaign id |  |
-| `set_voice_anchor` | campaign\_id, sample, profile, interior\_level, avoid\_list | Stored anchor | Only during intake; later changes go through `record_ruling` with kind `voice` |
+| `set_voice_anchor` | campaign\_id, sample, profile, interior\_level, avoid\_list | Stored anchor | Only during intake; later changes go through `record_ruling` with kind `voice`, or the user edits the anchor in the web app's campaign settings |
 
 **Play**
 
 | Tool | Inputs | Returns | Rules |
 | --- | --- | --- | --- |
 | `open_campaign` | campaign\_id | Settings, as-of moment, approval mode, voice anchor, pinned context, PC sheet, current chapter, open threads, every ruling, this chapter's logged scenes, **changed since last session**, any unlogged scene | Opens a new session. Must be the first call of every chat |
-| `get_context` | campaign\_id, present\[\], place?, threads\[\]? | Summaries for each present entity and the place, latest confirmed and proposed updates for them, what each present character knows, related rulings | Logs each returned entity as read. Resolves aliases |
+| `get_context` | campaign\_id, present\[\], place?, threads\[\]? | Summaries for each present entity and the place, latest confirmed and proposed updates for them, what each present character knows, related rulings, the voice block (the anchor's sample word for word, the avoid list and every voice ruling) | Logs each returned entity as read. Resolves aliases. The voice block is there so the GM checks its prose against the sample before every scene |
 | `read_entity` | entity\_id or name | Full page (secret sections only if spoilers on, or always for the GM's own use, see Spoiler model) | Logs a read |
 | `search_wiki` | query, type? | Matching entities with one-line summaries | Full-text over names, aliases, summaries, sections |
-| `log_scene` | campaign\_id, summary, present\[\], place, updates\[\], thread\_changes\[\], pc\_changes?, secrets\_learned\[\]? | Stored scene, each update with its resulting status, any refusals, who now knows each learned secret | Main write path. Partial success allowed: each update is accepted or refused on its own. `secrets_learned` items (entity, section key, by\[\]) write `knowledge` rows for secret sections; the entity must have been read this session |
+| `log_scene` | campaign\_id, summary, present\[\], place, updates\[\], thread\_changes\[\], pc\_changes?, secrets\_learned\[\]? | Stored scene, each update with its resulting status, any refusals, who now knows each learned secret, whether a voice audit is due | Main write path. Partial success allowed: each update is accepted or refused on its own. `secrets_learned` items (entity, section key, by\[\]) write `knowledge` rows for secret sections; the entity must have been read this session |
 | `close_chapter` | campaign\_id, title, summary | A checklist: entities whose summaries need refreshing, clocks to advance, voice audit due | Claude then calls `edit_entity` and `gm_write` to work through it |
 | `record_ruling` | campaign\_id, text, kind (canon, voice, character\_inner\_life) | Stored ruling | Verbatim text. Top precedence |
 | `update_campaign` | campaign\_id, settings?, as\_of?, pc\_sheet? | Stored settings and PC sheet | Merges into what is stored. For the PC sheet at character creation, the as-of moment, and `(OOC) settings` changes; sheet changes during a scene go in `log_scene` |
@@ -305,7 +305,7 @@ A local Next.js app reading the same SQLite file as the MCP server, through the 
 | Entity page | Sections with inline editing, lock icons on user-edited sections, public/secret toggle per section, aliases, the updates that touch this entity, version history with restore |
 | Edit confirm | On saving a fact change: "Retcon (always true)" or "Change from now on" |
 | Review queue | Proposed updates, conflicts pinned on top; approve, edit, reject each; bulk-approve all minor updates. Pages the AI drafted, approve or reject each (a world has its own queue for Phase 0) |
-| Campaign dashboard | Settings, approval mode and severity policy, spoiler toggle, PC sheet, open threads, chapter summaries, rulings |
+| Campaign dashboard | Settings, approval mode and severity policy, spoiler toggle, PC sheet, open threads, chapter summaries, rulings, and a Voice section where the user reads and edits the voice anchor (sample, profile, interior level, avoid list; voice rulings listed) |
 | GM notes | Story design, clocks and twists, visible only with spoilers on |
 
 The spoiler toggle sits in the top bar on every campaign screen and defaults to off. Styling: a plain, readable layout is enough for the MVP; Tailwind with a reading-friendly serif for page bodies.

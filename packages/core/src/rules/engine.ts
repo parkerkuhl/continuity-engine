@@ -211,6 +211,8 @@ export interface SceneContext {
   scene: Scene;
   entities: EntityContext[];
   rulings: Ruling[];
+  /** The campaign's voice anchor, so the GM checks its prose against the sample before every scene. */
+  voiceAnchor: VoiceAnchor | null;
   warnings: string[];
 }
 
@@ -225,6 +227,8 @@ export interface SceneLogged {
   pcSheet: PcSheet | null;
   /** Secret sections someone learned this scene, with everyone who now knows each. */
   secretsLearned: { entity: Entity; section: Section; knowers: Entity[] }[];
+  /** A voice audit lands on this scene (every VOICE_AUDIT_SCENES logged scenes in a chapter). */
+  voiceAuditDue: boolean;
 }
 
 export const SecretLearned = z.object({
@@ -246,6 +250,8 @@ export type ThreadChange = z.input<typeof ThreadChange>;
 
 /** How many logged scenes between voice audits (close_chapter flags the audit when reached). */
 export const VOICE_AUDIT_EVERY = 6;
+/** log_scene flags a voice audit every this many logged scenes in a chapter (the play module audits every 3 to 5). */
+export const VOICE_AUDIT_SCENES = 4;
 
 const AI = (reason?: string): WriteMeta => ({ author: "ai", reason: reason ?? null });
 
@@ -384,6 +390,11 @@ export class RulesEngine {
         return v.objectId === campaign.id ? [{ key: "(campaign)", entity: null, label: "campaign settings" }] : [];
       case "world":
         return v.objectId === campaign.worldId ? [{ key: "(world)", entity: null, label: "world" }] : [];
+      case "voice_anchor": {
+        // The audit count ticks on every logged scene; that bookkeeping alone isn't a change worth listing.
+        const real = v.before === null || changedFields(v.before, v.after).some((f) => f !== "scenesSinceAudit");
+        return v.objectId === campaign.id && real ? [{ key: "(voice)", entity: null, label: "voice" }] : [];
+      }
       default:
         return [];
     }
@@ -421,7 +432,13 @@ export class RulesEngine {
     const entities = [];
     const pcId = (await this.pcEntity(campaign))?.id ?? null;
     for (const e of all) entities.push(await assembleEntityContext(this.storage, campaign, e, pcId));
-    return ok({ scene, entities, rulings: await this.storage.listRulings(campaign.worldId, campaign.id), warnings });
+    return ok({
+      scene,
+      entities,
+      rulings: await this.storage.listRulings(campaign.worldId, campaign.id),
+      voiceAnchor: await this.storage.getVoiceAnchor(campaign.id),
+      warnings,
+    });
   }
 
   async readEntity(input: { sessionId: string; ref: string }): Promise<Result<{ page: EntityPage; context: EntityContext }>> {
@@ -677,8 +694,13 @@ export class RulesEngine {
       secretsLearned.push({ entity, section, knowers });
     }
     const anchor = await this.storage.getVoiceAnchor(campaign.id);
-    if (anchor) await this.storage.setVoiceAnchor({ ...anchor, scenesSinceAudit: anchor.scenesSinceAudit + 1 }, AI("log_scene"));
-    return ok({ scene, results, threads: touched, pcSheet, secretsLearned });
+    let voiceAuditDue = false;
+    if (anchor) {
+      const count = anchor.scenesSinceAudit + 1;
+      await this.storage.setVoiceAnchor({ ...anchor, scenesSinceAudit: count }, AI("log_scene"));
+      voiceAuditDue = count % VOICE_AUDIT_SCENES === 0;
+    }
+    return ok({ scene, results, threads: touched, pcSheet, secretsLearned, voiceAuditDue });
   }
 
   /** Validates one AI update against every rule and works out its stored status. Writes nothing. */
@@ -1089,6 +1111,44 @@ export class RulesEngine {
         AI("set_voice_anchor"),
       ),
     );
+  }
+
+  /**
+   * The user's own edit of the voice anchor (web campaign settings), allowed at any time. Fields left out keep
+   * their stored value; voice rulings and the audit count are kept. A campaign without an anchor needs a sample.
+   */
+  async editVoiceAnchor(input: {
+    campaignId: string;
+    sample?: string;
+    profile?: string;
+    interiorLevel?: string;
+    avoidList?: string[];
+  }): Promise<Result<VoiceAnchor>> {
+    const campaign = await this.storage.getCampaign(input.campaignId);
+    if (!campaign) return refuse("not_found", `No campaign ${input.campaignId}.`);
+    const existing = await this.storage.getVoiceAnchor(campaign.id);
+    const sample = (input.sample ?? existing?.sampleVerbatim ?? "").trim();
+    if (!sample) return refuse("invalid", "The voice sample can't be empty.");
+    const interiorLevel = (input.interiorLevel ?? existing?.interiorLevel ?? "").trim() || "deep";
+    const next: VoiceAnchor = {
+      campaignId: campaign.id,
+      sampleVerbatim: sample,
+      profileMd: (input.profile ?? existing?.profileMd ?? "").trim(),
+      interiorLevel,
+      avoidList: (input.avoidList ?? existing?.avoidList ?? []).map((x) => x.trim()).filter(Boolean),
+      voiceRulings: existing?.voiceRulings ?? [],
+      scenesSinceAudit: existing?.scenesSinceAudit ?? 0,
+    };
+    if (
+      existing &&
+      existing.sampleVerbatim === next.sampleVerbatim &&
+      existing.profileMd === next.profileMd &&
+      existing.interiorLevel === next.interiorLevel &&
+      JSON.stringify(existing.avoidList) === JSON.stringify(next.avoidList)
+    ) {
+      return ok(existing);
+    }
+    return ok(await this.storage.setVoiceAnchor(next, { author: "user", reason: "voice anchor edited in campaign settings" }));
   }
 
   // ================= chapters and GM notes =================

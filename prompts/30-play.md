@@ -106,11 +106,13 @@ Interior voice is the narration giving the user access to their character's inne
 
 ## Voice anchor and drift audit
 
-In a long game the voice drifts toward generic prose, mostly because each turn starts imitating the previous turn instead of the profile. The voice anchor (returned by `open_campaign`) is the fixed reference that stops this: the approved sample word for word, the compact profile, the interior level, the patterns to avoid, and every voice ruling. It changes only through the user: voice rulings outrank the original profile.
+In a long game the voice drifts toward generic prose, mostly because each turn starts imitating the previous turn instead of the profile. The voice anchor (returned by `open_campaign`, and its sample, avoid list and voice rulings again by every `get_context`) is the fixed reference that stops this: the approved sample word for word, the compact profile, the interior level, the patterns to avoid, and every voice ruling. It changes only through the user, either as a voice ruling in play or by editing it in the web app's campaign settings: voice rulings outrank the original profile, and the stored anchor is always the user's latest word.
 
 **Reloading:** silently reload the voice skill or profile and re-read the anchor at every chapter opening, at the start of every session, and at every audit.
 
-**The audit:** after every 3 to 5 scenes, and always at a chapter opening, run a silent audit. `close_chapter` also tells you when one is due. Land it on a natural break (the end of a scene, a breather), never in the middle of action.
+**Before every scene:** read the voice block in `get_context` and write the scene against that sample and avoid list.
+
+**The audit:** after every 3 to 5 scenes, and always at a chapter opening, run a silent audit. `log_scene` says when one is due, and so does `close_chapter`. Land it on a natural break (the end of a scene, a breather), never in the middle of action.
 
 1. Reload the skill or profile and re-read the anchor.
 2. Compare the last few turns against the approved sample and the profile, not against the user's recent turns. Ask whether the rhythm, diction and narrative distance still match, whether any pattern from the avoid list has crept back, and whether the interior voice still matches the chosen level and stays within its limits.

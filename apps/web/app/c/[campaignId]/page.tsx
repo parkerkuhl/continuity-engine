@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { setApprovalMode, setCampaignSpoilers } from "@/app/actions";
+import { editVoiceAnchor, setApprovalMode, setCampaignSpoilers } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { PcSheetBody, cap, text } from "@/components/pc-sheet";
 import { chapterTag } from "@/components/update-card";
@@ -14,6 +14,12 @@ const MODES = [
   ["mixed", "Mixed by severity", "Pick a rule for minor and for major updates."],
 ] as const;
 const MODE_NAME: Record<string, string> = { review: "review", batch: "batch review", autopilot: "autopilot" };
+
+const INTERIOR_LEVELS = [
+  ["perception", "Perception only"],
+  ["grounded", "Grounded"],
+  ["deep", "Deep"],
+] as const;
 
 const SETTING_LABEL: Record<string, string> = { genre: "Genre", tone: "Tone", difficulty: "Difficulty", length: "Length", pacing: "Pacing", dice: "Dice", turn_length: "Turn length" };
 
@@ -46,6 +52,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
     h.secretSections && `${h.secretSections} secret section${h.secretSections === 1 ? "" : "s"}`,
     h.updates && `${h.updates} update${h.updates === 1 ? "" : "s"} the PC doesn't know`,
   ].filter(Boolean);
+  const va = d.voiceAnchor;
   const pcName = pc && typeof pc.name === "string" ? pc.name : scope.pc?.name;
 
   return (
@@ -123,16 +130,10 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
         </Card>
 
         <Card title="Story settings">
-          {Object.keys(s).length === 0 && !d.voiceAnchor ? (
+          {Object.keys(s).length === 0 ? (
             <p className="text-muted">Set during intake.</p>
           ) : (
             <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5">
-              {d.voiceAnchor && (
-                <>
-                  <dt className="text-muted">Interior voice</dt>
-                  <dd>{cap(d.voiceAnchor.interiorLevel)}</dd>
-                </>
-              )}
               {Object.entries(SETTING_LABEL)
                 .filter(([k]) => s[k as keyof typeof s])
                 .map(([k, l]) => (
@@ -151,9 +152,82 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
               )}
             </dl>
           )}
-          {d.voiceAnchor && (
-            <blockquote className="border-l-2 border-line-strong pl-3 font-serif text-[15px] text-body italic">{d.voiceAnchor.sampleVerbatim}</blockquote>
+        </Card>
+
+        <Card title="Voice" id="voice">
+          <p className="text-[13px] text-muted">The GM checks every scene against this sample before writing it. Your edits here and your voice rulings in play are the only ways it changes.</p>
+          {va ? (
+            <>
+              <blockquote className="border-l-2 border-line-strong pl-3 font-serif text-[15px] whitespace-pre-line text-body italic">{va.sampleVerbatim}</blockquote>
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5">
+                <dt className="text-muted">Interior voice</dt>
+                <dd>{cap(va.interiorLevel)}</dd>
+                {va.profileMd && (
+                  <>
+                    <dt className="text-muted">Profile</dt>
+                    <dd className="whitespace-pre-line">{va.profileMd}</dd>
+                  </>
+                )}
+                {va.avoidList.length > 0 && (
+                  <>
+                    <dt className="text-muted">Avoid</dt>
+                    <dd>
+                      <ul className="list-disc pl-4">
+                        {va.avoidList.map((x, i) => (
+                          <li key={i}>{x}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {va.voiceRulings.length > 0 && (
+                  <>
+                    <dt className="text-muted">Your rulings</dt>
+                    <dd>
+                      <ul className="list-disc pl-4">
+                        {va.voiceRulings.map((x, i) => (
+                          <li key={i}>&ldquo;{x}&rdquo;</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </>
+          ) : (
+            <p className="text-muted">Set during intake, once you approve a sample. You can also write one here.</p>
           )}
+          <details className="group" open={!va}>
+            <summary className="link w-fit cursor-pointer list-none">{va ? "Edit voice" : "Write a voice sample"}</summary>
+            <ActionForm action={editVoiceAnchor} className="mt-3 flex flex-col gap-3">
+              <input type="hidden" name="campaignId" value={c.id} />
+              <input type="hidden" name="path" value={path} />
+              <label className="grid gap-1 text-[13px] text-muted">
+                Sample (kept word for word)
+                <textarea name="sample" required rows={5} defaultValue={va?.sampleVerbatim ?? ""} className="input font-serif text-[15px] text-ink" />
+              </label>
+              <label className="grid gap-1 text-[13px] text-muted">
+                Interior voice
+                <select name="interiorLevel" defaultValue={va?.interiorLevel ?? "deep"} className="input h-9 text-sm text-ink">
+                  {INTERIOR_LEVELS.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                  {va && !INTERIOR_LEVELS.some(([v]) => v === va.interiorLevel) && <option value={va.interiorLevel}>{cap(va.interiorLevel)}</option>}
+                </select>
+              </label>
+              <label className="grid gap-1 text-[13px] text-muted">
+                Profile (rhythm, diction, distance, how dialogue and violence are handled)
+                <textarea name="profile" rows={4} defaultValue={va?.profileMd ?? ""} className="input text-sm text-ink" />
+              </label>
+              <label className="grid gap-1 text-[13px] text-muted">
+                Avoid (one per line)
+                <textarea name="avoidList" rows={4} defaultValue={va?.avoidList.join("\n") ?? ""} className="input text-sm text-ink" />
+              </label>
+              <button className="btn btn-sm w-fit">Save voice</button>
+            </ActionForm>
+          </details>
         </Card>
 
         <Card title="Open threads" id="threads" action={d.resolvedThreads.length > 0 ? <span className="text-[13px] text-muted">{d.resolvedThreads.length} resolved</span> : undefined}>
