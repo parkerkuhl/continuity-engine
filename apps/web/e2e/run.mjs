@@ -142,10 +142,12 @@ try {
     let t = await text();
     expect(!t.includes("Hiding") && !t.includes("mother's name"), "secret section shown with spoilers off");
     expect(t.includes("1 secret section is hidden"), "no hidden-section notice");
+    await shot("02-entity-player-view");
+    await page.goto(`${C}/e/rickard-snow?tab=updates`);
+    t = await text();
     expect(t.includes("Rickard limps on his left leg."), "an update the PC knows is missing");
     expect(!t.includes("siege plans"), "an update the PC doesn't know is shown");
     expect((await page.getByRole("img", { name: "Hidden in player view" }).count()) === 1, "GM notes link isn't marked hidden with spoilers off");
-    await shot("02-entity-player-view");
     await page.goto(`${C}/gm`);
     expect((await text()).includes("GM notes are hidden"), "GM notes page shows notes with spoilers off");
     expect(!(await text()).includes("traitor"), "GM note text leaked");
@@ -154,9 +156,11 @@ try {
 
     await page.getByRole("switch", { name: "GM spoilers" }).click();
     await page.waitForSelector('[role=switch][aria-checked="true"]');
+    await page.goto(`${C}/e/rickard-snow?tab=updates`);
+    expect((await text()).includes("siege plans"), "spoilers on should show updates the PC doesn't know");
     await page.goto(`${C}/e/rickard-snow`);
     t = await text();
-    expect(t.includes("Hiding") && t.includes("siege plans"), "spoilers on should show secrets");
+    expect(t.includes("Hiding"), "spoilers on should show secret sections");
     await shot("03-entity-gm-view");
     await page.goto(`${C}/gm`);
     expect((await text()).includes("traitor"), "GM notes missing with spoilers on");
@@ -212,7 +216,7 @@ try {
     const item = page.locator("section[aria-label='Proposed updates'] li", { hasText: "Rickard limps on his left leg." });
     await item.getByRole("button", { name: "Approve" }).click();
     await item.waitFor({ state: "detached" }); // approved updates leave the queue
-    await page.goto(`${C}/e/rickard-snow`);
+    await page.goto(`${C}/e/rickard-snow?tab=updates`);
     const upd = page.locator("section[aria-labelledby=updates-h] li", { hasText: "Rickard limps on his left leg." });
     expect(/confirmed/i.test(await upd.innerText()), "approved update isn't confirmed on the entity page");
 
@@ -223,13 +227,14 @@ try {
     expect(/Rickard limps on his left leg\.[^\n]*\[confirmed\]|\[confirmed\][^\n]*Rickard limps/.test(ctx.text) || !/PROPOSED[^\n]*Rickard limps/.test(ctx.text), "Claude still sees the approved update as proposed");
 
     // Restore: undo the Wants edit from the history panel.
-    const row = page.locator("aside li", { hasText: "the Wants section" }).first();
+    await page.goto(`${C}/e/rickard-snow?tab=history`);
+    const row = page.locator("#history li", { hasText: "the Wants section" }).first();
     await row.getByRole("button", { name: "Undo this change" }).click();
     await page.getByRole("radio", { name: "Retcon: it was always this way" }).check();
     await page.getByRole("button", { name: "Undo change" }).click();
     await page.getByText("Restored. The restore is itself a new version.").waitFor();
-    await page.reload();
     await shot("07-entity-history");
+    await page.goto(`${C}/e/rickard-snow`);
     const wantsNow = await page.locator("section", { has: page.getByRole("heading", { name: "Wants" }) }).innerText();
     expect(wantsNow.includes("Land of his own.") && !wantsNow.includes("A keep by the sea"), "restore didn't bring back the earlier text");
     await shot("07-entity-history");

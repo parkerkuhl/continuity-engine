@@ -53,7 +53,7 @@ function FromPlay({ children }: { children: ReactNode }) {
   );
 }
 
-export async function EntityView({ scope, slug }: { scope: Scope; slug: string }) {
+export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope; slug: string; tab?: string }) {
   const view = await (await app()).views.entity(scope, slug);
   if (!view) notFound();
   const { page } = view;
@@ -188,12 +188,14 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
     else emptySlots.push({ key: o.key, heading: o.heading, hidden: { ...hidden, heading: o.heading }, context: `${page.name} · ${o.heading}` });
   }
   for (const x of page.sections.filter((x) => !outlineKeys.has(x.key))) menu.push([x.heading, `s-${x.id}`]);
-  if (scope.campaign && (page.type === "character" || profile.knows.length > 0)) menu.push([`What ${page.name.split(" ")[0]} knows`, "knows-h"]);
-  if (scope.campaign) menu.push([`Updates${view.updates.length ? ` (${view.updates.length})` : ""}`, "updates-h"]);
-  const SHOWN = 5;
-  const keep = (i: number) => i < SHOWN;
-  const shownUpdates = view.updates.filter((_, i) => keep(i));
-  const olderUpdates = view.updates.filter((_, i) => !keep(i));
+  const proposedCount = view.updates.filter((v) => v.update.status === "proposed").length;
+  const tabs: [string, string, number?, boolean?][] = [["page", "Page"]];
+  if (scope.campaign) {
+    tabs.push(["updates", "Updates", proposedCount || view.updates.length, proposedCount > 0]);
+    tabs.push(["knows", `What ${page.name.split(" ")[0]} knows`, profile.knows.length]);
+  }
+  tabs.push(["history", "History", view.history.length]);
+  const tab = tabs.some(([k]) => k === tabParam) ? tabParam! : "page";
 
   const knowsNewest = [...profile.knows].sort((a, b) => b.seq - a.seq);
   const knowItem = (u: (typeof profile.knows)[number]) => (
@@ -313,9 +315,6 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
           </div>
         </div>
         <div className="flex gap-2">
-          <a href="#history" className="btn">
-            History
-          </a>
           <a href="#add-section-heading" className="btn-primary">
             Add section
           </a>
@@ -350,220 +349,222 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
         </ActionForm>
       )}
 
-      {menu.length > 3 && (
-        <nav
-          aria-label="On this page"
-          className="-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal"
-        >
-          <span className="mr-1 shrink-0 text-faint">On this page</span>
-          {menu.map(([label, id]) => (
-            <a key={id} href={`#${id}`} className="shrink-0 rounded-md px-2 py-1 text-muted hover:bg-sunken hover:text-ink">
-              {label}
-            </a>
-          ))}
-        </nav>
-      )}
-
-      <div className="flex flex-wrap items-start gap-6">
-        <article className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
-          <InlineEditor
-            action={editSummary}
-            body={page.summary}
-            hidden={hidden}
-            label="summary"
-            context={`${page.name} · Current state`}
-            labelledBy="summary-h"
-            title={
-              <h2 id="summary-h" className="label">
-                Current state
-              </h2>
-            }
-            meta={<span className="text-xs text-faint">What the GM reads first</span>}
+      <nav aria-label="Page views" className="-mb-2 flex gap-1 overflow-x-auto border-b border-line whitespace-nowrap">
+        {tabs.map(([key, label, n, hot]) => (
+          <Link
+            key={key}
+            href={key === "page" ? path : `${path}?tab=${key}`}
+            aria-current={tab === key ? "page" : undefined}
+            className={`-mb-px flex h-10 shrink-0 items-center gap-1.5 px-3 ${tab === key ? "border-b-2 border-accent font-semibold text-ink" : "text-muted hover:text-ink"}`}
           >
-            <Markdown>{page.summary}</Markdown>
-          </InlineEditor>
+            {label}
+            {n !== undefined && n > 0 && <span className={`rounded-full px-1.5 text-xs ${hot ? "bg-pending font-bold text-[#1c1e21]" : "bg-sunken text-muted"}`}>{n}</span>}
+          </Link>
+        ))}
+      </nav>
 
-          {profile.pcSheet && (
-            <section className="card flex flex-col gap-3" aria-labelledby="sheet-h">
-              <div className="flex items-center justify-between gap-3">
-                <h2 id="sheet-h" className={TITLE}>
-                  Character sheet
-                </h2>
-                <span className="text-xs text-faint">Player character · kept by the GM</span>
-              </div>
-              <PcSheetBody data={profile.pcSheet.data as Record<string, unknown>} showName={false} showInventory={false} />
-            </section>
+      {tab === "page" && (
+        <>
+          {menu.length > 3 && (
+            <nav
+              aria-label="On this page"
+              className="-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal"
+            >
+              <span className="mr-1 shrink-0 text-faint">On this page</span>
+              {menu.map(([label, id]) => (
+                <a key={id} href={`#${id}`} className="shrink-0 rounded-md px-2 py-1 text-muted hover:bg-sunken hover:text-ink">
+                  {label}
+                </a>
+              ))}
+            </nav>
           )}
 
-          {profile.outline.map((o) => {
-            if (o.sectionId === "hidden") return null;
-            const extra = recorded(o.key);
-            const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
-            if (sec) return sectionCard(sec, extra);
-            if (!extra) return null;
-            return (
+          <div className="flex flex-wrap items-start gap-6">
+            <article className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
               <InlineEditor
-                key={o.key}
-                action={addSection}
-                body=""
-                hidden={{ ...hidden, heading: o.heading }}
-                label={`section ${o.heading}`}
-                editText="Write"
-                context={`${page.name} · ${o.heading}`}
-                labelledBy={`slot-${o.key}`}
-                className="rounded-xl border border-dashed border-line-strong px-6 py-5"
+                action={editSummary}
+                body={page.summary}
+                hidden={hidden}
+                label="summary"
+                context={`${page.name} · Current state`}
+                labelledBy="summary-h"
                 title={
-                  <h2 id={`slot-${o.key}`} className={`${TITLE} text-muted`}>
-                    {o.heading}
+                  <h2 id="summary-h" className="label">
+                    Current state
                   </h2>
                 }
-                meta={<span className="text-xs text-faint">Not written yet</span>}
+                meta={<span className="text-xs text-faint">What the GM reads first</span>}
               >
-                {extra}
+                <Markdown>{page.summary}</Markdown>
               </InlineEditor>
-            );
-          })}
 
-          {page.sections.filter((x) => !outlineKeys.has(x.key)).map((x) => sectionCard(x, null))}
-
-          {emptySlots.length > 0 && <EmptySlots action={addSection} slots={emptySlots} />}
-
-          {view.hiddenSections > 0 && (
-            <div className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className={TITLE}>{view.hiddenSections === 1 ? "Secret section" : `${view.hiddenSections} secret sections`}</h2>
-                <span className="text-xs font-semibold text-secret">Secret</span>
-              </div>
-              <p className="mt-2.5 text-muted">
-                {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads{" "}
-                {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show {view.hiddenSections === 1 ? "it" : "them"} here.
-              </p>
-            </div>
-          )}
-
-          {scope.campaign && (
-            <section className="card flex flex-col gap-3" aria-labelledby="updates-h">
-              <h2 id="updates-h" className={TITLE}>
-                Updates to this page
-              </h2>
-              {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
-              <ul className="flex flex-col gap-2">{shownUpdates.map((v) => updateItem(v))}</ul>
-              {olderUpdates.length > 0 && (
-                <details className="group">
-                  <summary className="cursor-pointer list-none text-[13px] font-medium text-accent hover:text-accent-hover">
-                    <span className="group-open:hidden">
-                      Show {olderUpdates.length} older update{olderUpdates.length === 1 ? "" : "s"}
-                    </span>
-                    <span className="hidden group-open:inline">Hide older updates</span>
-                  </summary>
-                  <ul className="mt-2 flex flex-col gap-2">{olderUpdates.map((v) => updateItem(v))}</ul>
-                </details>
-              )}
-              {view.hiddenUpdates > 0 && (
-                <p className="text-xs text-muted">
-                  {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
-                </p>
-              )}
-            </section>
-          )}
-
-          <details id="add-section" className="group rounded-xl border border-dashed border-line-strong px-6 py-4 open:border-solid open:border-line open:bg-surface">
-            <summary className="cursor-pointer list-none text-[15px] font-semibold text-accent hover:text-accent-hover [&::-webkit-details-marker]:hidden">
-              <span className="group-open:text-ink">+ Add a section</span>
-            </summary>
-            <ConfirmedForm
-              action={addSection}
-              hidden={hidden}
-              submit="Add section"
-              trigger="Add section"
-              triggerClass="btn-primary btn-sm mt-3"
-              context={`${page.name} · new section`}
-              note="The new section is locked against GM edits, and the GM sees it at the start of the next session."
-            >
-              <div className="mt-3 grid gap-2">
-                <input id="add-section-heading" name="heading" placeholder="Heading" className="input scroll-mt-24" aria-label="New section heading" required />
-                <textarea name="body" rows={4} placeholder="Markdown" className="input font-serif text-base" aria-label="New section body" />
-                <label className="flex items-center gap-2 text-[13px] text-muted">
-                  <input type="checkbox" name="visibility" value="secret" className="accent-accent" /> Secret (hidden in player view)
-                </label>
-              </div>
-            </ConfirmedForm>
-          </details>
-        </article>
-
-        <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
-          {scope.campaign && (page.type === "character" || profile.knows.length > 0) && (
-            <section className="card-sm flex flex-col gap-2.5" aria-labelledby="knows-h">
-              <div className="flex items-center justify-between gap-3">
-                <h2 id="knows-h" className="text-[15px] font-semibold">
-                  What {page.name} knows
-                </h2>
-              </div>
-              {profile.knows.length === 0 ? (
-                <p className="text-faint">Nothing recorded yet.</p>
-              ) : (
-                <>
-                  <ul className="flex flex-col gap-2">{knowsNewest.slice(0, SHOWN).map((u) => knowItem(u))}</ul>
-                  {profile.knows.length > SHOWN && (
-                    <details className="group">
-                      <summary className="cursor-pointer list-none text-[13px] font-medium text-accent hover:text-accent-hover">
-                        <span className="group-open:hidden">Show all {profile.knows.length}</span>
-                        <span className="hidden group-open:inline">Show fewer</span>
-                      </summary>
-                      <ul className="mt-2 flex flex-col gap-2">{knowsNewest.slice(SHOWN).map((u) => knowItem(u))}</ul>
-                    </details>
-                  )}
-                </>
-              )}
-            </section>
-          )}
-
-          {scope.campaign && (
-            <section className="card-sm flex flex-col gap-2.5">
-              <h2 className="text-[15px] font-semibold">Appearances</h2>
-              {profile.scenes.length === 0 ? (
-                <p className="text-[13px] text-faint">Not in any logged scene yet.</p>
-              ) : (
-                <ol className="flex flex-col gap-2.5 text-[13px]">
-                  {profile.scenes.map((sc) => (
-                    <li key={sc.id}>
-                      <b>
-                        {chapterTag(sc.chapter)} · scene {sc.number}
-                      </b>
-                      {sc.place && sc.place.id !== page.id && (
-                        <>
-                          {" "}
-                          at{" "}
-                          <Link href={`${base}/e/${sc.place.slug}`} className="link">
-                            {sc.place.name}
-                          </Link>
-                        </>
-                      )}
-                      {sc.summaryMd && <p className="mt-0.5 line-clamp-3 font-serif text-sm text-muted">{sc.summaryMd}</p>}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </section>
-          )}
-
-          {profile.threads.length > 0 && (
-            <section className="card-sm flex flex-col gap-2.5">
-              <h2 className="text-[15px] font-semibold">Threads</h2>
-              {profile.threads.map((t) => (
-                <div key={t.id} className={`border-l-[3px] pl-2.5 text-[13px] ${t.state === "open" ? "border-pending" : "border-line-strong text-faint"}`}>
-                  <b>{t.title}</b>
-                  <div className="text-faint">
-                    {t.state === "open" ? "Open" : "Resolved"}
-                    {t.openedChapter !== null && <> · opened {chapterTag(t.openedChapter)}</>}
+              {profile.pcSheet && (
+                <section className="card flex flex-col gap-3" aria-labelledby="sheet-h">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 id="sheet-h" className={TITLE}>
+                      Character sheet
+                    </h2>
+                    <span className="text-xs text-faint">Player character · kept by the GM</span>
                   </div>
-                </div>
-              ))}
-            </section>
-          )}
+                  <PcSheetBody data={profile.pcSheet.data as Record<string, unknown>} showName={false} showInventory={false} />
+                </section>
+              )}
 
-          <section id="history" className="card-sm flex scroll-mt-6 flex-col gap-2.5">
-            <h2 className="text-[15px] font-semibold">Recent history</h2>
+              {profile.outline.map((o) => {
+                if (o.sectionId === "hidden") return null;
+                const extra = recorded(o.key);
+                const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+                if (sec) return sectionCard(sec, extra);
+                if (!extra) return null;
+                return (
+                  <InlineEditor
+                    key={o.key}
+                    action={addSection}
+                    body=""
+                    hidden={{ ...hidden, heading: o.heading }}
+                    label={`section ${o.heading}`}
+                    editText="Write"
+                    context={`${page.name} · ${o.heading}`}
+                    labelledBy={`slot-${o.key}`}
+                    className="rounded-xl border border-dashed border-line-strong px-6 py-5"
+                    title={
+                      <h2 id={`slot-${o.key}`} className={`${TITLE} text-muted`}>
+                        {o.heading}
+                      </h2>
+                    }
+                    meta={<span className="text-xs text-faint">Not written yet</span>}
+                  >
+                    {extra}
+                  </InlineEditor>
+                );
+              })}
+
+              {page.sections.filter((x) => !outlineKeys.has(x.key)).map((x) => sectionCard(x, null))}
+
+              {emptySlots.length > 0 && <EmptySlots action={addSection} slots={emptySlots} />}
+
+              {view.hiddenSections > 0 && (
+                <div className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className={TITLE}>{view.hiddenSections === 1 ? "Secret section" : `${view.hiddenSections} secret sections`}</h2>
+                    <span className="text-xs font-semibold text-secret">Secret</span>
+                  </div>
+                  <p className="mt-2.5 text-muted">
+                    {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads{" "}
+                    {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show {view.hiddenSections === 1 ? "it" : "them"} here.
+                  </p>
+                </div>
+              )}
+
+              <details id="add-section" className="group rounded-xl border border-dashed border-line-strong px-6 py-4 open:border-solid open:border-line open:bg-surface">
+                <summary className="cursor-pointer list-none text-[15px] font-semibold text-accent hover:text-accent-hover [&::-webkit-details-marker]:hidden">
+                  <span className="group-open:text-ink">+ Add a section</span>
+                </summary>
+                <ConfirmedForm
+                  action={addSection}
+                  hidden={hidden}
+                  submit="Add section"
+                  trigger="Add section"
+                  triggerClass="btn-primary btn-sm mt-3"
+                  context={`${page.name} · new section`}
+                  note="The new section is locked against GM edits, and the GM sees it at the start of the next session."
+                >
+                  <div className="mt-3 grid gap-2">
+                    <input id="add-section-heading" name="heading" placeholder="Heading" className="input scroll-mt-24" aria-label="New section heading" required />
+                    <textarea name="body" rows={4} placeholder="Markdown" className="input font-serif text-base" aria-label="New section body" />
+                    <label className="flex items-center gap-2 text-[13px] text-muted">
+                      <input type="checkbox" name="visibility" value="secret" className="accent-accent" /> Secret (hidden in player view)
+                    </label>
+                  </div>
+                </ConfirmedForm>
+              </details>
+            </article>
+
+            <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+              {scope.campaign && (
+                <section className="card-sm flex flex-col gap-2.5">
+                  <h2 className="text-[15px] font-semibold">Appearances</h2>
+                  {profile.scenes.length === 0 ? (
+                    <p className="text-[13px] text-faint">Not in any logged scene yet.</p>
+                  ) : (
+                    <ol className="flex flex-col gap-2.5 text-[13px]">
+                      {profile.scenes.map((sc) => (
+                        <li key={sc.id}>
+                          <b>
+                            {chapterTag(sc.chapter)} · scene {sc.number}
+                          </b>
+                          {sc.place && sc.place.id !== page.id && (
+                            <>
+                              {" "}
+                              at{" "}
+                              <Link href={`${base}/e/${sc.place.slug}`} className="link">
+                                {sc.place.name}
+                              </Link>
+                            </>
+                          )}
+                          {sc.summaryMd && <p className="mt-0.5 line-clamp-3 font-serif text-sm text-muted">{sc.summaryMd}</p>}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
+              )}
+
+              {profile.threads.length > 0 && (
+                <section className="card-sm flex flex-col gap-2.5">
+                  <h2 className="text-[15px] font-semibold">Threads</h2>
+                  {profile.threads.map((t) => (
+                    <div key={t.id} className={`border-l-[3px] pl-2.5 text-[13px] ${t.state === "open" ? "border-pending" : "border-line-strong text-faint"}`}>
+                      <b>{t.title}</b>
+                      <div className="text-faint">
+                        {t.state === "open" ? "Open" : "Resolved"}
+                        {t.openedChapter !== null && <> · opened {chapterTag(t.openedChapter)}</>}
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              )}
+            </aside>
+          </div>
+        </>
+      )}
+
+      {tab === "updates" && scope.campaign && (
+        <div className="max-w-3xl">
+          <section className="card flex flex-col gap-3" aria-labelledby="updates-h">
+            <h2 id="updates-h" className="sr-only">
+              Updates to this page
+            </h2>
+            {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
+            <ul className="flex flex-col gap-2">{view.updates.map((v) => updateItem(v))}</ul>
+            {view.hiddenUpdates > 0 && (
+              <p className="text-xs text-muted">
+                {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+
+      {tab === "knows" && scope.campaign && (
+        <div className="max-w-3xl">
+          <section className="card flex flex-col gap-3" aria-labelledby="knows-h">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="knows-h" className="sr-only">
+                What {page.name} knows
+              </h2>
+            </div>
+            {profile.knows.length === 0 ? <p className="text-faint">Nothing recorded yet.</p> : <ul className="flex flex-col gap-3">{knowsNewest.map((u) => knowItem(u))}</ul>}
+          </section>
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div className="max-w-3xl">
+          <section id="history" className="card flex flex-col gap-3" aria-labelledby="history-h">
+            <h2 id="history-h" className="sr-only">
+              History
+            </h2>
             <ol className="flex flex-col gap-3 text-[13px]">
               {view.history.map((v) => {
                 const restorable = v.before !== null && v.after !== null;
@@ -612,8 +613,8 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
               })}
             </ol>
           </section>
-        </aside>
-      </div>
+        </div>
+      )}
     </>
   );
 }
