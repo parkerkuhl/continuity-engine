@@ -70,6 +70,12 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const characters = npcs.length;
   const unlabeled = npcs.filter((r) => !r.toPc).length;
   const sorted = [...shown].sort((a, b) => a.entity.name.localeCompare(b.entity.name));
+  // Nothing found for a typed name: offer the closest names and aliases (the same matcher the GM's tools use).
+  let suggestions: Entity[] = [];
+  if (query?.trim() && shown.length === 0) {
+    const r = await (await app()).engine.storage.resolveEntity(scope.world.id, query, { campaignId: scope.campaign?.id ?? null });
+    suggestions = r.status === "unknown" ? r.suggestions : r.status === "ambiguous" ? r.candidates : [r.entity];
+  }
   const groups = (Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => [t, sorted.filter((r) => r.entity.type === t)] as const).filter(([, rows]) => rows.length > 0);
 
   return (
@@ -149,9 +155,24 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
       )}
 
       {shown.length === 0 ? (
-        <p className="py-6 text-muted">
-          {query || src || type ? "Nothing matches." : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}
-        </p>
+        <div className="py-6 text-muted">
+          <p>{query || src || type ? `Nothing matches${query ? ` “${query}”` : ""}.` : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}</p>
+          {suggestions.length > 0 && (
+            <p className="mt-2">
+              Did you mean{" "}
+              {suggestions.map((e, i) => (
+                <span key={e.id}>
+                  {i > 0 && (i === suggestions.length - 1 ? " or " : ", ")}
+                  <Link href={`${base}/e/${e.slug}`} className="link font-semibold">
+                    {e.name}
+                  </Link>
+                  {e.aliases.length > 0 && <span className="text-faint"> ({e.aliases.slice(0, 2).join(", ")})</span>}
+                </span>
+              ))}
+              ?
+            </p>
+          )}
+        </div>
       ) : (
         groups.map(([t, rows]) => (
           <section key={t} aria-labelledby={groups.length > 1 ? `g-${t}` : undefined} className="flex flex-col gap-3">
