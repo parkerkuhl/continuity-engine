@@ -159,7 +159,12 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
               </span>
             )}
             {s.campaignId && <span className="pill bg-sunken text-body">This campaign</span>}
-            {secret && <span className="text-xs font-semibold text-secret">{s.knownByPc ? "Secret · the PC knows it" : "Secret section"}</span>}
+            {secret && (
+              <span className="flex items-center gap-1 text-xs font-semibold text-secret">
+                <LockIcon className="h-[13px] w-[13px]" />
+                {s.knownByPc ? "Secret · the PC knows it" : "Secret section"}
+              </span>
+            )}
             <form action={setSectionVisibility}>
               <input type="hidden" name="entityId" value={page.id} />
               <input type="hidden" name="key" value={s.key} />

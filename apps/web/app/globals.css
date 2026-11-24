@@ -224,8 +224,8 @@ body {
   }
 }
 
-/* Anchor targets (section menu, sidebar links) stop a little below the top edge. */
+/* Anchor targets (section menu, sidebar links) stop below the sticky top bar. */
 h2[id],
 section[id] {
-  scroll-margin-top: 1.5rem;
+  scroll-margin-top: 5.5rem;
 }

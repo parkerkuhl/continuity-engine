@@ -162,7 +162,10 @@ function TopBar({ scope }: { scope: Scope }) {
   const wiki = c ? `/c/${c.id}/wiki` : `/w/${scope.world.id}`;
   const on = scope.spoilers;
   return (
-    <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:gap-4 sm:px-8 sm:py-3.5">
+    // Sticky, so the spoiler switch stays in view on long pages; in GM view a violet top edge marks every screen.
+    <header
+      className={`sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:gap-4 sm:px-8 sm:py-3.5 ${on ? "border-t-[3px] border-t-secret" : ""}`}
+    >
       <HeaderSearch action={wiki} wikiPaths={[wiki]} />
       <form action={c ? setCampaignSpoilers : setWorldSpoilers} className="ml-auto shrink-0">
         {c && <input type="hidden" name="campaignId" value={c.id} />}

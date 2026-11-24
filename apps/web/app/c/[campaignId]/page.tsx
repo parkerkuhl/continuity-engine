@@ -33,7 +33,7 @@ const SETTING_LABEL: Record<string, string> = {
 
 function Card({ title, id, action, children, className = "" }: { title: string; id?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section id={id} aria-labelledby={id ? `${id}-h` : undefined} className={`card flex scroll-mt-6 flex-col gap-3 ${className}`}>
+    <section id={id} aria-labelledby={id ? `${id}-h` : undefined} className={`card flex scroll-mt-24 flex-col gap-3 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 id={id ? `${id}-h` : undefined} className="card-title">
           {title}
