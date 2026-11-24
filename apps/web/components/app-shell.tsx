@@ -22,13 +22,18 @@ export async function AppShell({ scope, children }: { scope?: Scope; children: R
   );
 }
 
+function Badge({ n }: { n: number }) {
+  return n > 0 ? <span className="rounded-full bg-pending px-2 py-px text-xs font-bold text-[#1c1e21]">{n}</span> : null;
+}
+
 async function Sidebar({ scope }: { scope?: Scope }) {
   const c = scope?.campaign ?? null;
   const base = c ? `/c/${c.id}` : scope ? `/w/${scope.world.id}` : "/";
   let nav: ReactNode;
   if (c) {
     const views = app().views;
-    const [d, queue] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!)]);
+    const [d, queue, pages] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!)]);
+    const waiting = queue.items.length + pages.length;
     nav = (
       <>
         <NavLink href={`${base}/wiki`} also={`${base}/e/`}>
@@ -36,7 +41,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
         </NavLink>
         <NavLink href={`${base}/review`}>
           Review queue
-          {queue.items.length > 0 && <span className="rounded-full bg-pending px-2 py-px text-xs font-bold text-[#1c1e21]">{queue.items.length}</span>}
+          <Badge n={waiting} />
         </NavLink>
         <NavLink href={`${base}#threads`}>
           Threads <span className="text-xs text-nav-muted">{d!.openThreads.length} open</span>
@@ -60,10 +65,15 @@ async function Sidebar({ scope }: { scope?: Scope }) {
     );
   } else if (scope) {
     const row = (await app().views.home()).find((r) => r.world.id === scope.world.id);
+    const pages = await app().views.pageQueue(scope);
     nav = (
       <>
         <NavLink href={base} exact also={`${base}/e/`}>
           Wiki
+        </NavLink>
+        <NavLink href={`${base}/review`}>
+          Review queue
+          <Badge n={pages.length} />
         </NavLink>
         {row?.campaigns.map((x) => (
           <NavLink key={x.id} href={`/c/${x.id}`}>

@@ -17,6 +17,8 @@ export const PageFrontMatter = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string()).default([]),
   source: Source,
+  /** Only written for a page still waiting for approval. */
+  status: z.literal("proposed").optional(),
   locked_sections: z.array(Kebab).default([]),
 });
 
@@ -53,6 +55,7 @@ export function renderEntityPage(page: EntityPage): string {
     name: page.name,
     aliases: page.aliases,
     source: page.source,
+    ...(page.status === "proposed" ? { status: "proposed" } : {}),
     ...(sections.some((s) => s.lockedByUser)
       ? { locked_sections: sections.filter((s) => s.lockedByUser).map((s) => s.key) }
       : {}),
@@ -97,7 +100,7 @@ export function parseEntityPage(md: string, file: string): Omit<NewEntity, "worl
   const missing = fm.locked_sections.filter((k) => !keys.has(k));
   if (missing.length) throw new PageFormatError(file, `locked_sections names unknown sections: ${missing.join(", ")}`);
 
-  return { slug: fm.id, type: fm.type, name: fm.name, aliases: fm.aliases, source: fm.source, summary, sections };
+  return { slug: fm.id, type: fm.type, name: fm.name, aliases: fm.aliases, source: fm.source, ...(fm.status && { status: fm.status }), summary, sections };
 }
 
 function parseAttrs(text: string, file: string): Record<string, string> {

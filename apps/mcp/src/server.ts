@@ -95,14 +95,47 @@ export function createServer(engine: RulesEngine): McpServer {
     {
       title: "Create world",
       description: "Creates an empty world. The worldbuilding prompt runs the interview; this tool asks nothing itself.",
-      inputSchema: { name: z.string().min(1), pitch: z.string().default(""), depth: Depth, approval_mode: ApprovalMode.describe("default approval mode for AI writes in this world") },
+      inputSchema: {
+        name: z.string().min(1),
+        pitch: z.string().default(""),
+        depth: Depth,
+        approval_mode: ApprovalMode.describe("default approval mode for AI writes in this world, pages you draft included"),
+        as_of: z.string().optional().describe("the in-story moment the world starts at, if already known"),
+      },
     },
     (a) =>
       guard(async () => {
-        const r = await engine.createWorld({ name: a.name, pitch: a.pitch, depth: a.depth, approvalMode: a.approval_mode });
+        const r = await engine.createWorld({ name: a.name, pitch: a.pitch, depth: a.depth, approvalMode: a.approval_mode, ...(a.as_of && { asOf: a.as_of }) });
         if (!r.ok) return refused(r.refusal);
         const guide = renderLoadGuide(r.value, []);
         return reply(`World "${r.value.name}" created (world_id: ${r.value.id}).\n\n${stripFrontMatter(guide)}`, { world_id: r.value.id, status: "confirmed" });
+      })(),
+  );
+
+  server.registerTool(
+    "update_world",
+    {
+      title: "Update world",
+      description: "Changes a world's own fields while building it: the as-of moment (interview step 9, where new campaigns start), name, pitch or default approval mode. Only the fields you pass change.",
+      inputSchema: {
+        world_id: z.string(),
+        name: z.string().min(1).optional(),
+        pitch: z.string().optional(),
+        approval_mode: ApprovalMode.optional(),
+        as_of: z.string().optional().describe("the in-story moment; an empty string clears it"),
+      },
+    },
+    (a) =>
+      guard(async () => {
+        const r = await engine.updateWorld({
+          worldId: a.world_id,
+          ...(a.name !== undefined && { name: a.name }),
+          ...(a.pitch !== undefined && { pitch: a.pitch }),
+          ...(a.approval_mode && { approvalMode: a.approval_mode }),
+          ...(a.as_of !== undefined && { asOf: a.as_of }),
+        });
+        if (!r.ok) return refused(r.refusal);
+        return reply(md.renderWorldUpdated(r.value), { world_id: r.value.id, status: "confirmed" });
       })(),
   );
 
@@ -135,7 +168,11 @@ export function createServer(engine: RulesEngine): McpServer {
           sections: a.sections.map((s) => ({ heading: s.heading, body: s.body, ...(s.key && { key: s.key }), ...(s.visibility && { visibility: s.visibility }) })),
         });
         if (!r.ok) return refused(r.refusal);
-        return reply(md.renderStoredPage(r.value, `Stored as **confirmed** (entity_id: ${r.value.id}).`), { entity_id: r.value.id, slug: r.value.slug, status: "confirmed" });
+        const note =
+          r.value.status === "proposed"
+            ? `Stored as **proposed** (entity_id: ${r.value.id}): a draft until the user approves it in the web app. Show it to them; revise with edit_entity if they ask.`
+            : `Stored as **confirmed** (entity_id: ${r.value.id}).`;
+        return reply(md.renderStoredPage(r.value, note), { entity_id: r.value.id, slug: r.value.slug, status: r.value.status });
       })(),
   );
 
@@ -143,21 +180,39 @@ export function createServer(engine: RulesEngine): McpServer {
     "edit_entity",
     {
       title: "Edit entity",
-      description: "Edits a page's summary or sections during play. Read the entity this session first (get_context or read_entity). Sections the user edited are locked: log an update with proposes_section instead.",
+      description:
+        "Edits a page's summary, sections or source. During play, read the entity this session first (get_context or read_entity). While building a world (no campaign open), pass world_id instead. Sections the user edited are locked: log an update with proposes_section instead.",
       inputSchema: {
         entity: z.string().describe("entity id, slug, name or alias"),
         campaign_id: z.string().optional(),
+        world_id: z.string().optional().describe("while building the world, with no campaign open; edits the world page"),
         summary: z.string().optional(),
+        source: z.enum(["canon", "invention", "unverified"]).optional().describe("e.g. canon once the user confirms an unverified page"),
         sections: z.array(z.object({ key: kebab, heading: z.string().optional(), body: z.string().optional(), visibility: Visibility.optional() })).default([]),
       },
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
-        if (!s.ok) return refused(s.refusal);
-        const r = await engine.editEntity({ sessionId: s.value, entity: a.entity, ...(a.summary !== undefined && { summary: a.summary }), sections: a.sections });
+        let where: { sessionId: string } | { worldId: string };
+        if (a.world_id && !a.campaign_id) where = { worldId: a.world_id };
+        else {
+          const s = session(a.campaign_id);
+          if (!s.ok) return refused(s.refusal);
+          where = { sessionId: s.value };
+        }
+        const r = await engine.editEntity({
+          ...where,
+          entity: a.entity,
+          ...(a.summary !== undefined && { summary: a.summary }),
+          ...(a.source && { source: a.source }),
+          sections: a.sections,
+        });
         if (!r.ok) return refused(r.refusal);
-        return reply(md.renderStoredPage(r.value, "Stored as **confirmed** (logged in the changelog)."), { entity_id: r.value.id, status: "confirmed" });
+        const note =
+          r.value.status === "proposed"
+            ? "Stored; the page is **proposed** until the user approves it in the web app (logged in the changelog)."
+            : "Stored as **confirmed** (logged in the changelog).";
+        return reply(md.renderStoredPage(r.value, note), { entity_id: r.value.id, status: r.value.status });
       })(),
   );
 
@@ -313,7 +368,10 @@ export function createServer(engine: RulesEngine): McpServer {
         const pcKnows = new Set<string>();
         if (a.view === "player" && campaign.ok) {
           const pc = await engine.pcEntity(campaign.value);
-          if (pc) for (const i of r.value.context.items) if (i.kind === "update" && (await engine.storage.listKnowers("update", i.update.id)).includes(pc.id)) pcKnows.add(i.update.id);
+          if (pc) {
+            for (const i of r.value.context.items) if (i.kind === "update" && (await engine.storage.listKnowers("update", i.update.id)).includes(pc.id)) pcKnows.add(i.update.id);
+            for (const s of r.value.page.sections) if (s.visibility === "secret" && (await engine.storage.listKnowers("section", s.id)).includes(pc.id)) pcKnows.add(s.id);
+          }
         }
         return reply(md.renderEntity(r.value.page, r.value.context, a.view, pcKnows), { entity_id: r.value.page.id, slug: r.value.page.slug, view: a.view });
       })(),
@@ -365,6 +423,10 @@ export function createServer(engine: RulesEngine): McpServer {
           .array(z.object({ thread: z.string().optional().describe("id or title of an existing thread; omit to open one"), title: z.string().optional(), body: z.string().optional(), state: z.enum(["open", "resolved"]).optional(), tags: z.array(kebab).optional() }))
           .default([]),
         pc_changes: PcSheetData.passthrough().optional().describe("fields to merge into the PC sheet: name, stats, health, stress, inventory, bonds, trackers, flaw_notes"),
+        secrets_learned: z
+          .array(z.object({ entity: z.string().describe("the page the secret is on"), section: kebab.describe("key of the secret section"), by: z.array(z.string()).min(1).describe("who learned it; include the PC if they did") }))
+          .default([])
+          .describe("secret sections someone learned this scene; the PC learning one shows it in the player view"),
       },
     },
     (a) =>
@@ -379,6 +441,7 @@ export function createServer(engine: RulesEngine): McpServer {
           updates: a.updates,
           threadChanges: a.thread_changes,
           ...(a.pc_changes && { pcChanges: a.pc_changes }),
+          secretsLearned: a.secrets_learned,
         });
         if (!r.ok) return refused(r.refusal);
         return reply(md.renderLogged(r.value), {

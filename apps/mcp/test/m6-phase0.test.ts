@@ -1,9 +1,10 @@
 // Milestone 6 acceptance (SPEC "Phase 0: building the world"), driven through the MCP server as Claude would:
+//  - A compact world built entirely by interview, every page approved
 //  - A multi-file world bible imported, with duplicates and disagreements flagged before confirm
 //  - An established-universe skeleton stored as `unverified` and labeled in context
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { RulesEngine, SqliteStorage } from "@continuity/core";
+import { RulesEngine, SqliteStorage, WebViews } from "@continuity/core";
 import { describe, expect, it } from "vitest";
 import { createServer } from "../src/server";
 
@@ -118,5 +119,97 @@ describe("M6: an established-universe skeleton stored as unverified and labeled 
     const after = await g.call("get_context", { campaign_id: camp.status.campaign_id, present: ["Iron Bank"], place: "Braavos" });
     expect(after.text).not.toMatch(/Iron Bank[^\n]*UNVERIFIED/);
     expect(after.text).toMatch(/Braavos[^\n]*UNVERIFIED/);
+  });
+});
+
+describe("M6: a compact world built entirely by interview, every page approved", () => {
+  it("drafts a page per interview step as proposed, stores the as-of moment, and every page is approved in the web app", async () => {
+    const g = await connect();
+    const w = await g.call("create_world", { name: "Saltmarch", pitch: "Drowned towns and toll-lords.", depth: "compact", approval_mode: "review" });
+    const worldId = w.status.world_id as string;
+    // Compact interview: one page per step (SPEC Phase 0, path A).
+    const steps = [
+      { type: "concept", name: "Overview", summary: "Drowned towns ruled by toll-lords. Tone: grim, wry.", sections: [{ heading: "Pillars", body: "Debt, water, family." }] },
+      { type: "concept", name: "Society", summary: "Toll-lords own the bridges; everyone else pays.", sections: [] },
+      { type: "place", name: "Gullhaven", summary: "The last dry harbor.", sections: [{ heading: "Districts", body: "Stilts, Dry Ward." }] },
+      { type: "concept", name: "Timeline", summary: "The Flood, the Tolls, now.", sections: [] },
+      { type: "faction", name: "The Tollkeepers", aliases: ["the Keepers"], summary: "They own every bridge.", sections: [{ heading: "Aims", body: "Keep the tolls." }] },
+      { type: "concept", name: "Magic or Tech", summary: "Tide-reading: costs memories.", sections: [] },
+      { type: "concept", name: "Glossary", summary: "Slang and oaths.", sections: [{ heading: "Oaths", body: "- *By the high water*" }] },
+      { type: "character", name: "Maren Vos", summary: "Tollkeeper heir with a secret debt.", sections: [{ heading: "Debt", body: "She owes the smugglers.", visibility: "secret" }] },
+    ];
+    const ids: string[] = [];
+    for (const s of steps) {
+      const r = await g.call("create_entity", { world_id: worldId, source: "invention", ...s });
+      expect(r.isError).toBe(false);
+      expect(r.status.status).toBe("proposed");
+      expect(r.text).toMatch(/Stored as \*\*proposed\*\*.*until the user approves it/);
+      ids.push(r.status.entity_id as string);
+    }
+    // The user asks for a change mid-interview; the page stays a draft.
+    const edit = await g.call("edit_entity", { world_id: worldId, entity: "gullhaven", summary: "The last dry harbor, on stilts." });
+    expect(edit.isError).toBe(false);
+    expect(edit.status.status).toBe("proposed");
+    // Step 9: the as-of moment, on the world.
+    const asOf = await g.call("update_world", { world_id: worldId, as_of: "First week of the dry season" });
+    expect(asOf.text).toMatch(/As of: First week of the dry season/);
+    expect((await g.call("list_worlds")).text).toMatch(/As of: First week of the dry season/);
+
+    // The web app's review queue lists every draft; the user approves each one.
+    const views = new WebViews(g.engine);
+    const scope = (await views.scope({ worldId }))!;
+    expect((await views.pageQueue(scope)).length).toBe(steps.length);
+    for (const id of ids) expect((await g.engine.approvePage(id)).ok).toBe(true);
+    expect(await views.pageQueue(scope)).toEqual([]);
+    const pages = await g.storage.listEntities(worldId);
+    expect(pages).toHaveLength(steps.length);
+    expect(pages.every((p) => p.status === "confirmed")).toBe(true);
+
+    // A campaign starts at the world's as-of moment, and the GM sees the pages unlabeled.
+    const camp = await g.call("create_campaign", { world_id: worldId, name: "First run" });
+    const campaignId = camp.status.campaign_id as string;
+    const opened = await g.call("open_campaign", { campaign_id: campaignId });
+    expect(opened.text).toMatch(/as of: First week of the dry season/);
+    const ctx = await g.call("get_context", { campaign_id: campaignId, present: ["maren-vos"], place: "gullhaven" });
+    expect(ctx.text).not.toMatch(/PROPOSED/);
+  });
+
+  it("labels a draft page PROPOSED in what the GM reads until it is approved", async () => {
+    const g = await connect();
+    const w = await g.call("create_world", { name: "Saltmarch", depth: "compact", approval_mode: "batch" });
+    const worldId = w.status.world_id as string;
+    await g.call("create_entity", { world_id: worldId, type: "place", name: "Gullhaven", source: "invention", summary: "Harbor." });
+    const camp = await g.call("create_campaign", { world_id: worldId, name: "Run" });
+    const campaignId = camp.status.campaign_id as string;
+    await g.call("open_campaign", { campaign_id: campaignId });
+    const read = await g.call("read_entity", { campaign_id: campaignId, entity: "gullhaven" });
+    expect(read.text).toMatch(/PROPOSED page: drafted by the GM, not yet approved/);
+    expect(read.text).toMatch(/PROPOSED PAGE/);
+  });
+});
+
+describe("M6: log_scene secrets_learned", () => {
+  it("records that the PC learned a secret section, and read_entity's player view then shows it", async () => {
+    const g = await connect();
+    const w = await g.call("create_world", { name: "Saltmarch", depth: "compact", approval_mode: "autopilot" });
+    const worldId = w.status.world_id as string;
+    await g.call("create_entity", { world_id: worldId, type: "character", name: "Maren Vos", source: "invention", sections: [{ heading: "Debt", body: "She owes the smugglers.", visibility: "secret" }] });
+    await g.call("create_entity", { world_id: worldId, type: "character", name: "Asha Reed", source: "invention" });
+    const camp = await g.call("create_campaign", { world_id: worldId, name: "Run" });
+    const campaignId = camp.status.campaign_id as string;
+    await g.call("open_campaign", { campaign_id: campaignId });
+    await g.call("update_campaign", { campaign_id: campaignId, pc_sheet: { name: "Asha Reed" } });
+    await g.call("get_context", { campaign_id: campaignId, present: ["maren-vos", "asha-reed"] });
+    const player = async () => (await g.call("read_entity", { campaign_id: campaignId, entity: "maren-vos", view: "player" })).text;
+    expect(await player()).not.toMatch(/smugglers/);
+    const logged = await g.call("log_scene", {
+      campaign_id: campaignId,
+      summary: "Maren admits the debt.",
+      present: ["maren-vos", "asha-reed"],
+      secrets_learned: [{ entity: "maren-vos", section: "debt", by: ["asha-reed"] }],
+    });
+    expect(logged.isError).toBe(false);
+    expect(logged.text).toMatch(/"Debt" of Maren Vos: now known by Asha Reed/);
+    expect(await player()).toMatch(/smugglers/);
   });
 });

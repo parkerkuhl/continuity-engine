@@ -37,6 +37,15 @@ const WRITES: WriteCase[] = [
   { method: "updateEntity", objectType: "entity", run: (c) => c.storage.updateEntity(c.rickard.id, { summary: "Healed." }, AI) },
   { method: "addSection", objectType: "section", run: (c) => c.storage.addSection(c.volantis.id, { heading: "Districts", bodyMd: "Two." }, AI) },
   {
+    method: "addSectionKnowers",
+    objectType: "section",
+    run: async (c) => {
+      const id = c.rickard.sections[0]!.id;
+      await c.storage.addSectionKnowers(id, [c.volantis.id], AI);
+      return { id };
+    },
+  },
+  {
     method: "updateSection",
     objectType: "section",
     run: (c) => c.storage.updateSection(c.rickard.sections[0]!.id, { bodyMd: "Shorter than he claims." }, { author: "user", editKind: "retcon" }),

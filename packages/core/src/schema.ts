@@ -13,6 +13,7 @@ import {
   EditKind,
   EntityType,
   GmNoteKind,
+  PageStatus,
   KnowledgeTarget,
   ObjectType,
   Role,
@@ -62,6 +63,7 @@ export const worlds = sqliteTable("worlds", {
   pitch: text("pitch").notNull().default(""),
   depth: text("depth", { enum: values(Depth) }).notNull(),
   defaultApprovalMode: text("default_approval_mode", { enum: values(ApprovalMode) }).notNull(),
+  asOfStoryTime: text("as_of_story_time"),
 });
 
 export const campaigns = sqliteTable("campaigns", {
@@ -96,6 +98,7 @@ export const entities = sqliteTable(
     aliases: json<string[]>("aliases").notNull(),
     source: text("source", { enum: values(Source) }).notNull(),
     summary: text("summary").notNull().default(""),
+    status: text("status", { enum: values(PageStatus) }).notNull().default("confirmed"),
   },
   (t) => [uniqueIndex("entities_world_slug").on(t.worldId, t.slug), index("entities_campaign").on(t.campaignId)],
 );

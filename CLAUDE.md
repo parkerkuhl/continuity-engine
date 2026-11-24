@@ -47,7 +47,7 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 
 | Path | What it holds |
 | --- | --- |
-| `src/server.ts` | `createServer(engine)`: registers every SPEC tool (18) with Zod input schemas; keeps one open session per campaign |
+| `src/server.ts` | `createServer(engine)`: registers every SPEC tool (19) with Zod input schemas; keeps one open session per campaign |
 | `src/render.ts` | Compact Markdown for each result; secrets go in a final `GM ONLY` block |
 | `src/index.ts` | stdio entry point (`CONTINUITY_DB`, default `~/.continuity-engine/continuity.db`) |
 | `build.mjs` | esbuild bundle to `dist/bin/server.js`, migrations copied to `dist/drizzle` |
@@ -59,9 +59,9 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 | --- | --- |
 | `lib/server.ts` | The one `RulesEngine` + `WebViews` per process, on `CONTINUITY_DB`; world and campaign scopes |
 | `app/actions.ts` | Server actions; each calls `RulesEngine` or `WebViews` only |
-| `app/` | Routes: `/` home, `/w/[worldId]` world wiki, `/c/[campaignId]` dashboard, `wiki`, `e/[slug]`, `review`, `gm` |
+| `app/` | Routes: `/` home, `/w/[worldId]` world wiki (plus `review` for drafted pages), `/c/[campaignId]` dashboard, `wiki`, `e/[slug]`, `review`, `gm` |
 | `components/` | App shell (dark sidebar; top bar with search and the Player view / GM view spoiler switch), wiki browser, entity view, inline editor with the edit-confirm dialog, update cards. Styling follows Parker's UI design: tokens in `app/globals.css`, Inter and Source Serif 4 self-hosted via @fontsource |
-| `e2e/run.mjs` | Browser run of the M5 acceptance checks against the real MCP server and `next start` |
+| `e2e/run.mjs` | Browser run of the M5 acceptance checks and the M6 page review against the real MCP server and `next start` |
 
 ## Conventions
 
@@ -74,6 +74,7 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 - **Rules engine** (`src/rules/`): `RulesEngine` checks every rule before writing anything. AI calls carry a session id from `openCampaign`; user calls are the web app's. AI page edits during play apply directly to the page (an existing section is changed where it lives; a new section joins the entity's own layer), and every change, AI or user, shows in `RulesEngine.changelog` (built from `versions`). Tags are a fixed set of types for now: a `ch-NN` time tag or an entity (character, place, faction, item, event, concept, rule); `log_scene` results report each tag's type. Free-form tags are planned for later. `updates.conflicts_with` (added in M2 with Parker's OK; not yet in the SPEC data model table) links a parked update to the update or locked section it clashes with.
 - **Player view** (`WebViews`, spoilers off): public sections, plus secret sections and updates with the PC (the entity named on the PC sheet) as a knower; no GM notes. A campaign keeps its toggle in `campaigns.spoilers_on`; world-only screens use a cookie. The review queue follows the toggle too.
 - **Entity page outline** (`OUTLINES` in `views.ts`): each type has a standard list of sections (a character has Background, Appearance, Personality, Wants, Relationships, Inventory). It is a display aid only. A missing slot shows empty with a Write button, which goes through `addSection`, and nothing is stored until the user writes it. In a campaign, `WebViews.entity` also returns a `profile` built from play: relationship and item updates, co-appearances, what the entity knows, scenes, tagged threads, and the PC sheet. All of it follows the player view.
+- **Page status** (M6, SPEC "Approval modes"): `entities.status` is proposed, confirmed or rejected. A page Claude creates follows its layer's approval mode (`pageStatusFor`: campaign mode with a new page as major; world default mode, mixed counting as review); `confirm_import` pages are confirmed. Proposed pages rank 4 and are labeled `PROPOSED PAGE`. The user approves or rejects them in the review queue (`RulesEngine.approvePage`/`rejectPage`); a rejected page keeps its row, gets a `-rejected-<id>` slug suffix and drops out of `listEntities`, resolution and search. `edit_entity` takes `world_id` while building a world (no session, no read needed; a changed confirmed page goes back to proposed) and `source` (never ruling). Worlds have `as_of_story_time` (`create_world`/`update_world` `as_of`); new campaigns start from it. `log_scene` `secrets_learned` writes section `knowledge` rows (`Storage.addSectionKnowers`).
 - **Tests** live in `packages/core/test`, run against an in-memory database, and are named after the acceptance check they cover.
 
 ## Commands
@@ -108,6 +109,8 @@ Scope (SPEC "Phase 0: building the world"): the worldbuilding module and the imp
 
 Acceptance checks:
 
-- [ ] A compact world built entirely by interview, every page approved
-- [ ] A multi-file world bible imported, with duplicates and disagreements flagged before confirm
-- [ ] An established-universe skeleton stored as `unverified` and labeled in context
+- [x] A compact world built entirely by interview, every page approved
+- [x] A multi-file world bible imported, with duplicates and disagreements flagged before confirm
+- [x] An established-universe skeleton stored as `unverified` and labeled in context
+
+Added in M6 with Parker's OK (SPEC.md updated): page status, `worlds.as_of_story_time`, the `update_world` tool, `edit_entity` `world_id` and `source`, and `log_scene` `secrets_learned`.

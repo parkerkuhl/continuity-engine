@@ -44,6 +44,7 @@ const WorldFrontMatter = z.object({
   pitch: z.string().default(""),
   depth: Depth,
   default_approval_mode: ApprovalMode,
+  as_of: z.string().optional(),
 });
 
 export function entityPath(e: Pick<Entity, "type" | "slug">): string {
@@ -58,11 +59,13 @@ export function renderLoadGuide(world: World, pages: Entity[]): string {
     pitch: world.pitch,
     depth: world.depth,
     default_approval_mode: world.defaultApprovalMode,
+    ...(world.asOfStoryTime ? { as_of: world.asOfStoryTime } : {}),
   });
   const lines = [
     `# Load guide: ${world.name}`,
     "",
     "Generated from the wiki; do not edit. Lists every page in this world and when to load it.",
+    ...(world.asOfStoryTime ? ["", `As of: ${world.asOfStoryTime}`] : []),
   ];
   for (const g of GUIDE_ORDER) {
     const group = pages
@@ -72,7 +75,8 @@ export function renderLoadGuide(world: World, pages: Entity[]): string {
     lines.push("", `## ${g.title}`, g.when, "");
     for (const e of group) {
       const summary = e.summary.split("\n")[0]?.trim();
-      lines.push(`- [${e.name}](${entityPath(e)})${summary ? `: ${summary}` : ""}`);
+      const flag = e.status === "proposed" ? " (proposed, not yet approved)" : "";
+      lines.push(`- [${e.name}](${entityPath(e)})${flag}${summary ? `: ${summary}` : ""}`);
     }
   }
   return `${fm}${lines.join("\n")}\n`;
@@ -123,7 +127,7 @@ export async function importWorld(
   }
 
   const world = await storage.createWorld(
-    { ownerId: opts.ownerId, name: wfm.name, pitch: wfm.pitch, depth: wfm.depth, defaultApprovalMode: wfm.default_approval_mode },
+    { ownerId: opts.ownerId, name: wfm.name, pitch: wfm.pitch, depth: wfm.depth, defaultApprovalMode: wfm.default_approval_mode, asOfStoryTime: wfm.as_of ?? null },
     opts.meta,
   );
   for (const { page } of pages) await storage.createEntity({ ...page, worldId: world.id }, opts.meta);

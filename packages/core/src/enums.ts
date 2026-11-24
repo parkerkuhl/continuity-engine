@@ -7,6 +7,8 @@ export const ApprovalMode = z.enum(["review", "batch", "autopilot", "mixed"]);
 export const EntityType = z.enum(["character", "place", "faction", "item", "event", "concept", "rule"]);
 export const Source = z.enum(["canon", "ruling", "invention", "unverified"]);
 export const Visibility = z.enum(["public", "secret"]);
+/** A page Claude drafts follows the approval mode: proposed until the user approves or rejects it. */
+export const PageStatus = z.enum(["proposed", "confirmed", "rejected"]);
 export const UpdateType = z.enum([
   "new-fact",
   "status-change",
@@ -103,4 +105,5 @@ export const FORCED_MAJOR_TYPES: ReadonlySet<z.infer<typeof UpdateType>> = new S
 export type UpdateType = z.infer<typeof UpdateType>;
 export type Severity = z.infer<typeof Severity>;
 export type UpdateStatus = z.infer<typeof UpdateStatus>;
+export type PageStatus = z.infer<typeof PageStatus>;
 export type RulingOrigin = z.infer<typeof RulingOrigin>;

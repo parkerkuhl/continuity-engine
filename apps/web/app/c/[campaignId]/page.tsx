@@ -61,7 +61,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
         </div>
         {d.reviewCount > 0 && (
           <Link href={`${path}/review`} className="btn-primary">
-            {d.reviewCount} update{d.reviewCount === 1 ? "" : "s"} to review
+            {d.reviewCount} to review
           </Link>
         )}
       </div>

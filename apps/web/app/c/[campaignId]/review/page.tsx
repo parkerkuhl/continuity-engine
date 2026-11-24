@@ -2,6 +2,7 @@ import Link from "next/link";
 import { approveAllMinor } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps } from "@/components/update-card";
+import { PageQueue } from "@/components/page-queue";
 import { UpdateItem } from "@/components/update-item";
 import { app, campaignScope } from "@/lib/server";
 
@@ -19,7 +20,7 @@ export default async function Review({ params, searchParams }: { params: Promise
   const { campaignId } = await params;
   const f = (FILTERS as readonly string[]).includes((await searchParams).filter ?? "") ? (await searchParams).filter! : "all";
   const scope = await campaignScope(campaignId);
-  const { items, hidden } = await app().views.reviewQueue(scope);
+  const [{ items, hidden }, pages] = await Promise.all([app().views.reviewQueue(scope), app().views.pageQueue(scope)]);
   const base = `/c/${campaignId}`;
   const path = `${base}/review`;
   const c = scope.campaign!;
@@ -37,7 +38,10 @@ export default async function Review({ params, searchParams }: { params: Promise
         <div>
           <h1 className="page-title">Review queue</h1>
           <p className="mt-1.5 text-muted">
-            {n === 0 ? "Nothing waiting." : `${n} update${n === 1 ? "" : "s"} the GM proposed.`} Mode: <b className="text-ink">{modeName}</b>. {modeNote}
+            {n === 0 && pages.length === 0
+              ? "Nothing waiting."
+              : [n > 0 && `${n} update${n === 1 ? "" : "s"} the GM proposed`, pages.length > 0 && `${pages.length} new page${pages.length === 1 ? "" : "s"}`].filter(Boolean).join(" and ") + "."}{" "}
+            Mode: <b className="text-ink">{modeName}</b>. {modeNote}
           </p>
         </div>
         <ActionForm action={approveAllMinor}>
@@ -61,6 +65,8 @@ export default async function Review({ params, searchParams }: { params: Promise
           );
         })}
       </div>
+
+      <PageQueue scope={scope} path={path} />
 
       {hidden > 0 && (
         <p className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-5 py-3 text-muted">
@@ -131,7 +137,7 @@ export default async function Review({ params, searchParams }: { params: Promise
         </section>
       )}
 
-      {items.length === 0 && hidden === 0 && <p className="text-muted">Nothing to review.</p>}
+      {items.length === 0 && hidden === 0 && pages.length === 0 && <p className="text-muted">Nothing to review.</p>}
     </>
   );
 }

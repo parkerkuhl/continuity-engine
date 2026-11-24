@@ -23,6 +23,7 @@ import {
   UpdateType,
   Visibility,
   type ConflictRef,
+  type PageStatus,
   type UpdateStatus,
 } from "../enums";
 import { hasLevel2Heading } from "../markdown/sections";
@@ -195,7 +196,16 @@ export interface SceneLogged {
   results: UpdateResult[];
   threads: Thread[];
   pcSheet: PcSheet | null;
+  /** Secret sections someone learned this scene, with everyone who now knows each. */
+  secretsLearned: { entity: Entity; section: Section; knowers: Entity[] }[];
 }
+
+export const SecretLearned = z.object({
+  entity: z.string().min(1),
+  section: Kebab,
+  by: z.array(z.string().min(1)).min(1),
+});
+export type SecretLearned = z.input<typeof SecretLearned>;
 
 export const ThreadChange = z.object({
   /** id or exact title of an existing thread; leave out to open a new one */
@@ -400,16 +410,47 @@ export class RulesEngine {
    * Edits apply directly to the page (Parker's call, 2026-11-24): an existing section is changed where it
    * lives, and a new section joins the entity's own layer. Every edit is a `versions` row, so it shows in
    * `changelog`.
+   *
+   * During worldbuilding there is no campaign session: pass `worldId` instead to edit a world page. No read is
+   * required then, and a confirmed page Claude changes goes back to proposed unless the world runs on autopilot,
+   * so nothing Claude drafts in Phase 0 skips the approval mode. `source` moves a page between canon, invention
+   * and unverified (for instance, to canon once the user confirms an unverified page); rulings come only from the user.
    */
-  async editEntity(input: { sessionId: string; entity: string; summary?: string; sections?: SectionEdit[] }): Promise<Result<EntityPage>> {
-    const open = await this.openSession(input.sessionId);
-    if (!open.ok) return open;
-    const { campaign } = open.value;
-    const r = await this.resolve(campaign, input.entity);
-    if (!r.ok) return r;
-    const entity = r.value;
-    const read = await this.requireRead(input.sessionId, entity);
-    if (!read.ok) return read;
+  async editEntity(input: {
+    sessionId?: string;
+    worldId?: string;
+    entity: string;
+    summary?: string;
+    source?: Entity["source"];
+    sections?: SectionEdit[];
+  }): Promise<Result<EntityPage>> {
+    let campaign: Campaign | null = null;
+    let world: World | null = null;
+    let entity: Entity;
+    if (input.sessionId) {
+      const open = await this.openSession(input.sessionId);
+      if (!open.ok) return open;
+      campaign = open.value.campaign;
+      const r = await this.resolve(campaign, input.entity);
+      if (!r.ok) return r;
+      entity = r.value;
+      const read = await this.requireRead(input.sessionId, entity);
+      if (!read.ok) return read;
+    } else if (input.worldId) {
+      world = await this.storage.getWorld(input.worldId);
+      if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
+      const r = await this.resolveIn(world.id, null, input.entity);
+      if (!r.ok) return r;
+      entity = r.value;
+    } else {
+      return refuse("invalid", "Give campaign_id during play, or world_id while building the world.");
+    }
+    if (input.source !== undefined) {
+      if (!Source.safeParse(input.source).success || input.source === "ruling") {
+        return refuse("invalid", "source must be canon, invention or unverified; rulings come from the user (record_ruling).");
+      }
+    }
+    const where = campaign ? `in campaign "${campaign.name}"` : `while building world "${world!.name}"`;
 
     const edits = [];
     for (const raw of input.sections ?? []) {
@@ -419,9 +460,9 @@ export class RulesEngine {
       if (edit.body !== undefined && hasLevel2Heading(edit.body)) {
         return refuse("invalid", `Section "${edit.key}": use ### or deeper inside a section body, not ##.`);
       }
-      const world = await this.findSection(entity.id, edit.key, null);
-      const overlay = await this.findSection(entity.id, edit.key, campaign.id);
-      const locked = [overlay, world].find((s) => s?.lockedByUser);
+      const base = await this.findSection(entity.id, edit.key, null);
+      const overlay = campaign ? await this.findSection(entity.id, edit.key, campaign.id) : null;
+      const locked = [overlay, base].find((s) => s?.lockedByUser);
       if (locked) {
         return refuse(
           "locked_by_user",
@@ -429,32 +470,40 @@ export class RulesEngine {
           { ref: entity.slug },
         );
       }
-      if (!overlay && !world && !edit.heading) {
+      if (!overlay && !base && !edit.heading) {
         return refuse("invalid", `${entity.slug} has no section "${edit.key}". Give a heading to add it.`);
       }
-      edits.push({ edit, world, overlay });
+      edits.push({ edit, base, overlay });
     }
 
-    if (input.summary !== undefined) {
-      await this.storage.updateEntity(entity.id, { summary: input.summary }, AI(`edit_entity in campaign "${campaign.name}"`));
+    // In worldbuilding, a changed page goes back through the approval mode.
+    const contentChange = input.summary !== undefined || edits.length > 0;
+    const reopen = !campaign && contentChange && entity.status === "confirmed" && pageStatusFor(world!) === "proposed";
+    const entityPatch = {
+      ...(input.summary !== undefined && { summary: input.summary }),
+      ...(input.source !== undefined && input.source !== entity.source && { source: input.source }),
+      ...(reopen && { status: "proposed" as const }),
+    };
+    if (Object.keys(entityPatch).length) {
+      await this.storage.updateEntity(entity.id, entityPatch, AI(`edit_entity ${where}`));
     }
-    for (const { edit, world, overlay } of edits) {
-      const target = overlay ?? world;
+    for (const { edit, base, overlay } of edits) {
+      const target = overlay ?? base;
       if (target) {
         await this.storage.updateSection(
           target.id,
           { ...(edit.heading && { heading: edit.heading }), ...(edit.body !== undefined && { bodyMd: edit.body }), ...(edit.visibility && { visibility: edit.visibility }) },
-          AI(`edit_entity in campaign "${campaign.name}"`),
+          AI(`edit_entity ${where}`),
         );
       } else {
         await this.storage.addSection(
           entity.id,
           { campaignId: entity.campaignId, key: edit.key, heading: edit.heading!, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
-          AI(`edit_entity in campaign "${campaign.name}"`),
+          AI(`edit_entity ${where}`),
         );
       }
     }
-    return ok((await this.storage.getPage(entity.id, { campaignId: campaign.id }))!);
+    return ok((await this.storage.getPage(entity.id, { campaignId: campaign?.id ?? null }))!);
   }
 
   /** Main write path. The scene is logged; each update is accepted or refused on its own. */
@@ -466,6 +515,8 @@ export class RulesEngine {
     updates: UpdateInput[];
     threadChanges?: ThreadChange[];
     pcChanges?: Record<string, unknown>;
+    /** Secret sections a character learned in the scene; the PC learning one shows it in the player view. */
+    secretsLearned?: SecretLearned[];
   }): Promise<Result<SceneLogged>> {
     const open = await this.openSession(input.sessionId);
     if (!open.ok) return open;
@@ -504,6 +555,26 @@ export class RulesEngine {
       const p = PcSheetData.passthrough().safeParse(merged);
       if (!p.success) return refuse("invalid", `PC sheet: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
       pcData = merged;
+    }
+    const secretPlan: { entity: Entity; section: Section; by: Entity[] }[] = [];
+    for (const raw of input.secretsLearned ?? []) {
+      const p = SecretLearned.safeParse(raw);
+      if (!p.success) return refuse("invalid", `Secret learned: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+      const r = await this.resolve(campaign, p.data.entity);
+      if (!r.ok) return r;
+      const read = await this.requireRead(input.sessionId, r.value);
+      if (!read.ok) return read;
+      const page = await this.storage.getPage(r.value.id, { campaignId: campaign.id });
+      const section = page?.sections.find((s) => s.key === p.data.section);
+      if (!section) {
+        return refuse("not_found", `${r.value.slug} has no section "${p.data.section}". Its sections: ${page?.sections.map((s) => s.key).join(", ") || "none"}.`, { ref: r.value.slug });
+      }
+      if (section.visibility !== "secret") {
+        return refuse("invalid", `Section "${section.key}" of ${r.value.slug} is public, so there is nothing to learn. Only list secret sections in secrets_learned.`);
+      }
+      const by = await this.resolveAll(campaign, p.data.by);
+      if (!by.ok) return by;
+      secretPlan.push({ entity: r.value, section, by: by.value });
     }
 
     // Check every update before writing anything, so a refusal never depends on write order.
@@ -561,9 +632,19 @@ export class RulesEngine {
       }
     }
     const pcSheet = pcData ? await this.storage.setPcSheet({ campaignId: campaign.id, data: pcData }, AI("log_scene")) : await this.storage.getPcSheet(campaign.id);
+    const secretsLearned: SceneLogged["secretsLearned"] = [];
+    for (const { entity, section, by } of secretPlan) {
+      const ids = await this.storage.addSectionKnowers(section.id, by.map((e) => e.id), AI(`log_scene: secret "${section.heading}" of ${entity.name} learned`));
+      const knowers: Entity[] = [];
+      for (const id of ids) {
+        const e = await this.storage.getEntity(id);
+        if (e) knowers.push(e);
+      }
+      secretsLearned.push({ entity, section, knowers });
+    }
     const anchor = await this.storage.getVoiceAnchor(campaign.id);
     if (anchor) await this.storage.setVoiceAnchor({ ...anchor, scenesSinceAudit: anchor.scenesSinceAudit + 1 }, AI("log_scene"));
-    return ok({ scene, results, threads: touched, pcSheet });
+    return ok({ scene, results, threads: touched, pcSheet, secretsLearned });
   }
 
   /** Validates one AI update against every rule and works out its stored status. Writes nothing. */
@@ -725,19 +806,63 @@ export class RulesEngine {
     return out;
   }
 
-  async createWorld(input: { name: string; pitch?: string; depth: "compact" | "full"; approvalMode: Campaign["approvalMode"]; author?: "ai" | "user" }): Promise<Result<World>> {
+  async createWorld(input: {
+    name: string;
+    pitch?: string;
+    depth: "compact" | "full";
+    approvalMode: Campaign["approvalMode"];
+    asOf?: string | null;
+    author?: "ai" | "user";
+  }): Promise<Result<World>> {
     if (!input.name.trim()) return refuse("invalid", "A world needs a name.");
     if (!Depth.safeParse(input.depth).success) return refuse("invalid", 'depth must be "compact" or "full".');
     if (!ApprovalMode.safeParse(input.approvalMode).success) return refuse("invalid", "approval_mode must be review, batch, autopilot or mixed.");
     return ok(
       await this.storage.createWorld(
-        { ownerId: await this.owner(), name: input.name.trim(), pitch: input.pitch ?? "", depth: input.depth, defaultApprovalMode: input.approvalMode },
+        {
+          ownerId: await this.owner(),
+          name: input.name.trim(),
+          pitch: input.pitch ?? "",
+          depth: input.depth,
+          defaultApprovalMode: input.approvalMode,
+          asOfStoryTime: input.asOf?.trim() || null,
+        },
         input.author === "user" ? { author: "user", reason: "web app" } : AI("create_world"),
       ),
     );
   }
 
-  /** Refused when the name or an alias already names an entity; the match is returned instead. */
+  /**
+   * Changes a world's own fields: by Claude through update_world (worldbuilding), or by the user in the web app.
+   * The as-of moment is where new campaigns start.
+   */
+  async updateWorld(input: {
+    worldId: string;
+    name?: string;
+    pitch?: string;
+    approvalMode?: World["defaultApprovalMode"];
+    asOf?: string | null;
+    author?: "ai" | "user";
+  }): Promise<Result<World>> {
+    const world = await this.storage.getWorld(input.worldId);
+    if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
+    if (input.name !== undefined && !input.name.trim()) return refuse("invalid", "A world needs a name.");
+    if (input.approvalMode && !ApprovalMode.safeParse(input.approvalMode).success) return refuse("invalid", "approval_mode must be review, batch, autopilot or mixed.");
+    const patch = {
+      ...(input.name !== undefined && { name: input.name.trim() }),
+      ...(input.pitch !== undefined && { pitch: input.pitch }),
+      ...(input.approvalMode && { defaultApprovalMode: input.approvalMode }),
+      ...(input.asOf !== undefined && { asOfStoryTime: input.asOf?.trim() || null }),
+    };
+    if (!Object.keys(patch).length) return ok(world);
+    return ok(await this.storage.updateWorld(world.id, patch, input.author === "user" ? { author: "user", reason: "web app" } : AI("update_world")));
+  }
+
+  /**
+   * Refused when the name or an alias already names an entity; the match is returned instead. A page Claude
+   * drafts follows the approval mode of its layer (the campaign's, or the world's default): it is `proposed`
+   * until the user approves it, unless that mode is autopilot. Pages the user accepted in `confirm_import` are confirmed.
+   */
   async createEntity(input: {
     worldId: string;
     campaignId?: string | null;
@@ -747,10 +872,12 @@ export class RulesEngine {
     source: Entity["source"];
     summary?: string;
     sections?: { heading: string; body: string; key?: string; visibility?: "public" | "secret" }[];
-  }): Promise<Result<EntityPage>> {
+  }, opts: { userAccepted?: boolean } = {}): Promise<Result<EntityPage>> {
     const world = await this.storage.getWorld(input.worldId);
     if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
-    if (input.campaignId && !(await this.storage.getCampaign(input.campaignId))) return refuse("not_found", `No campaign ${input.campaignId}.`);
+    const campaign = input.campaignId ? await this.storage.getCampaign(input.campaignId) : null;
+    if (input.campaignId && !campaign) return refuse("not_found", `No campaign ${input.campaignId}.`);
+    if (campaign && campaign.worldId !== world.id) return refuse("invalid", `Campaign ${campaign.name} belongs to another world.`);
     if (!EntityType.safeParse(input.type).success) return refuse("invalid", `type must be one of ${EntityType.options.join(", ")}.`);
     if (!Source.safeParse(input.source).success) return refuse("invalid", `source must be one of ${Source.options.join(", ")}.`);
     const dup = await this.findDuplicate(world.id, input.campaignId ?? null, [input.name, ...(input.aliases ?? [])]);
@@ -775,9 +902,10 @@ export class RulesEngine {
             aliases: input.aliases ?? [],
             source: input.source,
             summary: input.summary ?? "",
+            status: opts.userAccepted ? "confirmed" : pageStatusFor(campaign ?? world),
             sections: (input.sections ?? []).map((s) => ({ heading: s.heading, bodyMd: s.body, ...(s.key && { key: s.key }), visibility: s.visibility ?? "public" })),
           },
-          AI("create_entity"),
+          opts.userAccepted ? AI("confirm_import") : AI("create_entity"),
         ),
       );
     } catch (e) {
@@ -851,7 +979,7 @@ export class RulesEngine {
         refused.push({ index, refusal: { rule: "not_found", message: `No item ${index} in this import.` } });
         continue;
       }
-      const r = await this.createEntity({ worldId: pending.worldId, type: e.type, name: e.name, aliases: e.aliases ?? [], source: "canon", summary: e.summary ?? "", sections: e.sections ?? [] });
+      const r = await this.createEntity({ worldId: pending.worldId, type: e.type, name: e.name, aliases: e.aliases ?? [], source: "canon", summary: e.summary ?? "", sections: e.sections ?? [] }, { userAccepted: true });
       if (r.ok) created.push(r.value);
       else refused.push({ index, refusal: r.refusal });
     }
@@ -883,6 +1011,7 @@ export class RulesEngine {
           settings: settings.data,
           approvalMode: input.approvalMode ?? world.defaultApprovalMode,
           ...(input.severityPolicy && { severityPolicy: input.severityPolicy }),
+          asOfStoryTime: world.asOfStoryTime,
         },
         input.author === "user" ? { author: "user", reason: "web app" } : AI("create_campaign"),
       ),
@@ -1096,6 +1225,31 @@ export class RulesEngine {
     return ok(await this.storage.updateEntity(entity.id, input.patch, { author: "user", editKind: input.editKind ?? null, reason: input.reason ?? null }));
   }
 
+  /** Approve a page Claude drafted. It becomes ordinary canon for its layer. */
+  async approvePage(entityId: string): Promise<Result<Entity>> {
+    const e = await this.storage.getEntity(entityId);
+    if (!e) return refuse("not_found", `No entity ${entityId}.`);
+    if (e.status !== "proposed") return refuse("invalid", `${e.name} is ${e.status}, not proposed.`);
+    return ok(await this.storage.updateEntity(e.id, { status: "confirmed" }, { author: "user", reason: "page approved" }));
+  }
+
+  /**
+   * Reject a page Claude drafted. Nothing is deleted: the page stays as a record, drops out of lookups,
+   * search and context, and gives up its slug so the name can be drafted again.
+   */
+  async rejectPage(entityId: string): Promise<Result<Entity>> {
+    const e = await this.storage.getEntity(entityId);
+    if (!e) return refuse("not_found", `No entity ${entityId}.`);
+    if (e.status !== "proposed") return refuse("invalid", `${e.name} is ${e.status}, not proposed.`);
+    const slug = `${e.slug}-rejected-${e.id.slice(0, 8)}`;
+    return ok(await this.storage.updateEntity(e.id, { status: "rejected", slug }, { author: "user", reason: "page rejected" }));
+  }
+
+  /** Pages Claude drafted that wait for the user: the world's own, plus the campaign's when given. */
+  async proposedPages(worldId: string, campaignId?: string | null): Promise<Entity[]> {
+    return this.storage.listEntities(worldId, { campaignId: campaignId ?? null, status: ["proposed"] });
+  }
+
   /** Approve a proposed update. If it supersedes another, that one becomes `superseded`. */
   async approveUpdate(updateId: string): Promise<Result<Update>> {
     const u = await this.storage.getUpdate(updateId);
@@ -1192,7 +1346,11 @@ export class RulesEngine {
 
   /** Alias resolution: every reference becomes a canonical entity, or a refusal with the closest matches. */
   async resolve(campaign: Campaign, ref: string): Promise<Result<Entity>> {
-    const r = await this.storage.resolveEntity(campaign.worldId, ref, { campaignId: campaign.id });
+    return this.resolveIn(campaign.worldId, campaign.id, ref);
+  }
+
+  private async resolveIn(worldId: string, campaignId: string | null, ref: string): Promise<Result<Entity>> {
+    const r = await this.storage.resolveEntity(worldId, ref, { campaignId });
     if (r.status === "resolved") return ok(r.entity);
     if (r.status === "ambiguous") {
       const slugs = r.candidates.map((e) => e.slug);
@@ -1242,6 +1400,15 @@ export class RulesEngine {
 export function statusFor(campaign: Pick<Campaign, "approvalMode" | "severityPolicy">, severity: "minor" | "major"): UpdateStatus {
   const mode = campaign.approvalMode === "mixed" ? campaign.severityPolicy[severity] : campaign.approvalMode;
   return mode === "autopilot" ? "confirmed" : "proposed";
+}
+
+/**
+ * What status a page Claude drafts gets. A campaign page follows the campaign's mode, treating a new page as
+ * major under mixed; a world page follows the world's default mode, where mixed counts as review.
+ */
+export function pageStatusFor(target: Pick<Campaign, "approvalMode" | "severityPolicy"> | Pick<World, "defaultApprovalMode">): PageStatus {
+  if ("approvalMode" in target) return statusFor(target, "major") === "confirmed" ? "confirmed" : "proposed";
+  return target.defaultApprovalMode === "autopilot" ? "confirmed" : "proposed";
 }
 
 function unloggedWarning(scene: Scene): string {

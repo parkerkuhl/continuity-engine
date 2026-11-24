@@ -146,6 +146,30 @@ export async function markCanon(_: ActionState, f: FormData): Promise<ActionStat
   return done(f, "Marked as canon. The GM no longer sees it labeled unverified.");
 }
 
+/** Approve or reject a page the GM drafted (it follows the approval mode). */
+export async function approvePage(_: ActionState, f: FormData): Promise<ActionState> {
+  const r = await app().engine.approvePage(req(f, "entityId"));
+  if (!r.ok) return fail(r.refusal.message);
+  return done(f, `Approved. ${r.value.name} is canon now.`);
+}
+
+export async function rejectPage(_: ActionState, f: FormData): Promise<ActionState> {
+  const r = await app().engine.rejectPage(req(f, "entityId"));
+  if (!r.ok) return fail(r.refusal.message);
+  const back = str(f, "back");
+  if (back) {
+    revalidatePath("/", "layout");
+    redirect(back);
+  }
+  return done(f, `Rejected. ${r.value.name} is kept as a record but left out of the wiki and the GM's context.`);
+}
+
+export async function setWorldAsOf(_: ActionState, f: FormData): Promise<ActionState> {
+  const r = await app().engine.updateWorld({ worldId: req(f, "worldId"), asOf: str(f, "asOf") ?? "", author: "user" });
+  if (!r.ok) return fail(r.refusal.message);
+  return done(f, r.value.asOfStoryTime ? "Saved. New campaigns start at this moment." : "Cleared.");
+}
+
 export async function restoreVersion(_: ActionState, f: FormData): Promise<ActionState> {
   const kind = editKind(f);
   if (!kind) return fail("Choose retcon or change from now on.");

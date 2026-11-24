@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Scope, Version } from "@continuity/core";
 import { notFound } from "next/navigation";
-import { addSection, editAliases, editSection, editSummary, markCanon, restoreVersion, setSectionVisibility } from "@/app/actions";
+import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion, setSectionVisibility } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
@@ -208,6 +208,25 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
           </a>
         </div>
       </div>
+
+      {page.status === "proposed" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-pending bg-surface px-5 py-3">
+          <p className="font-semibold">Draft: the GM wrote this page and it waits for your approval. Until then the GM sees it labeled proposed.</p>
+          <div className="flex gap-2">
+            <ActionForm action={approvePage}>
+              <input type="hidden" name="entityId" value={page.id} />
+              <input type="hidden" name="path" value={path} />
+              <button className="btn-primary btn-sm">Approve page</button>
+            </ActionForm>
+            <ActionForm action={rejectPage}>
+              <input type="hidden" name="entityId" value={page.id} />
+              <input type="hidden" name="path" value={path} />
+              <input type="hidden" name="back" value={wiki} />
+              <button className="btn btn-sm">Reject page</button>
+            </ActionForm>
+          </div>
+        </div>
+      )}
 
       {page.source === "unverified" && (
         <ActionForm action={markCanon} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-warn-dash bg-warn-tint px-5 py-3">
