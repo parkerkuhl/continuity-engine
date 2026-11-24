@@ -93,3 +93,14 @@ export const PcSheetData = z
     flaw_notes: z.string(),
   })
   .partial();
+
+/** What a parked update conflicts with: a confirmed major or user-authored update, or a user-locked section. */
+export const ConflictRef = z.object({ type: z.enum(["update", "section"]), id: z.string() });
+export type ConflictRef = z.infer<typeof ConflictRef>;
+
+/** Types the server always treats as major, whatever severity the AI sets (SPEC "Approval modes"). */
+export const FORCED_MAJOR_TYPES: ReadonlySet<z.infer<typeof UpdateType>> = new Set(["death", "knowledge", "faction-shift", "world-rule"]);
+export type UpdateType = z.infer<typeof UpdateType>;
+export type Severity = z.infer<typeof Severity>;
+export type UpdateStatus = z.infer<typeof UpdateStatus>;
+export type RulingOrigin = z.infer<typeof RulingOrigin>;

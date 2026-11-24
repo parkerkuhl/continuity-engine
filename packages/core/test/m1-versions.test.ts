@@ -4,7 +4,13 @@ import { SqliteStorage, type Storage } from "../src";
 import { AI, USER, seed, setup } from "./helpers";
 
 type Ctx = Awaited<ReturnType<typeof setup>> & Awaited<ReturnType<typeof seed>>;
-type WriteCase = { method: keyof Storage; run: (c: Ctx) => Promise<{ id: string }>; objectType: string };
+type WriteCase = {
+  method: keyof Storage;
+  objectType: string;
+  /** Setup that runs before the version count is taken. */
+  prepare?: (c: Ctx) => Promise<{ id: string }>;
+  run: (c: Ctx, prepared: { id: string }) => Promise<{ id: string }>;
+};
 
 const WRITES: WriteCase[] = [
   { method: "createUser", objectType: "user", run: (c) => c.storage.createUser({ name: "Sam" }, USER) },
@@ -35,23 +41,87 @@ const WRITES: WriteCase[] = [
     objectType: "section",
     run: (c) => c.storage.updateSection(c.rickard.sections[0]!.id, { bodyMd: "Shorter than he claims." }, { author: "user", editKind: "retcon" }),
   },
+  {
+    method: "updateCampaign",
+    objectType: "campaign",
+    run: async (c) => c.storage.updateCampaign((await camp(c)).id, { spoilersOn: true }, USER),
+  },
+  {
+    method: "createUpdate",
+    objectType: "update",
+    run: async (c) =>
+      c.storage.createUpdate(
+        { campaignId: (await camp(c)).id, entityIds: [c.rickard.id], tags: ["ch-01"], type: "status-change", severity: "minor", status: "confirmed", bodyMd: "Limps.", knows: [c.rickard.id] },
+        AI,
+      ),
+  },
+  {
+    method: "updateUpdate",
+    objectType: "update",
+    prepare: async (c) =>
+      c.storage.createUpdate(
+        { campaignId: (await camp(c)).id, entityIds: [], tags: [], type: "new-fact", severity: "minor", status: "proposed", bodyMd: "x" },
+        AI,
+      ),
+    run: (c, u) => c.storage.updateUpdate(u.id, { status: "confirmed" }, USER),
+  },
+  {
+    method: "createRuling",
+    objectType: "ruling",
+    run: (c) => c.storage.createRuling({ worldId: c.world.id, text: "Dragons are extinct.", origin: "in_play" }, USER),
+  },
+  {
+    method: "createScene",
+    objectType: "scene",
+    run: async (c) => c.storage.createScene({ campaignId: (await camp(c)).id, chapter: 1 }, AI),
+  },
+  {
+    method: "updateScene",
+    objectType: "scene",
+    prepare: async (c) => c.storage.createScene({ campaignId: (await camp(c)).id, chapter: 1 }, AI),
+    run: (c, scene) => c.storage.updateScene(scene.id, { loggedAt: new Date().toISOString() }, AI),
+  },
 ];
+
+/** Session and read bookkeeping: not content changes, so no versions row (see CLAUDE.md). */
+/** Private helpers on the class that TypeScript hides but the prototype still lists. */
+const PRIVATE = ["stamp", "write", "scope", "sectionsOf", "newSectionRow", "refreshFts"];
+const BOOKKEEPING = ["openSession", "closeSession", "recordReads"];
+const READ_ONLY = /^(get|list|has|resolve|search|dump|close$)/;
+
+async function camp(c: Ctx) {
+  return (await c.storage.listCampaigns(c.world.id))[0]!;
+}
 
 async function ctx(): Promise<Ctx> {
   const base = await setup();
-  return { ...base, ...(await seed(base.storage, base.world.id)) };
+  const seeded = await seed(base.storage, base.world.id);
+  await base.storage.createCampaign({ worldId: base.world.id, ownerId: base.user.id, name: "Run", approvalMode: "batch" }, USER);
+  return { ...base, ...seeded };
 }
 
 describe("M1: every write produces exactly one versions row", () => {
   it("the table below covers every write method on Storage", () => {
-    const writeMethods = Object.getOwnPropertyNames(SqliteStorage.prototype).filter((m) => /^(create|update|add|set|delete|remove)/.test(m));
-    expect(writeMethods.sort()).toEqual(WRITES.map((w) => w.method).sort());
+    const methods = Object.getOwnPropertyNames(SqliteStorage.prototype).filter((m) => m !== "constructor" && !m.startsWith("require"));
+    const writes = methods.filter((m) => !READ_ONLY.test(m) && !BOOKKEEPING.includes(m) && !PRIVATE.includes(m));
+    expect(writes.sort()).toEqual(WRITES.map((w) => w.method).sort());
   });
 
-  it.each(WRITES)("$method writes one $objectType version", async ({ run, objectType }) => {
+  it("session and read bookkeeping writes no versions rows", async () => {
     const c = await ctx();
+    const campaign = await camp(c);
     const before = (await c.storage.listVersions()).length;
-    const result = await run(c);
+    const { session } = await c.storage.openSession(campaign.id);
+    await c.storage.recordReads(session.id, [c.rickard.id]);
+    await c.storage.closeSession(session.id);
+    expect((await c.storage.listVersions()).length).toBe(before);
+  });
+
+  it.each(WRITES)("$method writes one $objectType version", async ({ prepare, run, objectType }) => {
+    const c = await ctx();
+    const prepared = prepare ? await prepare(c) : { id: "" };
+    const before = (await c.storage.listVersions()).length;
+    const result = await run(c, prepared);
     const after = await c.storage.listVersions();
     expect(after.length).toBe(before + 1);
     expect(after.at(-1)).toMatchObject({ objectType, objectId: result.id });
@@ -79,8 +149,8 @@ describe("M1: every write produces exactly one versions row", () => {
   });
 
   it("seeding writes exactly one version per write call", async () => {
-    const c = await ctx(); // createUser + createWorld + 4 createEntity
-    expect((await c.storage.listVersions()).length).toBe(6);
+    const c = await ctx(); // createUser + createWorld + 4 createEntity + createCampaign
+    expect((await c.storage.listVersions()).length).toBe(7);
   });
 
   it("a failed write writes no version and changes nothing", async () => {

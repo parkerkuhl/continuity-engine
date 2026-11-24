@@ -41,6 +41,7 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 | `src/storage/types.ts` | The `Storage` interface. The only API the rest of the code uses |
 | `src/storage/sqlite.ts` | SQLite implementation |
 | `src/markdown/` | Entity page format (front matter + `##` sections) and world export/import |
+| `src/rules/` | Rules engine (`engine.ts`), precedence and context assembly (`precedence.ts`), refusal values (`result.ts`) |
 
 ## Conventions
 
@@ -49,6 +50,8 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 - **Section bodies** are Markdown and may not contain a level-2 heading (`## `) outside a code fence, because `##` delimits sections in the page format. Use `###` or deeper.
 - **Alias resolution:** a reference (slug, name, alias or id) is slugified and matched against each entity's slug, name and aliases in the world plus the given campaign. Unknown references return the closest matches and are never auto-created. Two matches return `ambiguous`.
 - **Export layout** (SPEC "Page format and export layout"): `worlds/<world-slug>/00-load-guide.md` is generated and carries the world's own fields in its front matter. Entities go to `characters/`, `places/`, `factions/`, `items/`, `setting/` (concept and rule), and `events/` (event). Concept entities with slug `glossary` or `timeline` go to the world root as `glossary.md` and `timeline.md`.
+- **Bookkeeping is not content:** sessions, reads and `campaigns.last_session_at` (all written by `openSession`/`recordReads`/`closeSession`) and the FTS index write no `versions` row.
+- **Rules engine** (`src/rules/`): `RulesEngine` checks every rule before writing anything. AI calls carry a session id from `openCampaign`; user calls are the web app's. AI page edits during play apply directly to the page (an existing section is changed where it lives; a new section joins the entity's own layer), and every change, AI or user, shows in `RulesEngine.changelog` (built from `versions`). Tags are a fixed set of types for now: a `ch-NN` time tag or an entity (character, place, faction, item, event, concept, rule); `log_scene` results report each tag's type. Free-form tags are planned for later. `updates.conflicts_with` (added in M2 with Parker's OK; not yet in the SPEC data model table) links a parked update to the update or locked section it clashes with.
 - **Tests** live in `packages/core/test`, run against an in-memory database, and are named after the acceptance check they cover.
 
 ## Commands
@@ -60,14 +63,19 @@ pnpm typecheck
 pnpm --filter @continuity/core db:generate   # after changing src/schema.ts
 ```
 
-## Current milestone: Milestone 1, Storage core
+## Milestones
 
-Scope: scaffold the monorepo (`packages/core`, `apps/mcp`, `apps/web`); the Drizzle schema and migrations; the storage interface; a `versions` row on every write; alias resolution; FTS5 search; Markdown export and import.
+- [x] **Milestone 1, Storage core** (done 2026-11-23, PR #2): monorepo scaffold, Drizzle schema and migrations, storage interface, one `versions` row per write, alias resolution, FTS5 search, Markdown export and import of a world.
+- [ ] **Milestone 2, Rules engine** (current)
+- [ ] Milestones 3 to 8: see SPEC "Build plan".
+
+## Current milestone: Milestone 2, Rules engine
+
+Scope: sessions and reads, read-before-write, approval modes and severity policy, forced-major types, user locks, conflict parking, change feed with edit kinds, unlogged-scene detection, precedence ordering for context assembly.
 
 Acceptance checks:
 
-- [ ] Tests create a world, entities with aliases, and sections; an alias resolves to its canonical slug
-- [ ] Every write produces exactly one `versions` row
-- [ ] Export then import of a world round-trips with no differences
+- [ ] One passing unit test per rule in SPEC "Server-enforced rules", covering both the allowed and refused path
+- [ ] A write refused by a rule changes nothing in storage
 
-Not in Milestone 1 (later milestones): sessions and reads, read-before-write and every other server-enforced rule (M2), MCP tools (M3), prompt modules (M4), web screens (M5), Phase 0 import flows (M6), evaluation (M7), remote/Postgres (M8).
+The rules engine lives in `packages/core/src/rules/`. MCP tools (M3) and the web app (M5) call the engine, never `Storage` write methods directly. A refusal is returned as a value (`{ ok: false, refusal }`) with a rule code and a message that says how to fix it; it never leaves a partial write.
