@@ -152,7 +152,7 @@ try {
     expect((await text()).includes("GM notes are hidden"), "GM notes page shows notes with spoilers off");
     expect(!(await text()).includes("traitor"), "GM note text leaked");
     await page.goto(`${C}/wiki?q=mother`);
-    expect((await text()).includes("Nothing matches."), "search matched secret-only text");
+    expect((await text()).includes("Nothing matches"), "search matched secret-only text");
 
     await page.getByRole("switch", { name: "GM spoilers" }).click();
     await page.waitForSelector('[role=switch][aria-checked="true"]');
