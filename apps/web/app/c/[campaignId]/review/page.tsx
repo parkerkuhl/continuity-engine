@@ -4,9 +4,15 @@ import { ActionForm } from "@/components/action-form";
 import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps, extraTags } from "@/components/update-card";
 import { PageQueue } from "@/components/page-queue";
 import { UpdateItem } from "@/components/update-item";
-import { app, campaignScope } from "@/lib/server";
+import { app, campaignScope, scopeTitle } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
+  const scope = await campaignScope((await params).campaignId);
+  const n = (await (await app()).views.dashboard(scope))?.reviewCount ?? 0;
+  return scopeTitle(scope, n ? `Review (${n})` : "Review");
+}
 
 const MODE: Record<string, [string, string]> = {
   review: ["Review everything", "Nothing counts until you approve it."],

@@ -3,9 +3,13 @@ import { editVoiceAnchor, setApprovalMode, setCampaignSpoilers } from "@/app/act
 import { ActionForm } from "@/components/action-form";
 import { PcSheetBody, cap, text } from "@/components/pc-sheet";
 import { chapterTag } from "@/components/update-card";
-import { app, campaignScope } from "@/lib/server";
+import { app, campaignScope, scopeTitle } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
+  return scopeTitle(await campaignScope((await params).campaignId), "Settings");
+}
 
 const MODES = [
   ["review", "Review everything", "Nothing counts until you approve it."],

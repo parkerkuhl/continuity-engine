@@ -5,6 +5,7 @@ import { app, isRemote, localDbPath } from "@/lib/server";
 import { createCampaign, createWorld, importWorld } from "./actions";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Worlds · Continuity Engine" };
 
 export default async function Home() {
   const rows = await (await app()).views.home();

@@ -92,3 +92,17 @@ export async function campaignScope(campaignId: string): Promise<Scope> {
 export function basePath(s: Scope): string {
   return s.campaign ? `/c/${s.campaign.id}` : `/w/${s.world.id}`;
 }
+
+/**
+ * The browser-tab title for a world or campaign screen: "GM · " in GM view, then the screen, then the campaign
+ * (or world) name, so tabs for different worlds never look alike. Only public names go in a title.
+ */
+export async function scopeTitle(scope: Scope, part?: string | null): Promise<{ title: string }> {
+  return { title: [scope.spoilers ? "GM" : null, part, scope.campaign?.name ?? scope.world.name].filter(Boolean).join(" · ") };
+}
+
+/** An entity page's name for its tab title, resolved from the URL slug (or an alias). */
+export async function entityName(scope: Scope, slug: string): Promise<string | null> {
+  const r = await (await app()).engine.storage.resolveEntity(scope.world.id, slug, { campaignId: scope.campaign?.id ?? null });
+  return r.status === "resolved" ? r.entity.name : null;
+}

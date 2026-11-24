@@ -1,7 +1,13 @@
 import { PageQueue } from "@/components/page-queue";
-import { app, worldScope } from "@/lib/server";
+import { app, scopeTitle, worldScope } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ worldId: string }> }) {
+  const scope = await worldScope((await params).worldId);
+  const n = (await (await app()).views.pageQueue(scope)).length;
+  return scopeTitle(scope, n ? `Review (${n})` : "Review");
+}
 
 const MODE: Record<string, string> = {
   review: "Review everything: drafted pages wait here before they count as canon.",
