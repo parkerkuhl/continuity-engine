@@ -1,0 +1,1 @@
+ALTER TABLE `updates` ADD `conflicts_with` text;

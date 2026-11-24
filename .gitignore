@@ -1,40 +1,31 @@
-# Dependencies
 node_modules/
-.pnpm-store/
-
-# Build output
 dist/
-build/
 .next/
-out/
-*.tsbuildinfo
-
-# Test and coverage
-coverage/
-
-# Local databases (one SQLite file per install)
 *.db
-*.db-journal
 *.db-wal
 *.db-shm
+.env
+.env.*
+.vercel/
+
+# Build and test output
+*.tsbuildinfo
+coverage/
+
+# Local SQLite files not covered above
+*.db-journal
 *.sqlite
 *.sqlite3
 
-# Environment
-.env
-.env.*
+# Keep a committed example env file
 !.env.example
 
 # Logs
 *.log
-npm-debug.log*
-pnpm-debug.log*
 
 # Editors and OS
 .DS_Store
 .idea/
-.vscode/*
-!.vscode/extensions.json
 Thumbs.db
 
 # Claude Code local settings

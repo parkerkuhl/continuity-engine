@@ -1,0 +1,427 @@
+{
+  "arm": "wiki",
+  "scene": "02",
+  "title": "S02: The paymaster's tent",
+  "tests": [
+    "F08",
+    "F10"
+  ],
+  "model": "claude-opus-5-5 (Claude Code subagent)",
+  "effort": "subagent default",
+  "method": "subagent",
+  "turns": [
+    {
+      "player": "Let's continue our campaign \"Run 1\" in The Free Cities (campaign_id 5d8d734f-591e-4ef9-8e71-72fca92c8219). We're picking up at the start of chapter 2. Take me straight into the next scene; my first move follows.",
+      "narration": "**Chapter 2: Four Days**\n\nDawn came grey over the camp, and the smoke from a thousand cookfires lay flat on the river like something that had given up.\n\nMarro woke with his right hand throbbing in its splints. Two fingers, bound straight to a stick of ash. He flexed the other three out of habit and regretted it. Four days to the new moon. Pallo's men wore grey, and Marro had started seeing grey everywhere: in the smoke, in the river, in the sky over the Black Wall.\n\nFour silver stags in his purse. Thirty owed. He did the sum again anyway, the way a man probes a bad tooth.\n\nHesse found him at the horse lines, where Ash stood favoring her near foreleg and looking sorry about it. The sergeant's patch was tied tight this morning, the knot hard at the back of her skull, and her good eye moved over him the way it always did, like she was counting what he'd lost since yesterday.\n\n\"Commander wants you,\" she said. \"Bring his boots. He can't do the laces.\" A pause. \"Don't tell him I said that.\"\n\nRickard Snow sat outside his tent on a camp stool, grey-eyed and unshaven, his left arm strapped tight across his chest. The burn along his jaw looked whiter in this light. He was reading a dispatch with the face of a man who'd already guessed what it said. The cord at his neck disappeared under his shirt.\n\n\"Triarch's men doubled the watch on the wall last night,\" he said, without looking up. \"Torches every twenty paces. They've never cared that much about us before.\" He folded the paper one-handed against his knee. \"And the grain wagons were late again. Malaquo's factor says the roads. Malaquo's factor is a liar.\"\n\nHesse stood at Marro's shoulder and said nothing.\n\nRickard looked at him then. \"I need someone in the city who can read, keep his mouth shut and isn't wearing gold. That's you, if you can find a way across. The bridge is closed.\" He let that sit. \"Or I need you here, and I find someone worse.\"\n\nSomewhere inside Marro's shirt, Lissa's letter crackled against his ribs.",
+      "toolCalls": [
+        {
+          "name": "open_campaign",
+          "input": {
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "session_id": "572b4dbc-f653-43e8-9265-72e9eb4ab018",
+            "chapter": 2,
+            "changes": 0,
+            "unlogged_scene": null
+          },
+          "text": "# Run 1 (world: The Free Cities)\nSession open. Chapter 2. Approval: autopilot. Spoilers: off.\n\n## Changed since last session\nNothing changed since the last session.\n\n## Settings\n- as of: Spring, year 300\n- genre: low fantasy\n- tone: grim\n- difficulty: balanced\n- length: standard\n- pacing: balanced\n- dice: GM rolls\n- turn_length: standard\n- lines: harm to children\n- veils: sexual content\n\n## Voice anchor\nInterior level: deep\nClipped, close third person, past tense. Plain diction, hard edges, dry humor; violence quick and ugly.\n\nSample:\n> Rain came off the Black Wall in sheets, and the squire counted coins he didn't have.\n\n## PC sheet\n```json\n{\n  \"name\": \"Marro\",\n  \"stats\": {\n    \"might\": 0,\n    \"finesse\": 2,\n    \"wits\": 2,\n    \"presence\": 1,\n    \"resolve\": 3\n  },\n  \"health\": \"6/6\",\n  \"stress\": \"1/5\",\n  \"inventory\": [\n    \"cudgel (no dagger: lost in the Rhoyne)\",\n    \"Rickard's old whetstone\",\n    \"Lissa's letter\",\n    \"4 silver stags\",\n    \"a borrowed cloak\"\n  ],\n  \"bonds\": [\n    \"Hesse: trusted\"\n  ],\n  \"trackers\": {\n    \"debt to Pallo\": \"30 silver stags, due at the new moon (4 days)\"\n  },\n  \"flaw_notes\": \"Gambles when cornered. Swore to Hesse he never would again. Right hand: two fingers broken and splinted.\"\n}\n```\n\n## Open threads\n- A knighthood if the city falls: Rickard's promise to Marro.\n- Lissa's letter: Marro must carry it to her mother in the Dragon's Den.\n- Pallo's debt: 30 silver stags due at the new moon.\n- Who is selling the company?: The Triarch seems to know the company's plans.\n\n## Chapters\n- ch-01 The Black Wall: Rickard is wounded, Brother Olyvar dies of fever, Marro kills Dagna in self-defense and loses his dagger, and the company's grain now comes on the Triarch's credit.\n\n## Rulings\n- \"Marro can read; his mother taught him.\"\n\n## Pinned: load guide\n## Load guide: The Free Cities\n\nGenerated from the wiki; do not edit. Lists every page in this world and when to load it.\n\nAs of: Spring, year 300\n\n### Places\nLoad when a scene is set there.\n\n- [Dragon's Den](places/dragons-den.md): A district of eastern Volantis.\n- [Long Bridge](places/long-bridge.md): The bridge joining the two halves of Volantis. Closed by the Triarch's order: crossing needs a stamped pass.\n- [Volantis](places/volantis.md): The oldest of the Free Cities, split by the Black Wall.\n\n### Factions\nLoad when the faction or its members act.\n\n- [Golden Company](factions/golden-company.md): The largest sellsword company in Essos, camped outside Volantis. It owes Triarch Malaquo two months of grain bought on credit.\n\n### Characters\nLoad when the character is present or discussed.\n\n- [Brother Olyvar](characters/brother-olyvar.md): The company septon. Died of fever in ch-01; buried outside the Black Wall.\n- [Dagna](characters/dagna.md): A river smuggler. Dead (ch-01): killed by Marro in the alleys; her body went into the Rhoyne.\n- [Hesse](characters/hesse.md): Company sergeant. Lost her left eye to the Triarch's men and wears a patch. Her horse, Ash, is lame.\n- [Lissa](characters/lissa.md): A ferry-girl on the Rhoyne. Her mother lives in the Dragon's Den district.\n- [Lysono Qhoran](characters/lysono-qhoran.md): The Golden Company's paymaster. Watches the captains' books and their loyalties.\n- [Marro](characters/marro.md): Rickard Snow's squire, sixteen. Two fingers of his right hand are broken and splinted. He lost his dagger in the Rhoyne and carries a cudgel. Owes Pallo 30 silver stags.\n- [Pallo](characters/pallo.md): A Volantene moneylender who dresses his men in grey.\n- [Rickard Snow](characters/rickard-snow.md): Sellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n- [Ser Tobbin](characters/ser-tobbin.md): A hedge knight who sells his sword to the company. Dagna's brother.\n- [Triarch Malaquo](characters/triarch-malaquo.md): One of the three Triarchs of Volantis.\n\n### Items\nLoad when the item is used or sought.\n\n- [Lissa's letter](items/lissas-letter.md): A letter Lissa gave Marro to carry to her mother in the Dragon's Den.\n- [Old whetstone](items/old-whetstone.md): Rickard's old whetstone, given to Marro. Marro carries it.\n\n{\"ok\":true,\"session_id\":\"572b4dbc-f653-43e8-9265-72e9eb4ab018\",\"chapter\":2,\"changes\":0,\"unlogged_scene\":null}"
+        },
+        {
+          "name": "gm_read",
+          "input": {
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "notes": 1
+          },
+          "text": "## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### clock: triarch-assault\nThe Triarch moves on the camp.\n```json\n{\"step\":2,\"steps\":6,\"advances_on\":\"each night the plans go unrecovered\"}\n```\n{\"ok\":true,\"notes\":1}"
+        },
+        {
+          "name": "get_context",
+          "input": {
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow"
+            ],
+            "place": "Volantis",
+            "threads": [
+              "Who is selling the company?",
+              "Pallo's debt",
+              "Lissa's letter"
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "b5b7d156-b04d-4423-80da-7aa27015246e",
+            "read": [
+              "volantis",
+              "marro",
+              "hesse",
+              "rickard-snow"
+            ],
+            "warnings": []
+          },
+          "text": "# Scene context (ch-02-s1)\n\n## Rulings (top precedence)\n- \"Marro can read; his mother taught him.\"\n\n## Volantis (place, volantis) aka Old Volantis\nThe oldest of the Free Cities, split by the Black Wall.\n\n## Marro (character, marro) aka the squire\nRickard Snow's squire, sixteen. Two fingers of his right hand are broken and splinted. He lost his dagger in the Rhoyne and carries a cudgel. Owes Pallo 30 silver stags.\n### Background\nSquire to Rickard Snow for three years. Quick, watchful, good with numbers. His mother taught him to read.\n### Updates\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n## Hesse (character, hesse) aka Sergeant Hesse, the sergeant\nCompany sergeant. Lost her left eye to the Triarch's men and wears a patch. Her horse, Ash, is lame.\n### Updates\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n## Rickard Snow (character, rickard-snow) aka Snow, the bastard sellsword, Commander\nSellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n### Appearance\nTall and grey-eyed, with a burn scar along the jaw.\n### Wants\nLand of his own, and to pay the company before winter.\n### Updates\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n\n## Threads in play\n- Lissa's letter [open]: Marro must carry it to her mother in the Dragon's Den.\n- Pallo's debt [open]: 30 silver stags due at the new moon.\n- Who is selling the company? [open]: The Triarch seems to know the company's plans.\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Marro: Born a slave\nMarro was born a slave in Volantis and escaped as a child. Only Hesse knows.\n### Hesse: Reports to Lysono\nShe reports on Rickard to the paymaster, Lysono Qhoran.\n### Rickard Snow: Mother\nHis mother was a daughter of House Maegyr, of the Old Blood.\n### Rickard Snow: The siege plans\nHe sold the Company's siege plans to the Triarch. No one else knows.\n### Rickard Snow: The Triarch's letter\nThe Triarch's sealed letter is in his strongbox; the key hangs on a cord at his neck.\n{\"ok\":true,\"scene_id\":\"b5b7d156-b04d-4423-80da-7aa27015246e\",\"read\":[\"volantis\",\"marro\",\"hesse\",\"rickard-snow\"],\"warnings\":[]}"
+        }
+      ]
+    },
+    {
+      "player": "Lysono Qhoran sends for me. I go to the paymaster's tent and wait to be spoken to.",
+      "narration": "The runner was a boy younger than Marro, barefoot, and he found him before he'd had a chance to answer the commander. \"Paymaster,\" the boy said, and ran off as if the word might follow him.\n\nLysono Qhoran's tent stood a little apart from the others, as tents do when the men in them hold the purse. Inside it smelled of lamp oil and something floral, and it was warmer than the morning had any right to be. A brazier. Ledgers stacked on a trestle table, their spines labelled in a neat small hand. A strongbox under the table, chained to the tent pole.\n\nThe paymaster did not look up. He was writing. His rings caught the lamplight, gold and a dull green stone, and there was ink on two of his fingers that no ring could hide. He dipped, wrote, blotted. Dipped again.\n\nMarro stood. The splints on his hand itched. Outside, someone was arguing about a mule.\n\nThe silence ran long enough that it stopped being an accident. Lysono was the kind of man who weighed coins by ear, the company said, and Marro had the uncomfortable sense of being listened to while nothing was said at all.\n\nAt last the pen went down.\n\n\"Marro,\" Lysono said, softly, as though reminding himself. \"Squire to Captain Snow. Sixteen. Reads.\" He turned a ring. \"Owes thirty silver stags to a moneylender in grey, by the new moon. Four days now, is it? Three and a half.\"\n\nHe let that land. He seemed pleased that it did.\n\n\"Every debt in this camp passes over my table sooner or later. Yours passed this morning.\" He folded his hands. \"The company has a leak, squire. The Triarch knows what we mean to do before our captains have finished arguing about it. I don't know who. I would like to.\" \"You sleep at the captain's tent flap. You carry his boots, his water, his letters.\"\n\nHe slid a single silver stag across the table. It stopped at the edge, exactly.\n\n\"That's not payment. That's a courtesy. Payment is thirty, and Pallo's grey men never trouble you again.\" A small, polite smile. \"All I want is to hear what you see. Nothing you'd have to steal.\"\n\nThe coin sat there. Lysono picked up his pen, as if the conversation were already half over.",
+      "toolCalls": [
+        {
+          "name": "log_scene",
+          "input": {
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219",
+            "summary": "Chapter 2 opens at dawn in the Golden Company camp outside Volantis. Hesse fetches Marro to Rickard, who reports the Triarch's men doubled the watch on the Black Wall and the grain wagons came late again. Rickard asks Marro to go into the city for him, though the Long Bridge is closed, or stay and he'll send someone worse.",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow"
+            ],
+            "place": "Volantis",
+            "updates": [
+              {
+                "entities": [
+                  "Volantis",
+                  "Triarch Malaquo"
+                ],
+                "tags": [
+                  "ch-02",
+                  "volantis",
+                  "triarch-malaquo"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "The Triarch's men doubled the watch on the Black Wall: torches every twenty paces. The company's grain wagons came late again; Malaquo's factor blames the roads.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow"
+                ]
+              },
+              {
+                "entities": [
+                  "Rickard Snow",
+                  "Marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "rickard-snow",
+                  "marro"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Rickard asked Marro to go into Volantis for him as someone who can read and keep quiet, if he can find a way across the closed Long Bridge. Marro has not answered.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow"
+                ]
+              }
+            ],
+            "thread_changes": [
+              {
+                "title": "Rickard's errand in the city",
+                "body": "Rickard wants Marro in Volantis on an errand he hasn't explained; the bridge is closed.",
+                "state": "open",
+                "tags": [
+                  "ch-02"
+                ]
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "b5b7d156-b04d-4423-80da-7aa27015246e",
+            "updates": [
+              {
+                "status": "refused",
+                "rule": "read_before_write"
+              },
+              {
+                "seq": 18,
+                "status": "confirmed"
+              }
+            ]
+          },
+          "text": "# Scene ch-02-s1 logged\n1 update(s) stored, 1 refused.\n- Update 1 **refused (read_before_write)**: Read triarch-malaquo before writing to it: call read_entity(\"triarch-malaquo\") or include it in get_context, then retry.\n- Update 2 → #18 stored as **confirmed**. Tags: ch-02 (time), rickard-snow (character), marro (character)\n\nFix the refused updates and log them again with log_scene; the stored ones are kept.\n\nThreads:\n- Rickard's errand in the city [open]\n{\"ok\":true,\"scene_id\":\"b5b7d156-b04d-4423-80da-7aa27015246e\",\"updates\":[{\"status\":\"refused\",\"rule\":\"read_before_write\"},{\"seq\":18,\"status\":\"confirmed\"}]}"
+        },
+        {
+          "name": "get_context",
+          "input": {
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219",
+            "present": [
+              "Marro",
+              "Lysono Qhoran"
+            ],
+            "place": "Golden Company",
+            "threads": [
+              "Who is selling the company?"
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "40fcb417-72e8-46cf-ad41-a0f819fad6f8",
+            "read": [
+              "golden-company",
+              "marro",
+              "lysono-qhoran"
+            ],
+            "warnings": []
+          },
+          "text": "# Scene context (ch-02-s2)\n\n## Rulings (top precedence)\n- \"Marro can read; his mother taught him.\"\n\n## Golden Company (faction, golden-company) aka the Company\nThe largest sellsword company in Essos, camped outside Volantis. It owes Triarch Malaquo two months of grain bought on credit.\n### Updates\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n\n## Marro (character, marro) aka the squire\nRickard Snow's squire, sixteen. Two fingers of his right hand are broken and splinted. He lost his dagger in the Rhoyne and carries a cudgel. Owes Pallo 30 silver stags.\n### Background\nSquire to Rickard Snow for three years. Quick, watchful, good with numbers. His mother taught him to read.\n### Updates\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n- #18 [confirmed] (new-fact, minor) Rickard asked Marro to go into Volantis for him as someone who can read and keep quiet, if he can find a way across the closed Long Bridge. Marro has not answered.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n- #18 [confirmed] (new-fact, minor) Rickard asked Marro to go into Volantis for him as someone who can read and keep quiet, if he can find a way across the closed Long Bridge. Marro has not answered.\n\n## Lysono Qhoran (character, lysono-qhoran) aka Lysono, the paymaster\nThe Golden Company's paymaster. Watches the captains' books and their loyalties.\n### Updates\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n### Knows\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n\n## Threads in play\n- Who is selling the company? [open]: The Triarch seems to know the company's plans.\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Marro: Born a slave\nMarro was born a slave in Volantis and escaped as a child. Only Hesse knows.\n{\"ok\":true,\"scene_id\":\"40fcb417-72e8-46cf-ad41-a0f819fad6f8\",\"read\":[\"golden-company\",\"marro\",\"lysono-qhoran\"],\"warnings\":[]}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "Lysono Qhoran",
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "f0a2198d-3900-4207-bf83-faee854933e1",
+            "slug": "lysono-qhoran",
+            "view": "gm"
+          },
+          "text": "## Lysono Qhoran (character, lysono-qhoran) aka Lysono, the paymaster\nThe Golden Company's paymaster. Watches the captains' books and their loyalties.\n### Updates\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n### Knows\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n{\"ok\":true,\"entity_id\":\"f0a2198d-3900-4207-bf83-faee854933e1\",\"slug\":\"lysono-qhoran\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "Triarch Malaquo",
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "4cbc219e-6c6a-4f09-b199-83f1c8f3e8d3",
+            "slug": "triarch-malaquo",
+            "view": "gm"
+          },
+          "text": "## Triarch Malaquo (character, triarch-malaquo) aka Malaquo, the Triarch\nOne of the three Triarchs of Volantis.\n### Updates\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n{\"ok\":true,\"entity_id\":\"4cbc219e-6c6a-4f09-b199-83f1c8f3e8d3\",\"slug\":\"triarch-malaquo\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "edit_entity",
+          "input": {
+            "entity": "Lysono Qhoran",
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219",
+            "sections": [
+              {
+                "key": "manner",
+                "heading": "Manner",
+                "body": "Soft-voiced and unhurried. Perfumed, ink on his fingers, rings he turns while he thinks. Asks questions he already knows the answers to, and calls men by their debts. Lets silences run long."
+              },
+              {
+                "key": "wants",
+                "heading": "Wants",
+                "body": "Motive: to find whoever is leaking the company's plans before it costs the company the city. From Marro: eyes inside Rickard's tent. Attitude to Marro: measuring, politely cold."
+              },
+              {
+                "key": "hiding",
+                "heading": "What he hides",
+                "body": "He suspects Rickard of the leak but has no proof, and he already has Hesse reporting on Rickard. He wants a second source so he can check hers.",
+                "visibility": "secret"
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "f0a2198d-3900-4207-bf83-faee854933e1",
+            "status": "confirmed"
+          },
+          "text": "Stored as **confirmed** (logged in the changelog).\n# Lysono Qhoran (character, lysono-qhoran, source: invention)\nAliases: Lysono, the paymaster\n\nThe Golden Company's paymaster. Watches the captains' books and their loyalties.\n\n## Manner\nSoft-voiced and unhurried. Perfumed, ink on his fingers, rings he turns while he thinks. Asks questions he already knows the answers to, and calls men by their debts. Lets silences run long.\n\n## Wants\nMotive: to find whoever is leaking the company's plans before it costs the company the city. From Marro: eyes inside Rickard's tent. Attitude to Marro: measuring, politely cold.\n\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### What he hides\nHe suspects Rickard of the leak but has no proof, and he already has Hesse reporting on Rickard. He wants a second source so he can check hers.\n{\"ok\":true,\"entity_id\":\"f0a2198d-3900-4207-bf83-faee854933e1\",\"status\":\"confirmed\"}"
+        }
+      ]
+    },
+    {
+      "player": "I ask him straight out whether anyone in the company is selling us to the Triarch.",
+      "narration": "The pen stopped a finger's breadth above the page. A bead of ink gathered on the nib and Lysono watched it rather than Marro, as if the question had been asked by the ink.\n\n\"Yes,\" he said.\n\nThat was all, for a while. The brazier ticked. The mule argument outside had been settled, or abandoned.\n\n\"Someone is. The Triarch's men were on the north ford two nights before we meant to cross it, and only six men in this camp knew we meant to.\" He set the pen down in its tray with great care. \"I am one of the six. You may cross me off or not, as you like.\"\n\nMarro watched him.\n\nWits check, reading the paymaster: (2+5) +2 Wits = 9.\n\nIt was the list. Lysono said *six men* and his gaze did not drift to the ledgers or the brazier or the tent flap. It went, flat and quick, to the left, toward the middle of camp, where the captains' tents stood in their row and the commander's banner hung limp at the end of it. Then back. A small thing. A man who lets his silences run long doesn't often let his eyes run anywhere.\n\nHe'd caught Marro catching it, too. The smile came back, thinner.\n\n\"You see,\" Lysono said, mildly. \"That is exactly the sort of thing I'd pay to hear about.\" He turned the green ring once on his finger. \"I won't give you names, squire. A name in a boy's mouth is a name in a whole camp's mouth by supper, and then the man I want burns whatever he's keeping and I have nothing. I want what he's keeping.\"\n\nHe nodded at the silver stag still sitting at the table's edge.\n\n\"So. You asked a straight question, and I gave you a straight answer, which is more than most get in this tent. Now I'll ask one.\" He leaned back, and the chair creaked under the perfume and the rings. \"Has your captain had visitors this month he didn't put in the camp roll?\"\n\nOutside, a horn sounded the change of watch on the river side. Somewhere behind Marro's ribs, under Lissa's letter, his heart was going harder than he'd like.",
+      "toolCalls": []
+    },
+    {
+      "player": "I ask how he knows so much about what happens in Rickard's tent.",
+      "narration": "Lysono's eyebrows went up a little. Not offended. Amused, the way a man is when a dog he's been feeding shows a tooth.\n\n\"Do I know so much?\" He spread his inked fingers on the ledger. \"I know what everyone knows. Your captain took a bolt in the shoulder and can't lift a shield. I know because I paid the surgeon. I know the grain comes late because I sign for it. I know about your thirty stags because Pallo's grey men are not discreet, and they drink in the same sutler's tent as my clerks.\"\n\nHe tipped his head.\n\n\"What happens inside Rickard Snow's tent, I don't know. That,\" gently, \"is the whole of my problem, and the whole of your use to me.\"\n\nIt was a good answer. It covered everything Marro had asked and nothing he'd meant. The paymaster said it smoothly and without hurry, and he'd had it ready.\n\nWho in camp did talk to Lysono, then? Clerks and surgeons and sutlers, he said. But clerks didn't sit in the commander's tent at night. The thought sat in Marro like a pebble in a boot, small and stubborn, and wouldn't settle on any one face.\n\n\"You're wondering who else I've asked,\" Lysono said. \"Of course you are. You're clever. I'd think less of you otherwise.\" He picked up the silver stag at last, turned it over his knuckles once, a sutler's trick, and put it back at the table's edge. \"I don't tell one man what another tells me. You'd want the same courtesy, I think. A squire who talks to the paymaster is a squire who doesn't get his knighthood.\"\n\nSo he knew about that too.\n\nLysono let a silence run, the long kind.\n\n\"I asked you a question, squire. Visitors. Unrolled. This month.\" He did not pick up the pen this time. He waited.",
+      "toolCalls": []
+    },
+    {
+      "player": "(OOC) Let's end the scene here.",
+      "narration": "(OOC) Scene ended and logged. Marro leaves the paymaster's tent without answering Lysono and without the silver stag; the offer stays open as a new thread (\"Lysono's offer\"), and the leak thread now carries what Lysono let slip about the north ford.\n\nIt's still morning on the first of the four days before the new moon. Rickard's request is unanswered too. Where does Marro go next?",
+      "toolCalls": [
+        {
+          "name": "log_scene",
+          "input": {
+            "campaign_id": "5d8d734f-591e-4ef9-8e71-72fca92c8219",
+            "summary": "Lysono Qhoran summons Marro to the paymaster's tent, names his 30-stag debt to Pallo and offers to pay it in full if Marro reports what he sees in Rickard's tent. Lysono confirms someone is selling the company to the Triarch: the Triarch's men were at the north ford two nights before a planned crossing only six men knew of. A glance gives away that he suspects someone among the captains, but he refuses to name names or say who else informs him, and presses Marro about unrolled visitors to Rickard. Marro leaves without answering or taking the coin.",
+            "present": [
+              "Marro",
+              "Lysono Qhoran"
+            ],
+            "place": "Golden Company",
+            "updates": [
+              {
+                "entities": [
+                  "Volantis",
+                  "Triarch Malaquo"
+                ],
+                "tags": [
+                  "ch-02",
+                  "volantis",
+                  "triarch-malaquo"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "The Triarch's men doubled the watch on the Black Wall: torches every twenty paces. The company's grain wagons came late again; Malaquo's factor blames the roads.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow"
+                ]
+              },
+              {
+                "entities": [
+                  "Golden Company",
+                  "Triarch Malaquo",
+                  "Lysono Qhoran"
+                ],
+                "tags": [
+                  "ch-02",
+                  "golden-company",
+                  "triarch-malaquo",
+                  "lysono-qhoran"
+                ],
+                "type": "new-fact",
+                "severity": "major",
+                "body": "The Triarch's men were waiting at the north ford two nights before the company meant to cross it. Only six men in camp knew of the crossing, Lysono among them.",
+                "knows": [
+                  "Lysono Qhoran",
+                  "Marro",
+                  "Rickard Snow"
+                ]
+              },
+              {
+                "entities": [
+                  "Lysono Qhoran",
+                  "Marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "lysono-qhoran",
+                  "marro"
+                ],
+                "type": "relationship",
+                "severity": "major",
+                "body": "Lysono offered to pay Marro's 30-stag debt to Pallo in full if Marro reports on what he sees in Rickard's tent. He left one silver stag on the table as a courtesy; Marro did not take it or answer.",
+                "knows": [
+                  "Lysono Qhoran",
+                  "Marro"
+                ]
+              },
+              {
+                "entities": [
+                  "Lysono Qhoran",
+                  "Marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "lysono-qhoran",
+                  "marro"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Lysono knows of Marro's debt to Pallo (Pallo's men drink with his clerks) and of Rickard's promise of a knighthood to Marro.",
+                "knows": [
+                  "Lysono Qhoran",
+                  "Marro"
+                ]
+              },
+              {
+                "entities": [
+                  "Lysono Qhoran",
+                  "Marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "lysono-qhoran",
+                  "marro"
+                ],
+                "type": "knowledge",
+                "severity": "minor",
+                "body": "Marro read in Lysono's glance that the paymaster suspects someone among the captains' tents, possibly Rickard. Lysono saw him notice.",
+                "knows": [
+                  "Marro",
+                  "Lysono Qhoran"
+                ]
+              }
+            ],
+            "thread_changes": [
+              {
+                "title": "Lysono's offer",
+                "body": "Pay Pallo's debt in exchange for reports from Rickard's tent. Lysono asked whether Rickard had unrolled visitors this month; Marro hasn't answered.",
+                "state": "open",
+                "tags": [
+                  "ch-02"
+                ]
+              },
+              {
+                "thread": "Who is selling the company?",
+                "body": "Lysono confirms a leak: the north ford ambush, six men knew. He suspects the captains' row.",
+                "state": "open"
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "40fcb417-72e8-46cf-ad41-a0f819fad6f8",
+            "updates": [
+              {
+                "seq": 19,
+                "status": "confirmed"
+              },
+              {
+                "seq": 20,
+                "status": "confirmed"
+              },
+              {
+                "seq": 21,
+                "status": "confirmed"
+              },
+              {
+                "seq": 22,
+                "status": "confirmed"
+              },
+              {
+                "seq": 23,
+                "status": "confirmed"
+              }
+            ]
+          },
+          "text": "# Scene ch-02-s2 logged\n5 update(s) stored, 0 refused.\n- Update 1 → #19 stored as **confirmed**. Tags: ch-02 (time), volantis (place), triarch-malaquo (character)\n- Update 2 → #20 stored as **confirmed**. Tags: ch-02 (time), golden-company (faction), triarch-malaquo (character), lysono-qhoran (character)\n- Update 3 → #21 stored as **confirmed**. Tags: ch-02 (time), lysono-qhoran (character), marro (character)\n- Update 4 → #22 stored as **confirmed**. Tags: ch-02 (time), lysono-qhoran (character), marro (character)\n- Update 5 → #23 stored as **confirmed** (severity forced to major). Tags: ch-02 (time), lysono-qhoran (character), marro (character)\n\nThreads:\n- Lysono's offer [open]\n- Who is selling the company? [open]\n{\"ok\":true,\"scene_id\":\"40fcb417-72e8-46cf-ad41-a0f819fad6f8\",\"updates\":[{\"seq\":19,\"status\":\"confirmed\"},{\"seq\":20,\"status\":\"confirmed\"},{\"seq\":21,\"status\":\"confirmed\"},{\"seq\":22,\"status\":\"confirmed\"},{\"seq\":23,\"status\":\"confirmed\"}]}"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "toolCalls": 9,
+    "logSceneCalls": 2,
+    "logged": true,
+    "refusedUpdates": 1,
+    "refusedCalls": []
+  },
+  "usage": [],
+  "fallbacks": [],
+  "refusals": 0
+}

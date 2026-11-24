@@ -1,0 +1,3 @@
+(OOC) Done, the scene ends there and it's logged. Here's what is now on record: Vaela Maegyr's feast; the seating card that named you even though nobody gave your name; Pallo's man in grey standing with Qavo the grain factor; and Hesse asking why a Maegyr would host a bastard sellsword. Two new threads are open: "Rickard and the Maegyr widow" and "Who gave the house Marro's name?"
+
+The feast is still going on behind you, the curtain is still drawn, and your cudgel is still on the porter's shelf. When you want to go on, tell me where you pick up, whether that's later tonight, the walk back to camp, or the next morning.

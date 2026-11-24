@@ -1,0 +1,123 @@
+/**
+ * Precedence for context assembly (SPEC "Server-enforced rules", Precedence). Proposed pages rank with proposed updates:
+ *   1 user edits and rulings
+ *   2 campaign sections and confirmed updates
+ *   3 world sections
+ *   4 proposed updates
+ *   5 unverified pages
+ * A lower source never hides a higher one, and proposed or unverified material is always labeled.
+ */
+import type { Campaign, Entity, Ruling, Section, Storage, Update } from "../storage/types";
+
+export type Rank = 1 | 2 | 3 | 4 | 5;
+
+export const RANK_NAMES: Record<Rank, string> = {
+  1: "user edit or ruling",
+  2: "campaign canon",
+  3: "world canon",
+  4: "proposed",
+  5: "unverified",
+};
+
+export type ContextItem =
+  | { kind: "summary"; rank: Rank; label: string | null; text: string; secret: false }
+  | { kind: "section"; rank: Rank; label: string | null; section: Section; layer: "world" | "campaign"; secret: boolean }
+  | { kind: "update"; rank: Rank; label: string | null; update: Update; secret: boolean };
+
+export interface EntityContext {
+  entity: Entity;
+  /** Sorted by rank, highest precedence first. */
+  items: ContextItem[];
+  /** Confirmed or proposed updates this entity knows about (knowledge rows with it as holder). */
+  knows: Update[];
+  /** Ids of updates in `items` or `knows` that the PC doesn't know (empty when there is no PC). */
+  secretUpdateIds: Set<string>;
+}
+
+export function labelFor(rank: Rank, extra?: string): string | null {
+  if (rank === 4) return extra ?? "PROPOSED (soft canon, not yet approved)";
+  if (rank === 5) return "UNVERIFIED (from an established setting, not yet checked)";
+  return null;
+}
+
+export const PROPOSED_PAGE = "PROPOSED PAGE (drafted by the GM, not yet approved)";
+
+function sectionRank(section: Section, layer: "world" | "campaign", entity: Entity): Rank {
+  if (section.lockedByUser) return 1;
+  if (entity.source === "unverified") return 5;
+  if (entity.status === "proposed") return 4;
+  return layer === "campaign" ? 2 : 3;
+}
+
+/** A proposed page's rank-4 items carry the page label rather than the update one. */
+function pageLabel(rank: Rank, entity: Entity): string | null {
+  return rank === 4 && entity.status === "proposed" ? PROPOSED_PAGE : labelFor(rank);
+}
+
+function updateRank(u: Update): Rank {
+  if (u.status === "proposed") return 4;
+  return u.author === "user" ? 1 : 2;
+}
+
+const LIVE = ["confirmed", "proposed"] as const;
+
+/**
+ * `pcId` is the PC's entity (from the PC sheet). When it is given, an update the PC isn't listed as
+ * knowing is secret (SPEC "Spoiler model": updates whose `knows` list excludes the PC), so it goes in
+ * the GM ONLY block. With no PC on the sheet, updates aren't marked secret.
+ */
+export async function assembleEntityContext(
+  storage: Storage,
+  campaign: Campaign,
+  entity: Entity,
+  pcId: string | null = null,
+): Promise<EntityContext> {
+  const items: ContextItem[] = [];
+
+  const summaryRank: Rank =
+    entity.source === "ruling" ? 1 : entity.source === "unverified" ? 5 : entity.status === "proposed" ? 4 : entity.campaignId ? 2 : 3;
+  if (entity.summary) items.push({ kind: "summary", rank: summaryRank, label: pageLabel(summaryRank, entity), text: entity.summary, secret: false });
+
+  // World and campaign layers, side by side. A campaign section replaces the world section with the same
+  // key only when it ranks at least as high; otherwise both are kept so the higher one is never hidden.
+  const worldPage = await storage.getPage(entity.id);
+  const merged = await storage.getPage(entity.id, { campaignId: campaign.id });
+  const world = new Map((worldPage?.sections ?? []).map((s) => [s.key, s]));
+  for (const s of merged?.sections ?? []) {
+    const layer = s.campaignId ? "campaign" : "world";
+    const rank = sectionRank(s, layer, entity);
+    items.push({ kind: "section", rank, label: pageLabel(rank, entity), section: s, layer, secret: s.visibility === "secret" });
+    const under = layer === "campaign" ? world.get(s.key) : undefined;
+    if (under) {
+      const underRank = sectionRank(under, "world", entity);
+      if (underRank < rank) {
+        items.push({ kind: "section", rank: underRank, label: pageLabel(underRank, entity), section: under, layer: "world", secret: under.visibility === "secret" });
+      }
+    }
+  }
+
+  const updates = await storage.listUpdates(campaign.id, { entityId: entity.id, status: [...LIVE] });
+  for (const u of updates) {
+    const rank = updateRank(u);
+    const label = labelFor(rank, u.conflictsWith ? "PROPOSED, IN CONFLICT (parked for review; the confirmed fact stands)" : undefined);
+    const secret = pcId ? !(await storage.listKnowers("update", u.id)).includes(pcId) : false;
+    items.push({ kind: "update", rank, label, update: u, secret });
+  }
+
+  items.sort((a, b) => a.rank - b.rank); // stable: keeps page order and seq order within a rank
+
+  const knows: Update[] = [];
+  const secretUpdateIds = new Set(items.flatMap((i) => (i.kind === "update" && i.secret ? [i.update.id] : [])));
+  for (const u of await storage.listUpdates(campaign.id, { status: [...LIVE] })) {
+    const knowers = await storage.listKnowers("update", u.id);
+    if (!knowers.includes(entity.id)) continue;
+    knows.push(u);
+    if (pcId && !knowers.includes(pcId)) secretUpdateIds.add(u.id);
+  }
+  return { entity, items, knows, secretUpdateIds };
+}
+
+/** Rulings rank 1 and are always listed first. */
+export function rulingItems(rulings: Ruling[]): { rank: 1; ruling: Ruling }[] {
+  return rulings.map((ruling) => ({ rank: 1 as const, ruling }));
+}
