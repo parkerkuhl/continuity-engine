@@ -20,8 +20,6 @@ coverage/
 # Keep a committed example env file
 !.env.example
 
-# Logs
-*.log
 
 # Editors and OS
 .DS_Store
