@@ -153,6 +153,22 @@ export async function approvePage(_: ActionState, f: FormData): Promise<ActionSt
   return done(f, `Approved. ${r.value.name} is canon now.`);
 }
 
+/** Approve every drafted page the user saw listed (the ids on the form), so a page that arrives later isn't approved unseen. */
+export async function approvePages(_: ActionState, f: FormData): Promise<ActionState> {
+  const ids = f.getAll("entityId").filter((v): v is string => typeof v === "string");
+  if (!ids.length) return fail("No pages to approve.");
+  const { engine } = await app();
+  let approved = 0;
+  const errors: string[] = [];
+  for (const id of ids) {
+    const r = await engine.approvePage(id);
+    if (r.ok) approved++;
+    else errors.push(r.refusal.message);
+  }
+  if (errors.length) return fail(`Approved ${approved} of ${ids.length}. ${errors[0]}`);
+  return done(f, `Approved ${approved} page${approved === 1 ? "" : "s"}. They are canon now.`);
+}
+
 export async function rejectPage(_: ActionState, f: FormData): Promise<ActionState> {
   const r = await (await app()).engine.rejectPage(req(f, "entityId"));
   if (!r.ok) return fail(r.refusal.message);

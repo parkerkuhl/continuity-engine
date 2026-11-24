@@ -95,7 +95,7 @@ async function seed() {
 // ---------- the web app ----------
 async function startWeb() {
   const proc = spawn(process.execPath, [require.resolve("next/dist/bin/next", { paths: [web] }), "start", "-p", String(PORT)], {
-    cwd: web, env: { ...process.env, CONTINUITY_DB: db }, stdio: ["ignore", "pipe", "pipe"],
+    cwd: web, env: { ...process.env, CONTINUITY_DB: db, CONTINUITY_REFRESH_MS: "1500" }, stdio: ["ignore", "pipe", "pipe"],
   });
   let log = "";
   proc.stdout.on("data", (d) => (log += d));
@@ -290,6 +290,44 @@ try {
     expect(ctx.text.includes("Avoid: neat closing lines; epigrams"), "get_context lacks the avoid list");
   });
 
+  await check("Auto-refresh: a scene Claude logs shows up in the open review queue without a reload", async () => {
+    await page.goto(`${C}/review`);
+    const before = await page.evaluate(() => performance.timeOrigin);
+    const c = await claude();
+    await c.call("open_campaign", { campaign_id: campaignId });
+    await c.call("get_context", { campaign_id: campaignId, present: ["Rickard Snow", "Marro"] });
+    const r = await c.call("log_scene", {
+      campaign_id: campaignId, summary: "Dawn drill.", present: ["Rickard Snow", "Marro"],
+      updates: [{ entities: ["Marro"], tags: ["ch-01"], type: "status-change", severity: "minor", body: "Marro split his lip at the dawn drill.", knows: ["Marro", "Rickard Snow"] }],
+    });
+    await c.close();
+    expect(!r.isError, `log_scene failed: ${r.text}`);
+    await page.getByText("Marro split his lip at the dawn drill.").waitFor({ timeout: 15_000 });
+    expect((await page.evaluate(() => performance.timeOrigin)) === before, "the page reloaded instead of refreshing in place");
+  });
+
+  await check("Review filters cover drafted pages; Approve all pages approves the ones listed", async () => {
+    const c = await claude();
+    await c.call("open_campaign", { campaign_id: campaignId });
+    for (const name of ["Ser Wyl", "The Tidewatch"]) {
+      const r = await c.call("create_entity", { world_id: worldId, campaign_id: campaignId, type: name === "Ser Wyl" ? "character" : "faction", name, source: "invention", summary: `${name}, new in camp.` });
+      expect(r.status.status === "proposed", `${name} isn't proposed: ${r.text}`);
+    }
+    await page.goto(`${C}/review?filter=minor`);
+    expect(!(await text()).includes("New pages the GM drafted"), "the Minor filter still shows drafted pages");
+    await page.getByRole("link", { name: /New pages 2/ }).click();
+    await page.waitForURL(/filter=pages/);
+    const t = await text();
+    expect(t.includes("Ser Wyl") && t.includes("The Tidewatch"), "the New pages filter doesn't list the drafts");
+    expect(!t.includes("Proposed updates"), "the New pages filter still shows updates");
+    await shot("12-review-pages-filter");
+    await page.getByRole("button", { name: "Approve all pages (2)" }).click();
+    await page.locator("section[aria-label='New pages']").waitFor({ state: "detached" }); // approved pages leave the queue
+    const check = await c.call("read_entity", { campaign_id: campaignId, entity: "Ser Wyl" });
+    await c.close();
+    expect(!check.text.includes("PROPOSED PAGE"), `Ser Wyl is still proposed:\n${check.text.slice(0, 400)}`);
+  });
+
   await page.goto(`${C}/wiki`);
   await shot("08-wiki-browser");
   await page.goto(`${BASE}/w/${worldId}`);
@@ -309,4 +347,4 @@ try {
 if (process.env.E2E_LOG) console.log(server.log());
 for (const [name, ok, why] of results) console.log(`${ok ? "PASS" : "FAIL"}  ${name}${why ? `\n      ${why}` : ""}`);
 console.log(`Screenshots: ${out}`);
-process.exit(results.every(([, ok]) => ok) && results.length === 6 ? 0 : 1);
+process.exit(results.every(([, ok]) => ok) && results.length === 8 ? 0 : 1);

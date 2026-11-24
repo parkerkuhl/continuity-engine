@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
 import { app, isRemote } from "@/lib/server";
+import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { HeaderSearch, NavLink } from "./nav-link";
 
@@ -13,6 +14,7 @@ import { HeaderSearch, NavLink } from "./nav-link";
 export async function AppShell({ scope, children }: { scope?: Scope; children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-wrap">
+      <AutoRefresh everyMs={Number(process.env.CONTINUITY_REFRESH_MS) || 10_000} />
       <Sidebar scope={scope} />
       <div className="flex min-w-0 flex-[999_1_560px] flex-col">
         {scope && <TopBar scope={scope} />}
