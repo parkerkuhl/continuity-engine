@@ -20,7 +20,7 @@ export function loadFacts() {
   return facts;
 }
 
-const VERDICT_SCHEMA = {
+export const VERDICT_SCHEMA = {
   type: "object",
   properties: {
     verdicts: {
@@ -42,13 +42,13 @@ const VERDICT_SCHEMA = {
   additionalProperties: false,
 };
 
-const JUDGE_SYSTEM = `You score a continuity test for an AI game master. You get the established facts of a campaign, the scoring notes for one scene, and that scene's transcript (player turns and GM narration). For each fact listed, decide:
+export const JUDGE_SYSTEM = `You score a continuity test for an AI game master. You get the established facts of a campaign, the scoring notes for one scene, and that scene's transcript (player turns and GM narration). For each fact listed, decide:
 - honored: the narration and every NPC stay consistent with the fact, including who knows it.
 - violated: the narration contradicts it (a healed wound, a dead person acting, a lost item in hand, a secret acted on or revealed by someone who doesn't know it, the player character told something they don't know).
 - not_tested: the scene never touched the fact.
 Judge only what is on the page. A GM correcting an impossible player move inside the fiction (for example noting the dagger is gone) is honoring the fact. Quote the decisive line (empty if not_tested) and give a one-sentence reason.`;
 
-function judgePrompt(run, scene, facts) {
+export function judgePrompt(run, scene, facts) {
   const factLines = run.tests.map((id) => `- ${id} (${facts[id].kind}): ${facts[id].fact} Knows: ${facts[id].knows}.`).join("\n");
   const transcript = run.turns
     .map((t, i) => (i === 0 ? `GM (opening):\n${t.narration}` : `PLAYER: ${t.player}\n\nGM:\n${t.narration}`))
@@ -76,7 +76,7 @@ async function judge(client, model, run, scene, facts) {
 const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : "n/a");
 
 /** Builds RESULTS.md from the runs and verdicts. Pure, so it is testable without the API. */
-export function resultsMd({ runDir, runs, scores, facts }) {
+export function resultsMd({ runDir, runs, scores, facts, method = null }) {
   const arms = [...new Set(runs.map((r) => r.arm))];
   const tally = (arm) => {
     const v = scores.filter((s) => s.arm === arm);
@@ -86,6 +86,7 @@ export function resultsMd({ runDir, runs, scores, facts }) {
   const lines = [
     "# Evaluation results",
     "",
+    ...(method ? [method, ""] : []),
     `The continuity test from SPEC "Evaluation": 20 facts (\`eval/facts.md\`), 10 tempting scenes (\`eval/scenes/\`), run with the wiki (\`prompts/\` + MCP server) and without it (the original GM prompt with the save block pasted in). Run \`${runDir.replace(repo + "/", "")}\`, GM model \`${model}\`. Each scene starts fresh from the same chapter-1 state.`,
     "",
     "## Summary",
@@ -121,7 +122,7 @@ export function resultsMd({ runDir, runs, scores, facts }) {
   }
   const refusals = runs.filter((r) => r.refusals);
   const fellBack = runs.filter((r) => r.fallbacks?.length);
-  lines.push("", "## Notes", "", `- Model refusals: ${refusals.length ? refusals.map((r) => `${r.arm}-${r.scene}`).join(", ") : "none"}. Turns served by a fallback model: ${fellBack.length ? fellBack.map((r) => `${r.arm}-${r.scene}`).join(", ") : "none"}.`, "- Verdicts come from an LLM judge (`eval/score.mjs`) and were then checked by hand against the transcripts in the run folder.", "");
+  lines.push("", "## Notes", "", `- Model refusals: ${refusals.length ? refusals.map((r) => `${r.arm}-${r.scene}`).join(", ") : "none"}. Turns served by a fallback model: ${fellBack.length ? fellBack.map((r) => `${r.arm}-${r.scene}`).join(", ") : "none"}.`, method ? "- Verdicts come from fresh judge subagents (see the method note at the top) and were then checked by hand against the transcripts in the run folder (see \"Hand review\" below)." : "- Verdicts come from an LLM judge (`eval/score.mjs`) and were then checked by hand against the transcripts in the run folder.", "");
   return lines.join("\n");
 }
 

@@ -1,0 +1,891 @@
+{
+  "arm": "wiki",
+  "scene": "08",
+  "title": "S08: The Maegyr feast",
+  "tests": [
+    "F11",
+    "F19"
+  ],
+  "model": "claude-opus-5-5 (Claude Code subagent)",
+  "effort": "subagent default",
+  "method": "subagent",
+  "turns": [
+    {
+      "player": "Let's continue our campaign \"Run 1\" in The Free Cities (campaign_id 01e474ff-7eb8-43f7-843b-8a0696c18a25). We're picking up at the start of chapter 2. Take me straight into the next scene; my first move follows.",
+      "narration": "**Chapter 2: Debts**\n\nDawn came grey over the Black Wall, and the camp smelled of wet canvas and someone else's grain.\n\nThe wagons had rolled in overnight. Six of them, sacks stacked high, each one stamped with the Triarch's mark in red wax. Men stood around them the way men stand around a stranger's dog. Nobody said thank you. Nobody had paid.\n\nMarro sat on an upturned bucket outside the captain's tent with his right hand in his lap. The splint itched. Two fingers, bound straight to a strip of ash wood, and every time he forgot and tried to make a fist, the hand reminded him. Four days to the new moon. Four silver stags in his purse. Pallo would want thirty, and Pallo's men in their grey coats did not take IOUs written by squires.\n\nHe had done the sum six times since waking. It came out the same each time. Numbers were honest like that. It was the only thing he held against them.\n\nAcross the fire line, Hesse was walking Ash in slow circles, watching the horse's off foreleg with her one good eye. Ash put the hoof down like it was a coal. Hesse's mouth went flat. She didn't look over, but Marro had the feeling she knew exactly where he was. She usually did.\n\nBoots in the mud. Ser Tobbin came up from the picket lines, big and unshaven, his sword belt slung over one shoulder like he'd forgotten to put it on. He stopped in front of Marro and squinted down at him.\n\n\"You were in the alleys by the river two nights back. Running the captain's errand.\" Not a question. Tobbin rarely bothered with those. \"My sister works that water. Dagna. Little woman, scar through her eyebrow, swears like a Braavosi. She was meant to come by the lines yesterday with some wine she owes me. She didn't.\" He scratched his jaw. \"You see her?\"\n\nThe river was in Marro's mouth again for a moment, cold and brown, and his hand on the splint went very still.\n\nBehind him the tent flap snapped open. Rickard Snow's voice, rough with sleep and pain: \"Marro. In here. This shoulder won't dress itself.\"\n\nTobbin didn't move. He was still waiting for an answer.",
+      "toolCalls": [
+        {
+          "name": "open_campaign",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "session_id": "a08a5215-e995-4d3f-9954-24e9b789665a",
+            "chapter": 2,
+            "changes": 0,
+            "unlogged_scene": null
+          },
+          "text": "# Run 1 (world: The Free Cities)\nSession open. Chapter 2. Approval: autopilot. Spoilers: off.\n\n## Changed since last session\nNothing changed since the last session.\n\n## Settings\n- as of: Spring, year 300\n- genre: low fantasy\n- tone: grim\n- difficulty: balanced\n- length: standard\n- pacing: balanced\n- dice: GM rolls\n- turn_length: standard\n- lines: harm to children\n- veils: sexual content\n\n## Voice anchor\nInterior level: deep\nClipped, close third person, past tense. Plain diction, hard edges, dry humor; violence quick and ugly.\n\nSample:\n> Rain came off the Black Wall in sheets, and the squire counted coins he didn't have.\n\n## PC sheet\n```json\n{\n  \"name\": \"Marro\",\n  \"stats\": {\n    \"might\": 0,\n    \"finesse\": 2,\n    \"wits\": 2,\n    \"presence\": 1,\n    \"resolve\": 3\n  },\n  \"health\": \"6/6\",\n  \"stress\": \"1/5\",\n  \"inventory\": [\n    \"cudgel (no dagger: lost in the Rhoyne)\",\n    \"Rickard's old whetstone\",\n    \"Lissa's letter\",\n    \"4 silver stags\",\n    \"a borrowed cloak\"\n  ],\n  \"bonds\": [\n    \"Hesse: trusted\"\n  ],\n  \"trackers\": {\n    \"debt to Pallo\": \"30 silver stags, due at the new moon (4 days)\"\n  },\n  \"flaw_notes\": \"Gambles when cornered. Swore to Hesse he never would again. Right hand: two fingers broken and splinted.\"\n}\n```\n\n## Open threads\n- A knighthood if the city falls: Rickard's promise to Marro.\n- Lissa's letter: Marro must carry it to her mother in the Dragon's Den.\n- Pallo's debt: 30 silver stags due at the new moon.\n- Who is selling the company?: The Triarch seems to know the company's plans.\n\n## Chapters\n- ch-01 The Black Wall: Rickard is wounded, Brother Olyvar dies of fever, Marro kills Dagna in self-defense and loses his dagger, and the company's grain now comes on the Triarch's credit.\n\n## Rulings\n- \"Marro can read; his mother taught him.\"\n\n## Pinned: load guide\n## Load guide: The Free Cities\n\nGenerated from the wiki; do not edit. Lists every page in this world and when to load it.\n\nAs of: Spring, year 300\n\n### Places\nLoad when a scene is set there.\n\n- [Dragon's Den](places/dragons-den.md): A district of eastern Volantis.\n- [Long Bridge](places/long-bridge.md): The bridge joining the two halves of Volantis. Closed by the Triarch's order: crossing needs a stamped pass.\n- [Volantis](places/volantis.md): The oldest of the Free Cities, split by the Black Wall.\n\n### Factions\nLoad when the faction or its members act.\n\n- [Golden Company](factions/golden-company.md): The largest sellsword company in Essos, camped outside Volantis. It owes Triarch Malaquo two months of grain bought on credit.\n\n### Characters\nLoad when the character is present or discussed.\n\n- [Brother Olyvar](characters/brother-olyvar.md): The company septon. Died of fever in ch-01; buried outside the Black Wall.\n- [Dagna](characters/dagna.md): A river smuggler. Dead (ch-01): killed by Marro in the alleys; her body went into the Rhoyne.\n- [Hesse](characters/hesse.md): Company sergeant. Lost her left eye to the Triarch's men and wears a patch. Her horse, Ash, is lame.\n- [Lissa](characters/lissa.md): A ferry-girl on the Rhoyne. Her mother lives in the Dragon's Den district.\n- [Lysono Qhoran](characters/lysono-qhoran.md): The Golden Company's paymaster. Watches the captains' books and their loyalties.\n- [Marro](characters/marro.md): Rickard Snow's squire, sixteen. Two fingers of his right hand are broken and splinted. He lost his dagger in the Rhoyne and carries a cudgel. Owes Pallo 30 silver stags.\n- [Pallo](characters/pallo.md): A Volantene moneylender who dresses his men in grey.\n- [Rickard Snow](characters/rickard-snow.md): Sellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n- [Ser Tobbin](characters/ser-tobbin.md): A hedge knight who sells his sword to the company. Dagna's brother.\n- [Triarch Malaquo](characters/triarch-malaquo.md): One of the three Triarchs of Volantis.\n\n### Items\nLoad when the item is used or sought.\n\n- [Lissa's letter](items/lissas-letter.md): A letter Lissa gave Marro to carry to her mother in the Dragon's Den.\n- [Old whetstone](items/old-whetstone.md): Rickard's old whetstone, given to Marro. Marro carries it.\n\n{\"ok\":true,\"session_id\":\"a08a5215-e995-4d3f-9954-24e9b789665a\",\"chapter\":2,\"changes\":0,\"unlogged_scene\":null}"
+        },
+        {
+          "name": "gm_read",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "notes": 1
+          },
+          "text": "## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### clock: triarch-assault\nThe Triarch moves on the camp.\n```json\n{\"step\":2,\"steps\":6,\"advances_on\":\"each night the plans go unrecovered\"}\n```\n{\"ok\":true,\"notes\":1}"
+        },
+        {
+          "name": "get_context",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow",
+              "Ser Tobbin"
+            ],
+            "place": "Volantis",
+            "threads": [
+              "Lissa's letter",
+              "Pallo's debt",
+              "Who is selling the company?"
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "8d87714e-19d4-4d8e-adad-8bea582515ee",
+            "read": [
+              "volantis",
+              "marro",
+              "hesse",
+              "rickard-snow",
+              "ser-tobbin"
+            ],
+            "warnings": []
+          },
+          "text": "# Scene context (ch-02-s1)\n\n## Rulings (top precedence)\n- \"Marro can read; his mother taught him.\"\n\n## Volantis (place, volantis) aka Old Volantis\nThe oldest of the Free Cities, split by the Black Wall.\n\n## Marro (character, marro) aka the squire\nRickard Snow's squire, sixteen. Two fingers of his right hand are broken and splinted. He lost his dagger in the Rhoyne and carries a cudgel. Owes Pallo 30 silver stags.\n### Background\nSquire to Rickard Snow for three years. Quick, watchful, good with numbers. His mother taught him to read.\n### Updates\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n## Hesse (character, hesse) aka Sergeant Hesse, the sergeant\nCompany sergeant. Lost her left eye to the Triarch's men and wears a patch. Her horse, Ash, is lame.\n### Updates\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n## Rickard Snow (character, rickard-snow) aka Snow, the bastard sellsword, Commander\nSellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n### Appearance\nTall and grey-eyed, with a burn scar along the jaw.\n### Wants\nLand of his own, and to pay the company before winter.\n### Updates\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n## Ser Tobbin (character, ser-tobbin) aka Tobbin\nA hedge knight who sells his sword to the company. Dagna's brother.\n### Knows\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n\n## Threads in play\n- Lissa's letter [open]: Marro must carry it to her mother in the Dragon's Den.\n- Pallo's debt [open]: 30 silver stags due at the new moon.\n- Who is selling the company? [open]: The Triarch seems to know the company's plans.\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Marro: Born a slave\nMarro was born a slave in Volantis and escaped as a child. Only Hesse knows.\n### Hesse: Reports to Lysono\nShe reports on Rickard to the paymaster, Lysono Qhoran.\n### Rickard Snow: Mother\nHis mother was a daughter of House Maegyr, of the Old Blood.\n### Rickard Snow: The siege plans\nHe sold the Company's siege plans to the Triarch. No one else knows.\n### Rickard Snow: The Triarch's letter\nThe Triarch's sealed letter is in his strongbox; the key hangs on a cord at his neck.\n{\"ok\":true,\"scene_id\":\"8d87714e-19d4-4d8e-adad-8bea582515ee\",\"read\":[\"volantis\",\"marro\",\"hesse\",\"rickard-snow\",\"ser-tobbin\"],\"warnings\":[]}"
+        }
+      ]
+    },
+    {
+      "player": "Rickard brings Hesse and me as his escort to a feast in the Old Blood quarter, hosted by a Maegyr cousin.",
+      "narration": "The invitation had come at noon, on paper so thick it could have stopped a knife. A wax seal Marro didn't know. Rickard read it, folded it, and put it inside his doublet, and when Marro asked who it was from he said, \"A widow. Fetch my good cloak,\" and that was the whole of the explanation.\n\nThey walked. Ash was lame and the company had nothing better to lend, so the captain of the Golden Company went to dinner on foot, his left arm strapped under the cloak where nobody could see it hang. A steward in green met them below the Black Wall with a lantern and a token on a chain, and the gate guards looked at the token and not at them. Inside, a porter took Hesse's sword and Marro's cudgel and laid them on a shelf with a dozen other blades, like hats.\n\nThe house belonged to Vaela Maegyr. Old Blood. She was small and grey-haired and wore more silver on her wrists than Marro would see in his life, and when Rickard bowed to her she took his good hand and held it a beat too long.\n\n\"You came,\" she said. \"Did you think I wouldn't ask?\"\n\nRickard didn't answer that. Marro noticed. He noticed, too, that nobody in the hall said the captain's name aloud, and that the lady never once said it either.\n\nThe servants moved between the couches with wine and figs and nobody looked at their faces, which was what they were for. Marro looked. He couldn't help it. Something old and tight closed in his chest and he made himself study the floor tiles instead, blue and white, a pattern of ships. Hesse's elbow found his ribs. Just once. Not hard.\n\nThen Vaela rose, and Rickard with her, and the two of them went through a beaded curtain into another room without a word to their escort.\n\nHesse's one eye followed them. Her jaw worked.\n\nAnd at the far end of the hall, leaning on a pillar beside some merchant's couch, stood a man in a grey coat. He had seen Marro. He raised his cup a finger's width, the way a man does to a debtor.",
+      "toolCalls": [
+        {
+          "name": "search_wiki",
+          "input": {
+            "query": "Maegyr",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "matches": [
+              "rickard-snow"
+            ]
+          },
+          "text": "# Matches for \"Maegyr\"\n- Rickard Snow (character, rickard-snow): Sellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n{\"ok\":true,\"matches\":[\"rickard-snow\"]}"
+        },
+        {
+          "name": "search_wiki",
+          "input": {
+            "query": "Old Blood",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "matches": [
+              "rickard-snow"
+            ]
+          },
+          "text": "# Matches for \"Old Blood\"\n- Rickard Snow (character, rickard-snow): Sellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n{\"ok\":true,\"matches\":[\"rickard-snow\"]}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "volantis",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "fecd4204-e4d0-477f-82ad-596bc485e546",
+            "slug": "volantis",
+            "view": "gm"
+          },
+          "text": "## Volantis (place, volantis) aka Old Volantis\nThe oldest of the Free Cities, split by the Black Wall.\n{\"ok\":true,\"entity_id\":\"fecd4204-e4d0-477f-82ad-596bc485e546\",\"slug\":\"volantis\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "long-bridge",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "41eb2acf-50cc-45f9-94f2-3d87056bd280",
+            "slug": "long-bridge",
+            "view": "gm"
+          },
+          "text": "## Long Bridge (place, long-bridge) aka the Long Bridge\nThe bridge joining the two halves of Volantis. Closed by the Triarch's order: crossing needs a stamped pass.\n### Updates\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n{\"ok\":true,\"entity_id\":\"41eb2acf-50cc-45f9-94f2-3d87056bd280\",\"slug\":\"long-bridge\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "rickard-snow",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "e7e18462-85ef-44af-a1a4-9d76ba4d12ad",
+            "slug": "rickard-snow",
+            "view": "gm"
+          },
+          "text": "## Rickard Snow (character, rickard-snow) aka Snow, the bastard sellsword, Commander\nSellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n### Appearance\nTall and grey-eyed, with a burn scar along the jaw.\n### Wants\nLand of his own, and to pay the company before winter.\n### Updates\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Rickard Snow: Mother\nHis mother was a daughter of House Maegyr, of the Old Blood.\n### Rickard Snow: The siege plans\nHe sold the Company's siege plans to the Triarch. No one else knows.\n### Rickard Snow: The Triarch's letter\nThe Triarch's sealed letter is in his strongbox; the key hangs on a cord at his neck.\n{\"ok\":true,\"entity_id\":\"e7e18462-85ef-44af-a1a4-9d76ba4d12ad\",\"slug\":\"rickard-snow\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "triarch-malaquo",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "dbf118eb-9806-4b0b-b58c-35447a3d08e2",
+            "slug": "triarch-malaquo",
+            "view": "gm"
+          },
+          "text": "## Triarch Malaquo (character, triarch-malaquo) aka Malaquo, the Triarch\nOne of the three Triarchs of Volantis.\n### Updates\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n{\"ok\":true,\"entity_id\":\"dbf118eb-9806-4b0b-b58c-35447a3d08e2\",\"slug\":\"triarch-malaquo\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "dragons-den",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "aea0b584-bd95-417f-bf89-3c0edb93f0ac",
+            "slug": "dragons-den",
+            "view": "gm"
+          },
+          "text": "## Dragon's Den (place, dragons-den) aka the Dragon's Den\nA district of eastern Volantis.\n{\"ok\":true,\"entity_id\":\"aea0b584-bd95-417f-bf89-3c0edb93f0ac\",\"slug\":\"dragons-den\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "golden-company",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "16a31f12-5358-4f6d-9faa-772c79f6d504",
+            "slug": "golden-company",
+            "view": "gm"
+          },
+          "text": "## Golden Company (faction, golden-company) aka the Company\nThe largest sellsword company in Essos, camped outside Volantis. It owes Triarch Malaquo two months of grain bought on credit.\n### Updates\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n{\"ok\":true,\"entity_id\":\"16a31f12-5358-4f6d-9faa-772c79f6d504\",\"slug\":\"golden-company\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "lysono-qhoran",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "8e3c3533-2de7-44f1-941c-6d35c4de7010",
+            "slug": "lysono-qhoran",
+            "view": "gm"
+          },
+          "text": "## Lysono Qhoran (character, lysono-qhoran) aka Lysono, the paymaster\nThe Golden Company's paymaster. Watches the captains' books and their loyalties.\n### Updates\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n### Knows\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n{\"ok\":true,\"entity_id\":\"8e3c3533-2de7-44f1-941c-6d35c4de7010\",\"slug\":\"lysono-qhoran\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "search_wiki",
+          "input": {
+            "query": "Black Wall",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "matches": [
+              "volantis",
+              "brother-olyvar"
+            ]
+          },
+          "text": "# Matches for \"Black Wall\"\n- Volantis (place, volantis): The oldest of the Free Cities, split by the Black Wall.\n- Brother Olyvar (character, brother-olyvar): The company septon. Died of fever in ch-01; buried outside the Black Wall.\n{\"ok\":true,\"matches\":[\"volantis\",\"brother-olyvar\"]}"
+        },
+        {
+          "name": "log_scene",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "summary": "Dawn in the camp outside the Black Wall. Six wagons of the Triarch's grain arrived overnight under red wax seals. Ser Tobbin asked Marro whether he had seen his sister Dagna in the river alleys two nights back; Marro gave him no answer and went in when Rickard called him to dress his shoulder.",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow",
+              "Ser Tobbin"
+            ],
+            "place": "Volantis",
+            "updates": [
+              {
+                "entities": [
+                  "Golden Company",
+                  "Triarch Malaquo"
+                ],
+                "tags": [
+                  "ch-02",
+                  "Golden Company",
+                  "Triarch Malaquo"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Six wagons of grain stamped with the Triarch's red wax mark reached the company camp on the first night of chapter 2.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow",
+                  "Ser Tobbin"
+                ]
+              },
+              {
+                "entities": [
+                  "Dagna"
+                ],
+                "tags": [
+                  "ch-02",
+                  "Dagna",
+                  "Ser Tobbin"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Dagna had a scar through one eyebrow and swore like a Braavosi. She owed her brother Ser Tobbin some wine and was meant to bring it to the company lines the day after she died.",
+                "knows": [
+                  "Marro",
+                  "Ser Tobbin"
+                ]
+              },
+              {
+                "entities": [
+                  "Ser Tobbin",
+                  "Marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "Ser Tobbin",
+                  "Marro",
+                  "Dagna"
+                ],
+                "type": "relationship",
+                "severity": "minor",
+                "body": "Ser Tobbin asked Marro whether he had seen Dagna in the river alleys two nights back. Marro gave him no answer. Tobbin still does not know she is dead.",
+                "knows": [
+                  "Marro",
+                  "Ser Tobbin"
+                ]
+              }
+            ],
+            "thread_changes": [
+              {
+                "title": "Where is Dagna?",
+                "body": "Ser Tobbin is asking after his missing sister. Marro killed her and has not told him. Could surface as Tobbin's suspicion, a body in the Rhoyne, or a confession.",
+                "state": "open",
+                "tags": [
+                  "ser-tobbin",
+                  "dagna"
+                ]
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "8d87714e-19d4-4d8e-adad-8bea582515ee",
+            "updates": [
+              {
+                "status": "refused",
+                "rule": "invalid_tag"
+              },
+              {
+                "status": "refused",
+                "rule": "invalid_tag"
+              },
+              {
+                "status": "refused",
+                "rule": "invalid_tag"
+              }
+            ]
+          },
+          "text": "# Scene ch-02-s1 logged\n0 update(s) stored, 3 refused.\n- Update 1 **refused (invalid_tag)**: Tag \"Golden Company\" must be lowercase kebab-case, e.g. \"golden-company\".\n- Update 2 **refused (invalid_tag)**: Tag \"Dagna\" must be lowercase kebab-case, e.g. \"dagna\".\n- Update 3 **refused (invalid_tag)**: Tag \"Ser Tobbin\" must be lowercase kebab-case, e.g. \"ser-tobbin\".\n\nFix the refused updates and log them again with log_scene; the stored ones are kept.\n\nThreads:\n- Where is Dagna? [open]\n{\"ok\":true,\"scene_id\":\"8d87714e-19d4-4d8e-adad-8bea582515ee\",\"updates\":[{\"status\":\"refused\",\"rule\":\"invalid_tag\"},{\"status\":\"refused\",\"rule\":\"invalid_tag\"},{\"status\":\"refused\",\"rule\":\"invalid_tag\"}]}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "dagna",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "bb9e3839-c660-4e18-9bb1-fae631c54568",
+            "slug": "dagna",
+            "view": "gm"
+          },
+          "text": "## Dagna (character, dagna) aka Dagna the smuggler\nA river smuggler. Dead (ch-01): killed by Marro in the alleys; her body went into the Rhoyne.\n### Updates\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n{\"ok\":true,\"entity_id\":\"bb9e3839-c660-4e18-9bb1-fae631c54568\",\"slug\":\"dagna\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "log_scene",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "summary": "Dawn in the camp outside the Black Wall. Six wagons of the Triarch's grain arrived overnight under red wax seals. Ser Tobbin asked Marro whether he had seen his sister Dagna in the river alleys two nights back; Marro gave him no answer and went in when Rickard called him to dress his shoulder.",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow",
+              "Ser Tobbin"
+            ],
+            "place": "Volantis",
+            "updates": [
+              {
+                "entities": [
+                  "golden-company",
+                  "triarch-malaquo"
+                ],
+                "tags": [
+                  "ch-02",
+                  "golden-company",
+                  "triarch-malaquo"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Six wagons of grain stamped with the Triarch's red wax mark reached the company camp on the first night of chapter 2.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow",
+                  "Ser Tobbin"
+                ]
+              },
+              {
+                "entities": [
+                  "dagna"
+                ],
+                "tags": [
+                  "ch-02",
+                  "dagna",
+                  "ser-tobbin"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Dagna had a scar through one eyebrow and swore like a Braavosi. She owed her brother Ser Tobbin some wine and was meant to bring it to the company lines the day after she died.",
+                "knows": [
+                  "Marro",
+                  "Ser Tobbin"
+                ]
+              },
+              {
+                "entities": [
+                  "ser-tobbin",
+                  "marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "ser-tobbin",
+                  "marro",
+                  "dagna"
+                ],
+                "type": "relationship",
+                "severity": "minor",
+                "body": "Ser Tobbin asked Marro whether he had seen Dagna in the river alleys two nights back. Marro gave him no answer. Tobbin still does not know she is dead.",
+                "knows": [
+                  "Marro",
+                  "Ser Tobbin"
+                ]
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "14cc6005-51be-4827-b1e3-a5b3f774469d",
+            "updates": [
+              {
+                "seq": 18,
+                "status": "confirmed"
+              },
+              {
+                "seq": 19,
+                "status": "confirmed"
+              },
+              {
+                "seq": 20,
+                "status": "confirmed"
+              }
+            ]
+          },
+          "text": "# Scene ch-02-s2 logged\n3 update(s) stored, 0 refused.\n- Update 1 → #18 stored as **confirmed**. Tags: ch-02 (time), golden-company (faction), triarch-malaquo (character)\n- Update 2 → #19 stored as **confirmed**. Tags: ch-02 (time), dagna (character), ser-tobbin (character)\n- Update 3 → #20 stored as **confirmed**. Tags: ch-02 (time), ser-tobbin (character), marro (character), dagna (character)\n{\"ok\":true,\"scene_id\":\"14cc6005-51be-4827-b1e3-a5b3f774469d\",\"updates\":[{\"seq\":18,\"status\":\"confirmed\"},{\"seq\":19,\"status\":\"confirmed\"},{\"seq\":20,\"status\":\"confirmed\"}]}"
+        },
+        {
+          "name": "list_worlds",
+          "input": {},
+          "isError": false,
+          "status": {
+            "ok": true,
+            "worlds": [
+              {
+                "world_id": "4fa5988b-b360-46bc-87ab-ec5227f7dab1",
+                "name": "The Free Cities",
+                "campaigns": [
+                  {
+                    "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+                    "name": "Run 1"
+                  }
+                ]
+              }
+            ]
+          },
+          "text": "## The Free Cities (world_id: 4fa5988b-b360-46bc-87ab-ec5227f7dab1)\nSellswords and old debts on the Rhoyne.\nDepth: compact. Default approval: autopilot. As of: Spring, year 300.\n- Campaign \"Run 1\" (campaign_id: 01e474ff-7eb8-43f7-843b-8a0696c18a25), chapter 2\n{\"ok\":true,\"worlds\":[{\"world_id\":\"4fa5988b-b360-46bc-87ab-ec5227f7dab1\",\"name\":\"The Free Cities\",\"campaigns\":[{\"campaign_id\":\"01e474ff-7eb8-43f7-843b-8a0696c18a25\",\"name\":\"Run 1\"}]}]}"
+        },
+        {
+          "name": "list_worlds",
+          "input": {},
+          "isError": false,
+          "status": {
+            "ok": true,
+            "worlds": [
+              {
+                "world_id": "4fa5988b-b360-46bc-87ab-ec5227f7dab1",
+                "name": "The Free Cities",
+                "campaigns": [
+                  {
+                    "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+                    "name": "Run 1"
+                  }
+                ]
+              }
+            ]
+          },
+          "text": "## The Free Cities (world_id: 4fa5988b-b360-46bc-87ab-ec5227f7dab1)\nSellswords and old debts on the Rhoyne.\nDepth: compact. Default approval: autopilot. As of: Spring, year 300.\n- Campaign \"Run 1\" (campaign_id: 01e474ff-7eb8-43f7-843b-8a0696c18a25), chapter 2\n{\"ok\":true,\"worlds\":[{\"world_id\":\"4fa5988b-b360-46bc-87ab-ec5227f7dab1\",\"name\":\"The Free Cities\",\"campaigns\":[{\"campaign_id\":\"01e474ff-7eb8-43f7-843b-8a0696c18a25\",\"name\":\"Run 1\"}]}]}"
+        },
+        {
+          "name": "create_entity",
+          "input": {
+            "world_id": "4fa5988b-b360-46bc-87ab-ec5227f7dab1",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "type": "character",
+            "name": "Vaela Maegyr",
+            "aliases": [
+              "Lady Vaela",
+              "the Maegyr widow"
+            ],
+            "source": "invention",
+            "summary": "A widow of House Maegyr, of the Old Blood, who keeps a manse inside the Black Wall. In spring of year 300 she invited Rickard Snow to a feast at her house.",
+            "sections": [
+              {
+                "heading": "Role",
+                "body": "Old Blood hostess; sits at the edge of Volantene politics and collects useful men."
+              },
+              {
+                "heading": "Motive",
+                "body": "Wants the Golden Company's sword pointed where House Maegyr finds it useful."
+              },
+              {
+                "heading": "Wants from the PC",
+                "body": "Nothing yet; sees him as Rickard's servant, and watches who Rickard trusts."
+              },
+              {
+                "heading": "Attitude to the PC",
+                "body": "Indifferent, faintly amused."
+              },
+              {
+                "heading": "Manner of speech",
+                "body": "Slow, soft High Valyrian-flavoured Common; answers questions with questions; never says a name she can avoid saying."
+              },
+              {
+                "heading": "Hidden",
+                "body": "She knows who Rickard's mother was, and invited him because of it. She has not said so in front of anyone.",
+                "visibility": "secret"
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "3c2ff713-5773-474a-8dfd-96ea7bdd4c77",
+            "slug": "vaela-maegyr",
+            "status": "confirmed"
+          },
+          "text": "Stored as **confirmed** (entity_id: 3c2ff713-5773-474a-8dfd-96ea7bdd4c77).\n# Vaela Maegyr (character, vaela-maegyr, source: invention)\nAliases: Lady Vaela, the Maegyr widow\n\nA widow of House Maegyr, of the Old Blood, who keeps a manse inside the Black Wall. In spring of year 300 she invited Rickard Snow to a feast at her house.\n\n## Role [campaign]\nOld Blood hostess; sits at the edge of Volantene politics and collects useful men.\n\n## Motive [campaign]\nWants the Golden Company's sword pointed where House Maegyr finds it useful.\n\n## Wants from the PC [campaign]\nNothing yet; sees him as Rickard's servant, and watches who Rickard trusts.\n\n## Attitude to the PC [campaign]\nIndifferent, faintly amused.\n\n## Manner of speech [campaign]\nSlow, soft High Valyrian-flavoured Common; answers questions with questions; never says a name she can avoid saying.\n\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Hidden\nShe knows who Rickard's mother was, and invited him because of it. She has not said so in front of anyone.\n{\"ok\":true,\"entity_id\":\"3c2ff713-5773-474a-8dfd-96ea7bdd4c77\",\"slug\":\"vaela-maegyr\",\"status\":\"confirmed\"}"
+        },
+        {
+          "name": "create_entity",
+          "input": {
+            "world_id": "4fa5988b-b360-46bc-87ab-ec5227f7dab1",
+            "type": "place",
+            "name": "Old Blood quarter",
+            "aliases": [
+              "the old city",
+              "within the Black Wall"
+            ],
+            "source": "invention",
+            "summary": "The old heart of Volantis inside the Black Wall, where the Old Blood families keep their manses. Outsiders enter only as invited guests of an Old Blood house, and escorts leave their weapons at the gate."
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "fffd4263-f8d1-41a0-a8df-7e9036a90fd1",
+            "slug": "old-blood-quarter",
+            "status": "confirmed"
+          },
+          "text": "Stored as **confirmed** (entity_id: fffd4263-f8d1-41a0-a8df-7e9036a90fd1).\n# Old Blood quarter (place, old-blood-quarter, source: invention)\nAliases: the old city, within the Black Wall\n\nThe old heart of Volantis inside the Black Wall, where the Old Blood families keep their manses. Outsiders enter only as invited guests of an Old Blood house, and escorts leave their weapons at the gate.\n{\"ok\":true,\"entity_id\":\"fffd4263-f8d1-41a0-a8df-7e9036a90fd1\",\"slug\":\"old-blood-quarter\",\"status\":\"confirmed\"}"
+        },
+        {
+          "name": "get_context",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow",
+              "Vaela Maegyr"
+            ],
+            "place": "Old Blood quarter",
+            "threads": [
+              "Pallo's debt",
+              "Who is selling the company?"
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "456c27a1-5d22-44fe-8511-019b23eaf1a1",
+            "read": [
+              "old-blood-quarter",
+              "marro",
+              "hesse",
+              "rickard-snow",
+              "vaela-maegyr"
+            ],
+            "warnings": []
+          },
+          "text": "# Scene context (ch-02-s3)\n\n## Rulings (top precedence)\n- \"Marro can read; his mother taught him.\"\n\n## Old Blood quarter (place, old-blood-quarter) aka the old city, within the Black Wall\nThe old heart of Volantis inside the Black Wall, where the Old Blood families keep their manses. Outsiders enter only as invited guests of an Old Blood house, and escorts leave their weapons at the gate.\n\n## Marro (character, marro) aka the squire\nRickard Snow's squire, sixteen. Two fingers of his right hand are broken and splinted. He lost his dagger in the Rhoyne and carries a cudgel. Owes Pallo 30 silver stags.\n### Background\nSquire to Rickard Snow for three years. Quick, watchful, good with numbers. His mother taught him to read.\n### Updates\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n- #20 [confirmed] (relationship, minor) Ser Tobbin asked Marro whether he had seen Dagna in the river alleys two nights back. Marro gave him no answer. Tobbin still does not know she is dead.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #5 [confirmed] (death, major) Marro killed Dagna the smuggler in the alleys, in self-defense, and her body went into the Rhoyne. Ser Tobbin doesn't know she is dead.\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #11 [confirmed] (item, minor) Marro lost his dagger in the Rhoyne. He now carries only a cudgel.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #16 [confirmed] (relationship, minor) Marro promised Lissa to carry her letter to her mother in the Dragon's Den district. He has the letter.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n- #18 [confirmed] (new-fact, minor) Six wagons of grain stamped with the Triarch's red wax mark reached the company camp on the first night of chapter 2.\n- #19 [confirmed] (new-fact, minor) Dagna had a scar through one eyebrow and swore like a Braavosi. She owed her brother Ser Tobbin some wine and was meant to bring it to the company lines the day after she died.\n- #20 [confirmed] (relationship, minor) Ser Tobbin asked Marro whether he had seen Dagna in the river alleys two nights back. Marro gave him no answer. Tobbin still does not know she is dead.\n\n## Hesse (character, hesse) aka Sergeant Hesse, the sergeant\nCompany sergeant. Lost her left eye to the Triarch's men and wears a patch. Her horse, Ash, is lame.\n### Updates\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #2 [confirmed] (status-change, minor) Two fingers of Marro's right hand are broken and splinted after the dice-house brawl. He can't grip a blade properly in that hand.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #9 [confirmed] (knowledge, major) Hesse reports on Rickard to the paymaster, Lysono Qhoran.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #14 [confirmed] (relationship, minor) Marro swore to Hesse that he would never gamble again.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n- #18 [confirmed] (new-fact, minor) Six wagons of grain stamped with the Triarch's red wax mark reached the company camp on the first night of chapter 2.\n\n## Rickard Snow (character, rickard-snow) aka Snow, the bastard sellsword, Commander\nSellsword captain of the Golden Company, camped outside Volantis. A crossbow bolt wound in his left shoulder (ch-01): he can't raise a shield or draw a bow with that arm.\n### Appearance\nTall and grey-eyed, with a burn scar along the jaw.\n### Wants\nLand of his own, and to pay the company before winter.\n### Updates\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n### Knows\n- #1 [confirmed] (status-change, major) Rickard took a crossbow bolt in the left shoulder. He can't raise a shield or draw a bow with that arm, and fights at -1.\n- #3 [confirmed] (status-change, minor) Hesse lost her left eye to the Triarch's men and wears a patch.\n- #4 [confirmed] (death, major) Brother Olyvar died of fever and is buried outside the Black Wall.\n- #7 [confirmed] (new-fact, major) The Golden Company owes Triarch Malaquo two months of grain, bought on credit.\n- #8 [confirmed] (faction-shift, major) Rickard sold the Company's siege plans to the Triarch.\n- #10 [confirmed] (item, minor) Rickard gave Marro his old whetstone; Marro carries it.\n- #12 [confirmed] (item, major) The Triarch's sealed letter is in Rickard's strongbox; the key hangs on a cord at his neck.\n- #13 [confirmed] (item, minor) Hesse's horse, Ash, is lame, and the company has no spare horses.\n- #15 [confirmed] (relationship, minor) Rickard promised Marro a knighthood if the company takes the city.\n- #17 [confirmed] (world-rule, major) The Long Bridge is closed by the Triarch's order; crossing needs a stamped pass, and Marro has none.\n- #18 [confirmed] (new-fact, minor) Six wagons of grain stamped with the Triarch's red wax mark reached the company camp on the first night of chapter 2.\n\n## Vaela Maegyr (character, vaela-maegyr) aka Lady Vaela, the Maegyr widow\nA widow of House Maegyr, of the Old Blood, who keeps a manse inside the Black Wall. In spring of year 300 she invited Rickard Snow to a feast at her house.\n### Role [campaign]\nOld Blood hostess; sits at the edge of Volantene politics and collects useful men.\n### Motive [campaign]\nWants the Golden Company's sword pointed where House Maegyr finds it useful.\n### Wants from the PC [campaign]\nNothing yet; sees him as Rickard's servant, and watches who Rickard trusts.\n### Attitude to the PC [campaign]\nIndifferent, faintly amused.\n### Manner of speech [campaign]\nSlow, soft High Valyrian-flavoured Common; answers questions with questions; never says a name she can avoid saying.\n\n\n## Threads in play\n- Pallo's debt [open]: 30 silver stags due at the new moon.\n- Who is selling the company? [open]: The Triarch seems to know the company's plans.\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Marro: Born a slave\nMarro was born a slave in Volantis and escaped as a child. Only Hesse knows.\n### Hesse: Reports to Lysono\nShe reports on Rickard to the paymaster, Lysono Qhoran.\n### Rickard Snow: Mother\nHis mother was a daughter of House Maegyr, of the Old Blood.\n### Rickard Snow: The siege plans\nHe sold the Company's siege plans to the Triarch. No one else knows.\n### Rickard Snow: The Triarch's letter\nThe Triarch's sealed letter is in his strongbox; the key hangs on a cord at his neck.\n### Vaela Maegyr: Hidden\nShe knows who Rickard's mother was, and invited him because of it. She has not said so in front of anyone.\n{\"ok\":true,\"scene_id\":\"456c27a1-5d22-44fe-8511-019b23eaf1a1\",\"read\":[\"old-blood-quarter\",\"marro\",\"hesse\",\"rickard-snow\",\"vaela-maegyr\"],\"warnings\":[]}"
+        }
+      ]
+    },
+    {
+      "player": "A servant hands me a card with the seating written on it. I read it.",
+      "narration": "The servant was a boy younger than him, barefoot, eyes on the tiles. He put the card into Marro's good hand and was gone before Marro could thank him, which was probably the point.\n\nStiff cream paper, edged in green. A clean, slanting hand in the common trade tongue, the kind clerks use for foreigners. His mother had taught him letters on the backs of tally sheets, and he read it the way she'd made him, slowly, every word.\n\n*The high couch:* the Lady of the house. *Her guest from beyond the Wall.* No name for Rickard. Just that.\n\n*The second couch:* a Qavo, factor of grain, *by the Triarch's leave*. Two more names he didn't know, Volantene, long.\n\n*The lower table, by the fountain:* *the Sergeant, the one-eyed.* And under it, plain as a debt marker:\n\n*Marro, squire.*\n\nHe read it twice. Nobody had given his name at the gate. Rickard hadn't said it in the hall. Hesse hadn't said anything to anyone.\n\nHe looked up. The man in grey was standing beside the second couch, at the elbow of a fat Volantene in mustard silk who had to be the grain factor. The grey coat was watching him read.\n\nAt the lower table, Hesse had already sat down by the fountain. She tapped the empty cushion beside her with two fingers and kept her eye on the beaded curtain.",
+      "toolCalls": []
+    },
+    {
+      "player": "Hesse leans over and whispers, asking why a Maegyr would invite a bastard sellsword. I tell her I don't know.",
+      "narration": "Hesse leaned in until her shoulder touched his. Her breath smelled of the cheap wine they'd been given, not the good stuff going to the couches.\n\n\"Old Blood don't feed bastards,\" she said, low. \"They don't let them through the gate. So why's a Maegyr pouring wine for ours?\"\n\n\"I don't know,\" Marro said.\n\nIt was true. He was surprised how little that helped.\n\nHesse grunted. She didn't look at him; her eye stayed on the beaded curtain, which hung still. \"You dress his shoulder every morning. You fetch his cloak. You sleep across his door.\" A pause. \"And you don't know.\"\n\n\"He said a widow. That's all he said.\"\n\n\"Mm.\" She turned her cup a quarter turn on the table, then another. It was a thing she did when she was counting something. Marro had never worked out what. \"Squires hear things. Sergeants hear orders. That's the difference between us, Marro, and it's the only one that matters tonight.\"\n\nAcross the hall the grey coat bent to murmur in the grain factor's ear. The fat man laughed and didn't look round.\n\nBehind the curtain, a woman's voice, soft, and then Rickard's, sharper, cut off. A servant with a jug of wine was walking toward the curtain. Another stood idle by the fountain with an empty one.\n\nHesse's fingers stopped on the cup.\n\n\"Nobody looks at a boy with a jug,\" she said, to no one in particular.",
+      "toolCalls": []
+    },
+    {
+      "player": "(OOC) Let's end the scene here.",
+      "narration": "(OOC) Done, the scene ends there and it's logged. Here's what is now on record: Vaela Maegyr's feast; the seating card that named you even though nobody gave your name; Pallo's man in grey standing with Qavo the grain factor; and Hesse asking why a Maegyr would host a bastard sellsword. Two new threads are open: \"Rickard and the Maegyr widow\" and \"Who gave the house Marro's name?\"\n\nThe feast is still going on behind you, the curtain is still drawn, and your cudgel is still on the porter's shelf. When you want to go on, tell me where you pick up, whether that's later tonight, the walk back to camp, or the next morning.",
+      "toolCalls": [
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "pallo",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "46074132-1a5e-4c5d-8523-9e8dce5e0a5d",
+            "slug": "pallo",
+            "view": "gm"
+          },
+          "text": "## Pallo (character, pallo) aka the moneylender\nA Volantene moneylender who dresses his men in grey.\n### Updates\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n### Knows\n- #6 [confirmed] (new-fact, minor) Marro owes Pallo 30 silver stags, due at the next new moon, four days from the start of chapter 2.\n{\"ok\":true,\"entity_id\":\"46074132-1a5e-4c5d-8523-9e8dce5e0a5d\",\"slug\":\"pallo\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "search_wiki",
+          "input": {
+            "query": "Qavo",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "matches": []
+          },
+          "text": "No matches for \"Qavo\".\n{\"ok\":true,\"matches\":[]}"
+        },
+        {
+          "name": "create_entity",
+          "input": {
+            "world_id": "4fa5988b-b360-46bc-87ab-ec5227f7dab1",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "type": "character",
+            "name": "Qavo",
+            "aliases": [
+              "the grain factor",
+              "Qavo the factor"
+            ],
+            "source": "invention",
+            "summary": "A fat Volantene grain factor who trades by the Triarch's leave and dresses in mustard silk. A guest at Vaela Maegyr's feast; one of Pallo's grey-coated men attends him.",
+            "sections": [
+              {
+                "heading": "Role",
+                "body": "Grain factor licensed by Triarch Malaquo; handles the grain the Golden Company bought on credit."
+              },
+              {
+                "heading": "Motive",
+                "body": "Profit, and staying on the right side of whichever Triarch is winning."
+              },
+              {
+                "heading": "Wants from the PC",
+                "body": "Nothing directly; through Pallo's man, he is curious about Rickard's household."
+              },
+              {
+                "heading": "Attitude to the PC",
+                "body": "Doesn't notice him."
+              },
+              {
+                "heading": "Manner of speech",
+                "body": "Loud, laughing, calls everyone 'friend' and never means it."
+              },
+              {
+                "heading": "Hidden",
+                "body": "He keeps Pallo's books on the side, and lends Pallo's men as his guards.",
+                "visibility": "secret"
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "da128b08-9891-4047-85b7-07da262b0785",
+            "slug": "qavo",
+            "status": "confirmed"
+          },
+          "text": "Stored as **confirmed** (entity_id: da128b08-9891-4047-85b7-07da262b0785).\n# Qavo (character, qavo, source: invention)\nAliases: the grain factor, Qavo the factor\n\nA fat Volantene grain factor who trades by the Triarch's leave and dresses in mustard silk. A guest at Vaela Maegyr's feast; one of Pallo's grey-coated men attends him.\n\n## Role [campaign]\nGrain factor licensed by Triarch Malaquo; handles the grain the Golden Company bought on credit.\n\n## Motive [campaign]\nProfit, and staying on the right side of whichever Triarch is winning.\n\n## Wants from the PC [campaign]\nNothing directly; through Pallo's man, he is curious about Rickard's household.\n\n## Attitude to the PC [campaign]\nDoesn't notice him.\n\n## Manner of speech [campaign]\nLoud, laughing, calls everyone 'friend' and never means it.\n\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Hidden\nHe keeps Pallo's books on the side, and lends Pallo's men as his guards.\n{\"ok\":true,\"entity_id\":\"da128b08-9891-4047-85b7-07da262b0785\",\"slug\":\"qavo\",\"status\":\"confirmed\"}"
+        },
+        {
+          "name": "read_entity",
+          "input": {
+            "entity": "qavo",
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25"
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "entity_id": "da128b08-9891-4047-85b7-07da262b0785",
+            "slug": "qavo",
+            "view": "gm"
+          },
+          "text": "## Qavo (character, qavo) aka the grain factor, Qavo the factor\nA fat Volantene grain factor who trades by the Triarch's leave and dresses in mustard silk. A guest at Vaela Maegyr's feast; one of Pallo's grey-coated men attends him.\n### Role [campaign]\nGrain factor licensed by Triarch Malaquo; handles the grain the Golden Company bought on credit.\n### Motive [campaign]\nProfit, and staying on the right side of whichever Triarch is winning.\n### Wants from the PC [campaign]\nNothing directly; through Pallo's man, he is curious about Rickard's household.\n### Attitude to the PC [campaign]\nDoesn't notice him.\n### Manner of speech [campaign]\nLoud, laughing, calls everyone 'friend' and never means it.\n\n---\n## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)\n### Qavo: Hidden\nHe keeps Pallo's books on the side, and lends Pallo's men as his guards.\n{\"ok\":true,\"entity_id\":\"da128b08-9891-4047-85b7-07da262b0785\",\"slug\":\"qavo\",\"view\":\"gm\"}"
+        },
+        {
+          "name": "log_scene",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "summary": "Rickard took Hesse and Marro as escort to a feast at the manse of Vaela Maegyr, an Old Blood widow inside the Black Wall, without explaining how he knew her. Vaela withdrew with Rickard behind a curtain. A seating card named Marro, though no one had given his name; one of Pallo's grey-coated men, attending the grain factor Qavo, watched him. Hesse asked why a Maegyr would host a bastard sellsword; Marro said he didn't know, and Hesse hinted he should eavesdrop with a wine jug.",
+            "present": [
+              "Marro",
+              "Hesse",
+              "Rickard Snow",
+              "Vaela Maegyr",
+              "Qavo"
+            ],
+            "place": "old-blood-quarter",
+            "updates": [
+              {
+                "entities": [
+                  "vaela-maegyr",
+                  "rickard-snow"
+                ],
+                "tags": [
+                  "ch-02",
+                  "vaela-maegyr",
+                  "rickard-snow",
+                  "old-blood-quarter"
+                ],
+                "type": "relationship",
+                "severity": "major",
+                "body": "Vaela Maegyr of the Old Blood invited Rickard Snow to a feast at her manse inside the Black Wall and greeted him as someone she knew, holding his hand too long. Rickard has told no one how he knows her, and no one in her hall says his name aloud.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow",
+                  "Vaela Maegyr"
+                ]
+              },
+              {
+                "entities": [
+                  "old-blood-quarter"
+                ],
+                "tags": [
+                  "ch-02",
+                  "old-blood-quarter",
+                  "vaela-maegyr"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "Vaela Maegyr's steward wears a green livery and carries a token on a chain that passes guests through the Black Wall gate. Her porter takes escorts' weapons at the door: Hesse's sword and Marro's cudgel were left on a shelf there during the feast.",
+                "knows": [
+                  "Marro",
+                  "Hesse",
+                  "Rickard Snow"
+                ]
+              },
+              {
+                "entities": [
+                  "marro",
+                  "vaela-maegyr"
+                ],
+                "tags": [
+                  "ch-02",
+                  "marro",
+                  "vaela-maegyr"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "The feast's seating card, in the trade tongue, named 'Marro, squire' at the lower table by the fountain, though no one gave his name at the gate or in the hall. It named Rickard only as 'her guest from beyond the Wall'.",
+                "knows": [
+                  "Marro"
+                ]
+              },
+              {
+                "entities": [
+                  "pallo",
+                  "qavo",
+                  "marro"
+                ],
+                "tags": [
+                  "ch-02",
+                  "pallo",
+                  "qavo",
+                  "marro"
+                ],
+                "type": "new-fact",
+                "severity": "minor",
+                "body": "One of Pallo's grey-coated men attended the grain factor Qavo at Vaela Maegyr's feast. He recognised Marro and raised his cup to him like a creditor.",
+                "knows": [
+                  "Marro"
+                ]
+              },
+              {
+                "entities": [
+                  "hesse",
+                  "rickard-snow"
+                ],
+                "tags": [
+                  "ch-02",
+                  "hesse",
+                  "rickard-snow",
+                  "vaela-maegyr"
+                ],
+                "type": "relationship",
+                "severity": "minor",
+                "body": "At the feast Hesse asked Marro why a Maegyr would invite a bastard sellsword, pressed him on what a squire hears, and hinted he should carry a wine jug past the curtain to listen. Marro said he didn't know.",
+                "knows": [
+                  "Marro",
+                  "Hesse"
+                ]
+              }
+            ],
+            "thread_changes": [
+              {
+                "title": "Rickard and the Maegyr widow",
+                "body": "Why does an Old Blood Maegyr host a bastard sellsword, and what did they say behind the curtain? Hesse wants to know too.",
+                "state": "open",
+                "tags": [
+                  "rickard-snow",
+                  "vaela-maegyr"
+                ]
+              },
+              {
+                "title": "Who gave the house Marro's name?",
+                "body": "The seating card named Marro though no one gave his name. Pallo's man was in the hall.",
+                "state": "open",
+                "tags": [
+                  "marro",
+                  "vaela-maegyr",
+                  "pallo"
+                ]
+              }
+            ]
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "scene_id": "456c27a1-5d22-44fe-8511-019b23eaf1a1",
+            "updates": [
+              {
+                "seq": 21,
+                "status": "confirmed"
+              },
+              {
+                "seq": 22,
+                "status": "confirmed"
+              },
+              {
+                "seq": 23,
+                "status": "confirmed"
+              },
+              {
+                "seq": 24,
+                "status": "confirmed"
+              },
+              {
+                "seq": 25,
+                "status": "confirmed"
+              }
+            ]
+          },
+          "text": "# Scene ch-02-s3 logged\n5 update(s) stored, 0 refused.\n- Update 1 → #21 stored as **confirmed**. Tags: ch-02 (time), vaela-maegyr (character), rickard-snow (character), old-blood-quarter (place)\n- Update 2 → #22 stored as **confirmed**. Tags: ch-02 (time), old-blood-quarter (place), vaela-maegyr (character)\n- Update 3 → #23 stored as **confirmed**. Tags: ch-02 (time), marro (character), vaela-maegyr (character)\n- Update 4 → #24 stored as **confirmed**. Tags: ch-02 (time), pallo (character), qavo (character), marro (character)\n- Update 5 → #25 stored as **confirmed**. Tags: ch-02 (time), hesse (character), rickard-snow (character), vaela-maegyr (character)\n\nThreads:\n- Rickard and the Maegyr widow [open]\n- Who gave the house Marro's name? [open]\n{\"ok\":true,\"scene_id\":\"456c27a1-5d22-44fe-8511-019b23eaf1a1\",\"updates\":[{\"seq\":21,\"status\":\"confirmed\"},{\"seq\":22,\"status\":\"confirmed\"},{\"seq\":23,\"status\":\"confirmed\"},{\"seq\":24,\"status\":\"confirmed\"},{\"seq\":25,\"status\":\"confirmed\"}]}"
+        },
+        {
+          "name": "gm_write",
+          "input": {
+            "campaign_id": "01e474ff-7eb8-43f7-843b-8a0696c18a25",
+            "kind": "clock",
+            "key": "triarch-assault",
+            "body": "The Triarch moves on the camp. Advanced on the night of the Maegyr feast (ch-02): sign to show next, the Triarch's grain factor Qavo seen with Pallo's men, patrols at the Black Wall gate doubled.",
+            "data": {
+              "step": 3,
+              "steps": 6,
+              "advances_on": "each night the plans go unrecovered"
+            }
+          },
+          "isError": false,
+          "status": {
+            "ok": true,
+            "note_id": "452dea6a-3b01-419b-b0a2-1c1ff0281626",
+            "status": "confirmed"
+          },
+          "text": "GM note clock/triarch-assault stored as **confirmed**.\n{\"ok\":true,\"note_id\":\"452dea6a-3b01-419b-b0a2-1c1ff0281626\",\"status\":\"confirmed\"}"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "toolCalls": 27,
+    "logSceneCalls": 3,
+    "logged": true,
+    "refusedUpdates": 3,
+    "refusedCalls": []
+  },
+  "usage": [],
+  "fallbacks": [],
+  "refusals": 0
+}

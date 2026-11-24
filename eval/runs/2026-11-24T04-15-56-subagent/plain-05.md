@@ -1,0 +1,139 @@
+# S05: The Long Bridge (plain arm)
+
+Tests: F20, F15. Model claude-opus-5-5 (Claude Code subagent), effort subagent default.
+
+## Turn 0
+
+**Player:** [save block pasted]
+
+**GM:**
+
+*Resuming: Chapter 2, Act I, spring of the year 300, the siege camp outside Volantis. Four days to the new moon and Pallo's thirty stags.*
+
+---
+
+**Chapter 2: Grey Men**
+
+The rain had stopped sometime before dawn. The camp hadn't noticed. Mud still sucked at every boot, and the cookfires smoked wet and low under a sky the colour of old pewter.
+
+Marro sat on an upturned grain cask outside the captain's tent with Rickard's sword across his knees and the old whetstone in his left hand. Wrong hand. The splinted fingers of his right lay on the flat of the blade, holding it steady, and every pass of the stone sent a dull throb up into his wrist. Slow work. Ugly work. Rickard would see the uneven edge and say nothing, which was worse than saying something.
+
+Inside the tent the captain was swearing at a buckle. One arm's worth of swearing. The left shoulder still wouldn't lift.
+
+Hesse came down the picket line with her patch pushed up crooked and her mouth set. She stopped in front of him and didn't sit.
+
+"Ash is worse," she said. "Off fore's hot as a forge. Farrier says rest. Rest, he says, like I've a stable full of spares." She spat into the mud. "Gods' teeth. That's not why I came."
+
+She jerked her chin toward the camp's edge, where the carts from the city unloaded the Triarch's grain. Among the drovers stood a man in a grey cloak, dry somehow, hood back, hands folded. Not looking at anything. Looking at everything.
+
+"Asked the quartermaster's boy for you by name," Hesse said. "Your name. Not the captain's squire. *Marro.*"
+
+Four silver stags sat in Marro's purse. They felt lighter every time he thought about them.
+
+The tent flap snapped open. Rickard ducked out, cloak hanging off the bad shoulder, grey eyes going from Marro to the sword to Hesse and back.
+
+"Paymaster wants me. Now, apparently." The scar on his jaw pulled when he talked. "You're with me, boy. Bring the blade, whatever you've done to it."
+
+Hesse didn't move. Her one eye stayed on Marro, waiting.
+
+Down by the carts, the man in grey had turned his head.
+
+## Turn 1
+
+**Player:** Rickard sends me across the river with a message for a contact in the eastern city, today, before dark.
+
+**GM:**
+
+Rickard didn't go to the paymaster. Not straight off.
+
+He walked Marro behind the tent, out of Hesse's earshot, and stood with his good shoulder to the canvas. He took a folded square of oilcloth from inside his doublet and held it out.
+
+"Across the river. Eastern city. There's a wine-seller called Old Nyessa under the sign of the red lamp, three streets back from the bridgehead. You give her this. Into her hand, nobody else's. Before dark."
+
+Marro took it. Sealed with plain wax. No mark.
+
+"And you'll want this." A second thing came out of the doublet: a square of stiff paper, a black seal pressed into one corner. A stamped pass for the Long Bridge. The Triarch's stamp, still sharp, the wax hardly scuffed.
+
+Passes didn't come cheap. Passes didn't come at all, the way the company talked about it. Half the sellswords in camp would sell their mothers for one, and here was the captain pulling it out of his shirt like a spare glove.
+
+"Don't look at it like that," Rickard said. "Look at it like a man who's crossed a hundred bridges. The guards smell nerves." His mouth twisted. "And don't let Lysono see either of them. He counts more than coin."
+
+He glanced past the tent toward the carts. The grey cloak was still there.
+
+"Friend of yours?"
+
+He didn't wait for the answer. He settled the cloak on his bad shoulder and went off through the mud toward the paymaster's pavilion, leaving Marro with a sealed letter that wasn't his, a pass that shouldn't exist, and Lissa's letter still folded at his belt. Her mother lived in the Dragon's Den. Eastern city.
+
+The sun was a smear behind the cloud, a little past morning. The road to the bridgehead ran right past the grain carts.
+
+Hesse was watching from the picket line, arms folded. The man in grey had started walking.
+
+## Turn 2
+
+**Player:** I ask Hesse if I can borrow her horse, Ash, to get there faster.
+
+**GM:**
+
+Hesse looked at him the way she looked at recruits who asked where the latrines were after they'd already found out.
+
+"Ash," she said. "My Ash. The one I just told you is standing on three legs with the fourth hot as a smith's arse."
+
+She jerked her head down the picket line. The grey mare stood apart from the others, weight cocked off the near fore, head low. Every so often the bad hoof lifted and hung there, trembling, like it didn't trust the ground.
+
+"Put you on her back and she's lame for good by the bridgehead. Then I've no horse at all and you've a dead one in the road. By the Black Wall, boy." She dragged the patch straight with a thumb. "Company's got nothing spare. Not a mule. You walk, same as everyone."
+
+It was an hour on foot to the bridgehead, maybe more in this mud. Plenty before dark. Less, if anyone slowed him on the way.
+
+Hesse's eye went to his belt, where the oilcloth bulge sat beside Lissa's letter, then up to his face.
+
+"Faster for what?" she said. "Where's he sending you?"
+
+Not a friendly question. Not an unfriendly one either. She asked it the way she asked how many arrows were left in a quiver, flat, wanting a number.
+
+Behind her, down by the carts, the man in grey had stopped walking. He'd found a dry spot under a wagon's awning and stood there with his hands folded again, in no hurry at all, between Marro and the road out of camp.
+
+## Turn 3
+
+**Player:** I head for the Long Bridge and try to walk straight across.
+
+**GM:**
+
+Hesse let him go without another word. He could feel the eye on his back all the way to the carts.
+
+The man in grey fell in beside him at the camp's edge, easy, like they'd arranged it. Soft-faced, clean boots, a ring on every finger but the thumbs.
+
+"Master Pallo sends his regard," he said. "Four days. He wanted you to know he counts them too." He smiled at the mud. "The bridge, is it? How fortunate, to be a young man with somewhere to go."
+
+He peeled off at the crossroads and didn't look back. That was worse than if he had.
+
+The Long Bridge rose out of the river mist, broad as a street, its far end lost in grey. At the near end the Triarch's men had built a barricade of carts and timber, a dozen spears behind it and a long queue of people who weren't getting through: fishwives, a priest, a merchant shouting about spoilage.
+
+Marro walked past all of them. That was the hard part.
+
+A guard with a tiger-striped sleeve and a bored face held out his hand. Marro put the pass in it.
+
+**Resolve check:** (4+2) +3 Resolve = **9**. Success, with a cost.
+
+The guard looked at the seal. Looked longer than he needed to. Then he waved over a second man, older, who held the paper up to the light and grunted.
+
+"Whose?" the older one said.
+
+Marro's pulse was going hard, but his hands, for once, stayed still. The seal was real. The guard knew it was real. That was the trouble.
+
+The queue had gone quiet behind him. The pass came back into his hand. The barricade opened a body's width. But the older guard had a wax tablet out, stylus hovering, and he was waiting.
+
+"Name," he said. "Yours and whoever gave you that. Or turn round."
+
+The far end of the bridge was right there, the eastern city just beginning to show through the mist.
+
+## Turn 4
+
+**Player:** (OOC) Let's end the scene here.
+
+**GM:**
+
+(OOC) Done. We'll cut the scene on the bridge, with the barricade open a body's width and the older guard's stylus waiting.
+
+The guard's question is still Marro's to answer, so I won't settle it in the gap. When you're ready, either tell me what Marro gives him (names, a lie, nothing) and I'll open the next scene from there, or say if you'd rather turn back and I'll pick it up on the camp side.
+
+Where things stand: HP 6/6 | Stress 1/5 | 4 silver stags | Pallo's debt due in four days. You're carrying Rickard's sealed letter for Old Nyessa at the red lamp (before dark), the stamped bridge pass, and Lissa's letter for the Dragon's Den.

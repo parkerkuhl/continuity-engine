@@ -1,0 +1,1 @@
+(OOC) Scene ended and logged. It stops where we left it: Tobbin has asked you to come say the prayers with him at Olyvar's grave, you haven't answered yet, and one of Pallo's grey men is walking toward the cook fires. Say when you want to pick it back up, or tell me where the next scene goes.

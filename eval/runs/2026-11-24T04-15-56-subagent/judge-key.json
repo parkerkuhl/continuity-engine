@@ -1,0 +1,82 @@
+{
+  "j01": {
+    "arm": "wiki",
+    "scene": "01"
+  },
+  "j02": {
+    "arm": "wiki",
+    "scene": "07"
+  },
+  "j03": {
+    "arm": "wiki",
+    "scene": "10"
+  },
+  "j04": {
+    "arm": "wiki",
+    "scene": "09"
+  },
+  "j05": {
+    "arm": "wiki",
+    "scene": "08"
+  },
+  "j06": {
+    "arm": "plain",
+    "scene": "05"
+  },
+  "j07": {
+    "arm": "wiki",
+    "scene": "02"
+  },
+  "j08": {
+    "arm": "plain",
+    "scene": "02"
+  },
+  "j09": {
+    "arm": "plain",
+    "scene": "03"
+  },
+  "j10": {
+    "arm": "plain",
+    "scene": "08"
+  },
+  "j11": {
+    "arm": "plain",
+    "scene": "01"
+  },
+  "j12": {
+    "arm": "wiki",
+    "scene": "04"
+  },
+  "j13": {
+    "arm": "wiki",
+    "scene": "06"
+  },
+  "j14": {
+    "arm": "plain",
+    "scene": "07"
+  },
+  "j15": {
+    "arm": "plain",
+    "scene": "10"
+  },
+  "j16": {
+    "arm": "wiki",
+    "scene": "03"
+  },
+  "j17": {
+    "arm": "plain",
+    "scene": "04"
+  },
+  "j18": {
+    "arm": "wiki",
+    "scene": "05"
+  },
+  "j19": {
+    "arm": "plain",
+    "scene": "06"
+  },
+  "j20": {
+    "arm": "plain",
+    "scene": "09"
+  }
+}
