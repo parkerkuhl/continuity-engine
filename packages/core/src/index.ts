@@ -1,6 +1,6 @@
 export * from "./enums";
 export { openDb, type Db } from "./db";
-export { slugify } from "./slug";
+export { levenshtein, slugify } from "./slug";
 export * from "./storage/types";
 export { SqliteStorage } from "./storage/sqlite";
 export { PgStorage } from "./storage/pg";

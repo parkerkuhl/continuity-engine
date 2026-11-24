@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Entity, Scope } from "@continuity/core";
+import { levenshtein, slugify, type Entity, type Scope } from "@continuity/core";
 import { app, basePath } from "@/lib/server";
 import { setWorldAsOf } from "@/app/actions";
 import { ActionForm } from "./action-form";
@@ -70,12 +70,8 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const characters = npcs.length;
   const unlabeled = npcs.filter((r) => !r.toPc).length;
   const sorted = [...shown].sort((a, b) => a.entity.name.localeCompare(b.entity.name));
-  // Nothing found for a typed name: offer the closest names and aliases (the same matcher the GM's tools use).
-  let suggestions: Entity[] = [];
-  if (query?.trim() && shown.length === 0) {
-    const r = await (await app()).engine.storage.resolveEntity(scope.world.id, query, { campaignId: scope.campaign?.id ?? null });
-    suggestions = r.status === "unknown" ? r.suggestions : r.status === "ambiguous" ? r.candidates : [r.entity];
-  }
+  // Nothing found: offer the visible pages whose name, alias or any word of them is a near miss ("wrenn", "herron").
+  const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await (await app()).views.wiki(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
   const groups = (Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => [t, sorted.filter((r) => r.entity.type === t)] as const).filter(([, rows]) => rows.length > 0);
 
   return (
@@ -201,6 +197,23 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
       )}
     </>
   );
+}
+
+/** Up to three pages within a typo or two of the query, by whole name or alias, or by any word in them. */
+function nearMisses(query: string, pages: Entity[]): Entity[] {
+  const q = slugify(query);
+  if (q.length < 3) return [];
+  const allowed = q.length <= 4 ? 1 : 2;
+  return pages
+    .map((e) => {
+      const keys = [slugify(e.name), ...e.aliases.map(slugify)];
+      const words = keys.flatMap((k) => k.split("-")).filter((w) => w.length >= 3);
+      return { e, d: Math.min(...keys.map((k) => levenshtein(q, k)), ...words.map((w) => levenshtein(q, w))) };
+    })
+    .filter((x) => x.d <= allowed)
+    .sort((a, b) => a.d - b.d || a.e.name.localeCompare(b.e.name))
+    .slice(0, 3)
+    .map((x) => x.e);
 }
 
 type WikiRow = { entity: Entity; line: string; toPc: string | null };
