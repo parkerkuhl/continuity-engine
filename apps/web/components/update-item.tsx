@@ -54,7 +54,9 @@ export function UpdateItem({
             return r;
           }}
         >
-          {Object.entries(edit.hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+          {Object.entries(edit.hidden).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
           <textarea name="body" defaultValue={body} rows={3} className="input font-serif text-base" aria-label={`Edit update #${edit.seq}`} />
           <div className="flex flex-wrap gap-2">
             <select name="severity" defaultValue={edit.severity} className="input w-auto" aria-label="Severity">
@@ -62,7 +64,9 @@ export function UpdateItem({
               <option value="major">Major</option>
             </select>
             <button className="btn-primary btn-sm">Save edit</button>
-            <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
           </div>
         </ActionForm>
       ) : hideBody ? null : (
@@ -80,7 +84,7 @@ export function UpdateItem({
     );
   }
   return (
-    <div className="flex flex-wrap gap-3.5 sm:flex-nowrap">
+    <div className="flex flex-col gap-3 sm:flex-row sm:gap-3.5">
       {content}
       {buttons}
     </div>

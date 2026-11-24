@@ -24,9 +24,19 @@ export function HeaderSearch({ action, wikiPaths }: { action: string; wikiPaths:
   const path = usePathname();
   if (wikiPaths.includes(path)) return <div className="flex-1" />;
   return (
-    <form action={action} role="search" className="flex h-10 max-w-[520px] flex-[1_1_280px] items-center gap-2 rounded-lg border border-line-strong bg-surface px-3">
+    <form
+      action={action}
+      role="search"
+      className="flex h-10 min-w-0 max-w-[520px] flex-[1_1_160px] sm:flex-[1_1_280px] items-center gap-2 rounded-lg border border-line-strong bg-surface px-3"
+    >
       <SearchGlyph />
-      <input type="search" name="q" placeholder="Search names, aliases, places…" aria-label="Search the wiki" className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint" />
+      <input
+        type="search"
+        name="q"
+        placeholder="Search names, aliases, places…"
+        aria-label="Search the wiki"
+        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint"
+      />
     </form>
   );
 }

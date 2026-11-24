@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { approveAllMinor } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
-import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps } from "@/components/update-card";
+import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps, extraTags } from "@/components/update-card";
 import { PageQueue } from "@/components/page-queue";
 import { UpdateItem } from "@/components/update-item";
 import { app, campaignScope } from "@/lib/server";
@@ -126,7 +126,7 @@ export default async function Review({ params, searchParams }: { params: Promise
                   foot={
                     <>
                       <Knows v={v} />
-                      <TagChips tags={v.tagTypes} />
+                      <TagChips tags={extraTags(v)} />
                     </>
                   }
                   approve={<ApproveButton v={v} path={path} />}

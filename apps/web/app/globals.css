@@ -23,6 +23,9 @@
 
   --color-accent: #0f6e6a;
   --color-accent-hover: #0a4f4c;
+  /* Solid fills behind white text (primary buttons); dark mode keeps these darker than the accent text color. */
+  --color-accent-solid: #0f6e6a;
+  --color-accent-solid-hover: #0a4f4c;
   --color-accent-ink: #0a4f4c;
   --color-accent-soft: #e4efee;
   --color-accent-tint: #f2f8f7;
@@ -68,20 +71,24 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #121416;
-    --color-surface: #1b1e21;
-    --color-subtle: #202327;
-    --color-sunken: #25292d;
-    --color-ink: #e8e6e1;
-    --color-body: #cfccc6;
-    --color-muted: #a3a8ae;
-    --color-faint: #8a8e94;
-    --color-line: #2e3237;
-    --color-line-soft: #272b2f;
-    --color-line-strong: #3a3f45;
+    /* Dark mode: cards sit clearly above the canvas, secondary text stays at 5.5:1 or more, and link teal
+       is lighter than the button fill so both pass contrast. */
+    --color-canvas: #111315;
+    --color-surface: #1e2125;
+    --color-subtle: #23272b;
+    --color-sunken: #282c31;
+    --color-ink: #ebe9e4;
+    --color-body: #d2cfc9;
+    --color-muted: #aeb3b8;
+    --color-faint: #9a9ea4;
+    --color-line: #33383e;
+    --color-line-soft: #2b2f34;
+    --color-line-strong: #41474e;
 
-    --color-accent: #1d8c86;
-    --color-accent-hover: #26a69f;
+    --color-accent: #43b0a7;
+    --color-accent-hover: #5cc2b8;
+    --color-accent-solid: #156e68;
+    --color-accent-solid-hover: #1a7f78;
     --color-accent-ink: #7fd0c9;
     --color-accent-soft: #163533;
     --color-accent-tint: #142826;
@@ -135,7 +142,7 @@ body {
     @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-4 font-medium text-ink hover:bg-subtle disabled:opacity-50;
   }
   .btn-primary {
-    @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-accent px-4 font-semibold text-white hover:bg-accent-hover disabled:opacity-40 disabled:hover:bg-accent;
+    @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-accent-solid px-4 font-semibold text-white hover:bg-accent-solid-hover disabled:opacity-40 disabled:hover:bg-accent-solid;
   }
   .btn-danger {
     @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-4 font-medium text-danger hover:bg-danger-soft disabled:opacity-50;
@@ -215,4 +222,10 @@ body {
   .prose-page a {
     @apply text-accent hover:text-accent-hover;
   }
+}
+
+/* Anchor targets (section menu, sidebar links) stop a little below the top edge. */
+h2[id],
+section[id] {
+  scroll-margin-top: 1.5rem;
 }

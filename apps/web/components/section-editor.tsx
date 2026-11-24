@@ -22,6 +22,8 @@ export function InlineEditor({
   className = "card",
   labelledBy,
   editText = "Edit",
+  startEditing = false,
+  onCancel,
 }: {
   action: Action;
   body: string;
@@ -37,8 +39,12 @@ export function InlineEditor({
   labelledBy?: string;
   /** The edit button's text ("Write" for an empty outline slot). */
   editText?: string;
+  /** Open with the text box showing (a slot the user just chose to write). */
+  startEditing?: boolean;
+  /** Called after Cancel, so a parent can close what it opened. */
+  onCancel?: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startEditing);
   const [draft, setDraft] = useState(body);
   const [confirming, setConfirming] = useState(false);
   const [flash, setFlash] = useState<string | undefined>();
@@ -89,7 +95,7 @@ export function InlineEditor({
           <p className="mt-1 text-xs text-faint">Markdown. Use ### or deeper for headings inside a section.</p>
           <div className="mt-3 flex gap-2">
             <button type="button" className="btn-primary btn-sm" disabled={draft === body} onClick={() => setConfirming(true)}>Save</button>
-            <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="btn btn-sm" onClick={() => { setEditing(false); onCancel?.(); }}>Cancel</button>
           </div>
           {confirming && <EditConfirm onCancel={cancelConfirm} context={context} before={body} after={draft} />}
         </ActionForm>
