@@ -8,7 +8,14 @@
 import { z } from "zod";
 import {
   ApprovalMode,
+  CampaignSettings,
+  ClockData,
+  Depth,
   EditKind,
+  EntityType,
+  GmNoteKind,
+  PcSheetData,
+  Source,
   FORCED_MAJOR_TYPES,
   Kebab,
   Severity,
@@ -19,7 +26,14 @@ import {
   type UpdateStatus,
 } from "../enums";
 import { hasLevel2Heading } from "../markdown/sections";
+import { slugify } from "../slug";
 import type {
+  Chapter,
+  GmNote,
+  PcSheet,
+  Thread,
+  VoiceAnchor,
+  World,
   Campaign,
   Entity,
   EntityPage,
@@ -92,9 +106,51 @@ export interface ChangelogEntry {
   versionId: string;
 }
 
+export interface ImportItemInput {
+  type: Entity["type"];
+  name: string;
+  aliases?: string[];
+  summary?: string;
+  sections?: { heading: string; body: string; key?: string; visibility?: "public" | "secret" }[];
+}
+
+interface PendingImport {
+  worldId: string;
+  title: string;
+  entities: ImportItemInput[];
+}
+
+export interface ImportReport {
+  importId: string;
+  title: string;
+  items: {
+    index: number;
+    name: string;
+    type: Entity["type"];
+    /** slug of the existing entity this item seems to duplicate */
+    duplicateOf: string | null;
+    /** fields where the file disagrees with the existing page */
+    disagreements: { field: string; existing: string; incoming: string }[];
+  }[];
+}
+
+export interface ChapterClosed {
+  chapter: Chapter;
+  /** entities touched this chapter whose summaries should be refreshed with edit_entity */
+  refreshSummaries: { entity: Entity; updates: number }[];
+  clocks: GmNote[];
+  voiceAuditDue: boolean;
+  scenesSinceAudit: number | null;
+}
+
 export interface CampaignOpened {
   session: Session;
   campaign: Campaign;
+  world: World;
+  voiceAnchor: VoiceAnchor | null;
+  pcSheet: PcSheet | null;
+  openThreads: Thread[];
+  chapters: Chapter[];
   /** User-authored changes since the last session, grouped by entity. Overrides chat memory. */
   changes: ChangeGroup[];
   unloggedScene: Scene | null;
@@ -115,7 +171,22 @@ export type UpdateResult =
 export interface SceneLogged {
   scene: Scene;
   results: UpdateResult[];
+  threads: Thread[];
+  pcSheet: PcSheet | null;
 }
+
+export const ThreadChange = z.object({
+  /** id or exact title of an existing thread; leave out to open a new one */
+  thread: z.string().optional(),
+  title: z.string().min(1).optional(),
+  body: z.string().optional(),
+  state: z.enum(["open", "resolved"]).optional(),
+  tags: z.array(Kebab).optional(),
+});
+export type ThreadChange = z.input<typeof ThreadChange>;
+
+/** How many logged scenes between voice audits (close_chapter flags the audit when reached). */
+export const VOICE_AUDIT_EVERY = 6;
 
 const AI = (reason?: string): WriteMeta => ({ author: "ai", reason: reason ?? null });
 
@@ -135,6 +206,11 @@ export class RulesEngine {
     return ok({
       session,
       campaign: (await this.storage.getCampaign(campaignId))!,
+      world: (await this.storage.getWorld(campaign.worldId))!,
+      voiceAnchor: await this.storage.getVoiceAnchor(campaignId),
+      pcSheet: await this.storage.getPcSheet(campaignId),
+      openThreads: await this.storage.listThreads(campaignId, "open"),
+      chapters: await this.storage.listChapters(campaignId),
       changes,
       unloggedScene,
       warnings: unloggedScene ? [unloggedWarning(unloggedScene)] : [],
@@ -364,6 +440,8 @@ export class RulesEngine {
     present: string[];
     place?: string;
     updates: UpdateInput[];
+    threadChanges?: ThreadChange[];
+    pcChanges?: Record<string, unknown>;
   }): Promise<Result<SceneLogged>> {
     const open = await this.openSession(input.sessionId);
     if (!open.ok) return open;
@@ -375,6 +453,33 @@ export class RulesEngine {
       const r = await this.resolve(campaign, input.place);
       if (!r.ok) return r;
       place = r.value;
+    }
+
+    // Thread and PC sheet changes are checked up front too; a bad one refuses the whole call.
+    const threadPlan: { existing: Thread | null; change: z.infer<typeof ThreadChange> }[] = [];
+    const threads = await this.storage.listThreads(campaign.id);
+    for (const raw of input.threadChanges ?? []) {
+      const p = ThreadChange.safeParse(raw);
+      if (!p.success) return refuse("invalid", `Thread change: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+      const c = p.data;
+      if (c.thread) {
+        const t = threads.find((t) => t.id === c.thread || t.title.toLowerCase() === c.thread!.toLowerCase());
+        if (!t) {
+          return refuse("not_found", `No thread "${c.thread}". Open threads: ${threads.filter((t) => t.state === "open").map((t) => `"${t.title}"`).join(", ") || "none"}. Leave out "thread" to open a new one.`);
+        }
+        threadPlan.push({ existing: t, change: c });
+      } else {
+        if (!c.title) return refuse("invalid", "A new thread needs a title.");
+        threadPlan.push({ existing: null, change: c });
+      }
+    }
+    let pcData: Record<string, unknown> | null = null;
+    if (input.pcChanges) {
+      const current = (await this.storage.getPcSheet(campaign.id))?.data ?? {};
+      const merged = { ...current, ...input.pcChanges };
+      const p = PcSheetData.passthrough().safeParse(merged);
+      if (!p.success) return refuse("invalid", `PC sheet: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+      pcData = merged;
     }
 
     // Check every update before writing anything, so a refusal never depends on write order.
@@ -406,7 +511,35 @@ export class RulesEngine {
       const update = await this.storage.createUpdate({ ...newUpdate, sceneId: scene.id }, AI("log_scene"));
       results.push({ index, ok: true, update, status: update.status, forcedMajor, tagTypes });
     }
-    return ok({ scene, results });
+
+    const touched: Thread[] = [];
+    for (const { existing, change } of threadPlan) {
+      if (existing) {
+        touched.push(
+          await this.storage.updateThread(
+            existing.id,
+            {
+              ...(change.title && { title: change.title }),
+              ...(change.body !== undefined && { bodyMd: change.body }),
+              ...(change.tags && { tags: change.tags }),
+              ...(change.state && { state: change.state, resolvedChapter: change.state === "resolved" ? campaign.currentChapter : null }),
+            },
+            AI("log_scene"),
+          ),
+        );
+      } else {
+        touched.push(
+          await this.storage.createThread(
+            { campaignId: campaign.id, title: change.title!, bodyMd: change.body ?? "", tags: change.tags ?? [], openedChapter: campaign.currentChapter },
+            AI("log_scene"),
+          ),
+        );
+      }
+    }
+    const pcSheet = pcData ? await this.storage.setPcSheet({ campaignId: campaign.id, data: pcData }, AI("log_scene")) : await this.storage.getPcSheet(campaign.id);
+    const anchor = await this.storage.getVoiceAnchor(campaign.id);
+    if (anchor) await this.storage.setVoiceAnchor({ ...anchor, scenesSinceAudit: anchor.scenesSinceAudit + 1 }, AI("log_scene"));
+    return ok({ scene, results, threads: touched, pcSheet });
   }
 
   /** Validates one AI update against every rule and works out its stored status. Writes nothing. */
@@ -496,14 +629,296 @@ export class RulesEngine {
   }
 
   /** A ruling made in play, stored verbatim. Top precedence. */
-  async recordRuling(input: { sessionId: string; text: string }): Promise<Result<Ruling>> {
+  async recordRuling(input: { sessionId: string; text: string; kind?: "canon" | "voice" | "character_inner_life" }): Promise<Result<Ruling>> {
     const open = await this.openSession(input.sessionId);
     if (!open.ok) return open;
     const { campaign } = open.value;
     if (!input.text.trim()) return refuse("invalid", "A ruling needs the user's words.");
-    return ok(
-      await this.storage.createRuling({ worldId: campaign.worldId, campaignId: campaign.id, text: input.text, origin: "in_play" }, AI("record_ruling")),
+    const kind = input.kind ?? "canon";
+    const anchor = kind === "voice" ? await this.storage.getVoiceAnchor(campaign.id) : null;
+    if (kind === "voice" && !anchor) return refuse("not_found", "This campaign has no voice anchor yet. Call set_voice_anchor during intake first.");
+    const ruling = await this.storage.createRuling(
+      { worldId: campaign.worldId, campaignId: campaign.id, text: input.text, origin: "in_play" },
+      AI(`record_ruling (${kind})`),
     );
+    if (anchor) await this.storage.setVoiceAnchor({ ...anchor, voiceRulings: [...anchor.voiceRulings, input.text] }, AI("record_ruling (voice)"));
+    return ok(ruling);
+  }
+
+  // ================= setup and worldbuilding =================
+
+  /** The single owner of this install (MVP: one user). Created on first use. */
+  async owner(): Promise<string> {
+    if (this.ownerId) return this.ownerId;
+    const worlds = await this.storage.listWorlds();
+    this.ownerId = worlds[0]?.ownerId ?? (await this.storage.createUser({ name: "Owner" }, { author: "user", reason: "first run" })).id;
+    return this.ownerId;
+  }
+  private ownerId: string | null = null;
+
+  async listWorlds(): Promise<{ world: World; campaigns: Campaign[] }[]> {
+    const out = [];
+    for (const world of await this.storage.listWorlds()) out.push({ world, campaigns: await this.storage.listCampaigns(world.id) });
+    return out;
+  }
+
+  async createWorld(input: { name: string; pitch?: string; depth: "compact" | "full"; approvalMode: Campaign["approvalMode"] }): Promise<Result<World>> {
+    if (!input.name.trim()) return refuse("invalid", "A world needs a name.");
+    if (!Depth.safeParse(input.depth).success) return refuse("invalid", 'depth must be "compact" or "full".');
+    if (!ApprovalMode.safeParse(input.approvalMode).success) return refuse("invalid", "approval_mode must be review, batch, autopilot or mixed.");
+    return ok(
+      await this.storage.createWorld(
+        { ownerId: await this.owner(), name: input.name.trim(), pitch: input.pitch ?? "", depth: input.depth, defaultApprovalMode: input.approvalMode },
+        AI("create_world"),
+      ),
+    );
+  }
+
+  /** Refused when the name or an alias already names an entity; the match is returned instead. */
+  async createEntity(input: {
+    worldId: string;
+    campaignId?: string | null;
+    type: Entity["type"];
+    name: string;
+    aliases?: string[];
+    source: Entity["source"];
+    summary?: string;
+    sections?: { heading: string; body: string; key?: string; visibility?: "public" | "secret" }[];
+  }): Promise<Result<EntityPage>> {
+    const world = await this.storage.getWorld(input.worldId);
+    if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
+    if (input.campaignId && !(await this.storage.getCampaign(input.campaignId))) return refuse("not_found", `No campaign ${input.campaignId}.`);
+    if (!EntityType.safeParse(input.type).success) return refuse("invalid", `type must be one of ${EntityType.options.join(", ")}.`);
+    if (!Source.safeParse(input.source).success) return refuse("invalid", `source must be one of ${Source.options.join(", ")}.`);
+    const dup = await this.findDuplicate(world.id, input.campaignId ?? null, [input.name, ...(input.aliases ?? [])]);
+    if (dup) {
+      return refuse(
+        "duplicate",
+        `"${dup.ref}" already names ${dup.entity.slug} (${dup.entity.name}). Use that entity (read_entity, then edit_entity) instead of creating a new one, or pick a different name.`,
+        { ref: dup.entity.slug, suggestions: [dup.entity.slug] },
+      );
+    }
+    for (const sec of input.sections ?? []) {
+      if (hasLevel2Heading(sec.body)) return refuse("invalid", `Section "${sec.heading}": use ### or deeper inside a section body, not ##.`);
+    }
+    try {
+      return ok(
+        await this.storage.createEntity(
+          {
+            worldId: world.id,
+            campaignId: input.campaignId ?? null,
+            type: input.type,
+            name: input.name,
+            aliases: input.aliases ?? [],
+            source: input.source,
+            summary: input.summary ?? "",
+            sections: (input.sections ?? []).map((s) => ({ heading: s.heading, bodyMd: s.body, ...(s.key && { key: s.key }), visibility: s.visibility ?? "public" })),
+          },
+          AI("create_entity"),
+        ),
+      );
+    } catch (e) {
+      return refuse("invalid", (e as Error).message);
+    }
+  }
+
+  private async findDuplicate(worldId: string, campaignId: string | null, names: string[]): Promise<{ ref: string; entity: Entity } | null> {
+    for (const ref of names) {
+      const r = await this.storage.resolveEntity(worldId, ref, { campaignId });
+      if (r.status === "resolved") return { ref, entity: r.entity };
+      if (r.status === "ambiguous") return { ref, entity: r.candidates[0]! };
+    }
+    return null;
+  }
+
+  private imports = new Map<string, PendingImport>();
+
+  /** Checks Claude's split of a file against the wiki. Writes nothing until confirm_import. */
+  async importDocument(input: { worldId: string; title: string; entities: ImportItemInput[] }): Promise<Result<ImportReport>> {
+    const world = await this.storage.getWorld(input.worldId);
+    if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
+    const items: ImportReport["items"] = [];
+    for (const [index, e] of input.entities.entries()) {
+      if (!EntityType.safeParse(e.type).success) return refuse("invalid", `Item ${index} ("${e.name}"): type must be one of ${EntityType.options.join(", ")}.`);
+      const dup = await this.findDuplicate(world.id, null, [e.name, ...(e.aliases ?? [])]);
+      const disagreements: ImportReport["items"][number]["disagreements"] = [];
+      if (dup) {
+        const page = (await this.storage.getPage(dup.entity.id))!;
+        if (e.summary && page.summary && e.summary.trim() !== page.summary.trim()) {
+          disagreements.push({ field: "summary", existing: page.summary, incoming: e.summary });
+        }
+        for (const s of e.sections ?? []) {
+          const key = s.key ?? slugify(s.heading);
+          const existing = page.sections.find((x) => x.key === key);
+          if (existing && existing.bodyMd.trim() !== s.body.trim()) disagreements.push({ field: `section ${key}`, existing: existing.bodyMd, incoming: s.body });
+        }
+      }
+      items.push({ index, name: e.name, type: e.type, duplicateOf: dup?.entity.slug ?? null, disagreements });
+    }
+    const importId = crypto.randomUUID();
+    this.imports.set(importId, { worldId: world.id, title: input.title, entities: input.entities });
+    return ok({ importId, title: input.title, items });
+  }
+
+  /** Writes the accepted items as canon. Items that duplicate an existing entity are refused one by one. */
+  async confirmImport(input: { importId: string; accept: number[] }): Promise<Result<{ created: EntityPage[]; refused: { index: number; refusal: Refusal }[] }>> {
+    const pending = this.imports.get(input.importId);
+    if (!pending) return refuse("not_found", `No pending import ${input.importId}. Imports are held until confirmed or the server restarts; call import_document again.`);
+    const created: EntityPage[] = [];
+    const refused: { index: number; refusal: Refusal }[] = [];
+    for (const index of [...new Set(input.accept)]) {
+      const e = pending.entities[index];
+      if (!e) {
+        refused.push({ index, refusal: { rule: "not_found", message: `No item ${index} in this import.` } });
+        continue;
+      }
+      const r = await this.createEntity({ worldId: pending.worldId, type: e.type, name: e.name, aliases: e.aliases ?? [], source: "canon", summary: e.summary ?? "", sections: e.sections ?? [] });
+      if (r.ok) created.push(r.value);
+      else refused.push({ index, refusal: r.refusal });
+    }
+    this.imports.delete(input.importId);
+    return ok({ created, refused });
+  }
+
+  async createCampaign(input: {
+    worldId: string;
+    name: string;
+    settings?: Campaign["settings"];
+    approvalMode?: Campaign["approvalMode"];
+    severityPolicy?: Campaign["severityPolicy"];
+  }): Promise<Result<Campaign>> {
+    const world = await this.storage.getWorld(input.worldId);
+    if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
+    const settings = CampaignSettings.safeParse(input.settings ?? {});
+    if (!settings.success) return refuse("invalid", `settings: ${settings.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+    if (input.approvalMode && !ApprovalMode.safeParse(input.approvalMode).success) return refuse("invalid", "approval_mode must be review, batch, autopilot or mixed.");
+    if (input.severityPolicy && !SeverityPolicy.safeParse(input.severityPolicy).success) return refuse("invalid", "severity_policy needs a mode for minor and major.");
+    return ok(
+      await this.storage.createCampaign(
+        {
+          worldId: world.id,
+          ownerId: world.ownerId,
+          name: input.name,
+          settings: settings.data,
+          approvalMode: input.approvalMode ?? world.defaultApprovalMode,
+          ...(input.severityPolicy && { severityPolicy: input.severityPolicy }),
+        },
+        AI("create_campaign"),
+      ),
+    );
+  }
+
+  /** Only during intake (before any scene is logged); later changes are voice rulings. */
+  async setVoiceAnchor(input: { campaignId: string; sample: string; profile: string; interiorLevel: string; avoidList?: string[] }): Promise<Result<VoiceAnchor>> {
+    const campaign = await this.storage.getCampaign(input.campaignId);
+    if (!campaign) return refuse("not_found", `No campaign ${input.campaignId}.`);
+    if ((await this.storage.listScenes(campaign.id)).some((s) => s.loggedAt)) {
+      return refuse("intake_only", 'The voice anchor is set during intake only. Play has started, so record the change with record_ruling (kind "voice") using the user\'s words.');
+    }
+    const existing = await this.storage.getVoiceAnchor(campaign.id);
+    return ok(
+      await this.storage.setVoiceAnchor(
+        {
+          campaignId: campaign.id,
+          sampleVerbatim: input.sample,
+          profileMd: input.profile,
+          interiorLevel: input.interiorLevel,
+          avoidList: input.avoidList ?? [],
+          voiceRulings: existing?.voiceRulings ?? [],
+          scenesSinceAudit: 0,
+        },
+        AI("set_voice_anchor"),
+      ),
+    );
+  }
+
+  // ================= chapters and GM notes =================
+
+  async closeChapter(input: { sessionId: string; title: string; summary: string }): Promise<Result<ChapterClosed>> {
+    const open = await this.openSession(input.sessionId);
+    if (!open.ok) return open;
+    const { campaign } = open.value;
+    const unlogged = await this.unloggedScene(campaign.id);
+    if (unlogged) return refuse("invalid", `${unloggedWarning(unlogged)} Then close the chapter.`);
+    const number = campaign.currentChapter;
+    const updates = (await this.storage.listUpdates(campaign.id, { status: ["confirmed", "proposed"] })).filter((u) => u.chapter === number);
+    const ids = [...new Set(updates.flatMap((u) => u.entityIds))];
+    const refresh: { entity: Entity; updates: number }[] = [];
+    for (const id of ids) {
+      const e = await this.storage.getEntity(id);
+      if (e) refresh.push({ entity: e, updates: updates.filter((u) => u.entityIds.includes(id)).length });
+    }
+    const clocks = (await this.storage.listGmNotes(campaign.id)).filter((n) => n.kind === "clock");
+    const anchor = await this.storage.getVoiceAnchor(campaign.id);
+    const chapter = await this.storage.createChapter(
+      { campaignId: campaign.id, number, title: input.title, summaryMd: input.summary, closedAt: new Date().toISOString() },
+      AI("close_chapter"),
+    );
+    await this.storage.updateCampaign(campaign.id, { currentChapter: number + 1 }, AI("close_chapter"));
+    return ok({
+      chapter,
+      refreshSummaries: refresh,
+      clocks,
+      voiceAuditDue: !!anchor && anchor.scenesSinceAudit >= VOICE_AUDIT_EVERY,
+      scenesSinceAudit: anchor?.scenesSinceAudit ?? null,
+    });
+  }
+
+  async gmRead(input: { sessionId: string }): Promise<Result<GmNote[]>> {
+    const open = await this.openSession(input.sessionId);
+    if (!open.ok) return open;
+    return ok(await this.storage.listGmNotes(open.value.campaign.id));
+  }
+
+  /** Creates or replaces a GM note. Clock data must be {step, steps, advances_on}. */
+  async gmWrite(input: { sessionId: string; kind: GmNote["kind"]; key: string; body: string; data?: Record<string, unknown> }): Promise<Result<GmNote>> {
+    const open = await this.openSession(input.sessionId);
+    if (!open.ok) return open;
+    const { campaign } = open.value;
+    if (!GmNoteKind.safeParse(input.kind).success) return refuse("invalid", `kind must be one of ${GmNoteKind.options.join(", ")}.`);
+    if (!Kebab.safeParse(input.key).success) return refuse("invalid", `key "${input.key}" must be lowercase kebab-case.`);
+    if (input.kind === "clock") {
+      const c = ClockData.safeParse(input.data);
+      if (!c.success) return refuse("invalid", "A clock needs data {step, steps, advances_on}.");
+      if (c.data.step < 0 || c.data.step > c.data.steps) return refuse("invalid", `Clock step must be between 0 and ${c.data.steps}.`);
+    }
+    const existing = (await this.storage.listGmNotes(campaign.id)).find((n) => n.kind === input.kind && n.key === input.key);
+    if (existing) return ok(await this.storage.updateGmNote(existing.id, { bodyMd: input.body, data: input.data ?? existing.data }, AI("gm_write")));
+    return ok(await this.storage.createGmNote({ campaignId: campaign.id, kind: input.kind, key: input.key, bodyMd: input.body, data: input.data ?? null }, AI("gm_write")));
+  }
+
+  /** Full-text search. In player view, hits that only match secret text are dropped. */
+  async searchWiki(input: { sessionId: string; query: string; type?: Entity["type"]; view?: "gm" | "player" }): Promise<Result<{ entity: Entity; line: string }[]>> {
+    const open = await this.openSession(input.sessionId);
+    if (!open.ok) return open;
+    const { campaign } = open.value;
+    const hits = await this.storage.search(campaign.worldId, input.query, { campaignId: campaign.id, ...(input.type && { type: input.type }) });
+    if (input.view !== "player") return ok(hits);
+    const terms = (input.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+    const out = [];
+    for (const h of hits) {
+      const page = (await this.storage.getPage(h.entity.id, { campaignId: campaign.id }))!;
+      const visible = [page.name, ...page.aliases, page.summary, ...page.sections.filter((s) => s.visibility === "public").flatMap((s) => [s.heading, s.bodyMd])]
+        .join(" ")
+        .toLowerCase();
+      const words = visible.match(/[\p{L}\p{N}]+/gu) ?? [];
+      if (terms.every((t) => words.some((w) => w.startsWith(t)))) out.push(h);
+    }
+    return ok(out);
+  }
+
+  /** The PC's entity, from the PC sheet's name. Drives the player view. */
+  async pcEntity(campaign: Campaign): Promise<Entity | null> {
+    const name = (await this.storage.getPcSheet(campaign.id))?.data.name;
+    if (typeof name !== "string" || !name) return null;
+    const r = await this.storage.resolveEntity(campaign.worldId, name, { campaignId: campaign.id });
+    return r.status === "resolved" ? r.entity : null;
+  }
+
+  /** Session lookup for tools that need the campaign. */
+  async sessionCampaign(sessionId: string): Promise<Result<Campaign>> {
+    const open = await this.openSession(sessionId);
+    return open.ok ? ok(open.value.campaign) : open;
   }
 
   // ================= user writes (web app) =================
@@ -715,6 +1130,7 @@ export function formatChangelog(entries: ChangelogEntry[]): string {
     })
     .join("\n");
 }
+
 
 function dedupe(es: Entity[]): Entity[] {
   const seen = new Set<string>();

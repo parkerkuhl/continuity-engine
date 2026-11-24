@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { openDb, type Db } from "../db";
 import {
+  GmNoteKind,
   ApprovalMode,
   CampaignSettings,
   ConflictRef,
@@ -14,6 +15,7 @@ import {
   Depth,
   EntityType,
   Kebab,
+  PcSheetData,
   SeverityPolicy,
   Source,
   Visibility,
@@ -26,6 +28,12 @@ import {
   StorageError,
   type Campaign,
   type CampaignPatch,
+  type Chapter,
+  type GmNote,
+  type PcSheet,
+  type Thread,
+  type ThreadPatch,
+  type VoiceAnchor,
   type Ruling,
   type Scene,
   type ScenePatch,
@@ -398,6 +406,125 @@ export class SqliteStorage implements Storage {
         .orderBy(desc(s.scenes.startedAt))
         .get() ?? null
     );
+  }
+
+  async listScenes(campaignId: string): Promise<Scene[]> {
+    return this.db.select().from(s.scenes).where(eq(s.scenes.campaignId, campaignId)).orderBy(asc(s.scenes.startedAt)).all();
+  }
+
+  // ---- threads, chapters, GM notes, voice anchor, PC sheet ----
+
+  async createThread(
+    input: { campaignId: string; title: string; bodyMd?: string; tags?: string[]; openedChapter?: number | null },
+    meta: WriteMeta,
+  ): Promise<Thread> {
+    if (!input.title.trim()) throw new StorageError("invalid", "thread title is required");
+    const thread: Thread = {
+      id: randomUUID(),
+      campaignId: input.campaignId,
+      title: input.title.trim(),
+      bodyMd: input.bodyMd ?? "",
+      state: "open",
+      tags: check(z.array(Kebab), input.tags ?? [], "tags"),
+      openedChapter: input.openedChapter ?? null,
+      resolvedChapter: null,
+    };
+    return this.write("thread", meta, (tx) => {
+      this.requireCampaign(tx, input.campaignId);
+      tx.insert(s.threads).values(thread).run();
+      return { result: thread, objectId: thread.id, before: null, after: thread };
+    });
+  }
+
+  async updateThread(id: string, patch: ThreadPatch, meta: WriteMeta): Promise<Thread> {
+    return this.write("thread", meta, (tx) => {
+      const before = tx.select().from(s.threads).where(eq(s.threads.id, id)).get();
+      if (!before) throw new StorageError("not_found", `thread ${id} not found`);
+      const after: Thread = { ...before, ...patch };
+      check(z.array(Kebab), after.tags, "tags");
+      tx.update(s.threads).set(patch).where(eq(s.threads.id, id)).run();
+      return { result: after, objectId: id, before, after };
+    });
+  }
+
+  async listThreads(campaignId: string, state?: Thread["state"]): Promise<Thread[]> {
+    const conds: SQL[] = [eq(s.threads.campaignId, campaignId)];
+    if (state) conds.push(eq(s.threads.state, state));
+    return this.db.select().from(s.threads).where(and(...conds)).orderBy(asc(s.threads.title)).all();
+  }
+
+  async createChapter(
+    input: { campaignId: string; number: number; title: string; summaryMd: string; closedAt?: string | null },
+    meta: WriteMeta,
+  ): Promise<Chapter> {
+    const chapter: Chapter = { id: randomUUID(), ...input, closedAt: input.closedAt ?? null };
+    return this.write("chapter", meta, (tx) => {
+      this.requireCampaign(tx, input.campaignId);
+      tx.insert(s.chapters).values(chapter).run();
+      return { result: chapter, objectId: chapter.id, before: null, after: chapter };
+    });
+  }
+
+  async listChapters(campaignId: string): Promise<Chapter[]> {
+    return this.db.select().from(s.chapters).where(eq(s.chapters.campaignId, campaignId)).orderBy(asc(s.chapters.number)).all();
+  }
+
+  async createGmNote(input: Omit<GmNote, "id">, meta: WriteMeta): Promise<GmNote> {
+    const note: GmNote = { id: randomUUID(), ...input, kind: check(GmNoteKind, input.kind, "kind"), key: check(Kebab, input.key, "key") };
+    return this.write("gm_note", meta, (tx) => {
+      this.requireCampaign(tx, input.campaignId);
+      const dup = tx
+        .select()
+        .from(s.gmNotes)
+        .where(and(eq(s.gmNotes.campaignId, note.campaignId), eq(s.gmNotes.kind, note.kind), eq(s.gmNotes.key, note.key)))
+        .get();
+      if (dup) throw new StorageError("duplicate", `a ${note.kind} note "${note.key}" already exists`);
+      tx.insert(s.gmNotes).values(note).run();
+      return { result: note, objectId: note.id, before: null, after: note };
+    });
+  }
+
+  async updateGmNote(id: string, patch: Partial<Pick<GmNote, "bodyMd" | "data">>, meta: WriteMeta): Promise<GmNote> {
+    return this.write("gm_note", meta, (tx) => {
+      const before = tx.select().from(s.gmNotes).where(eq(s.gmNotes.id, id)).get();
+      if (!before) throw new StorageError("not_found", `GM note ${id} not found`);
+      const after: GmNote = { ...before, ...patch };
+      tx.update(s.gmNotes).set(patch).where(eq(s.gmNotes.id, id)).run();
+      return { result: after, objectId: id, before, after };
+    });
+  }
+
+  async listGmNotes(campaignId: string): Promise<GmNote[]> {
+    return this.db.select().from(s.gmNotes).where(eq(s.gmNotes.campaignId, campaignId)).orderBy(asc(s.gmNotes.kind), asc(s.gmNotes.key)).all();
+  }
+
+  async setVoiceAnchor(anchor: VoiceAnchor, meta: WriteMeta): Promise<VoiceAnchor> {
+    return this.write("voice_anchor", meta, (tx) => {
+      this.requireCampaign(tx, anchor.campaignId);
+      const before = tx.select().from(s.voiceAnchors).where(eq(s.voiceAnchors.campaignId, anchor.campaignId)).get() ?? null;
+      if (before) tx.update(s.voiceAnchors).set(anchor).where(eq(s.voiceAnchors.campaignId, anchor.campaignId)).run();
+      else tx.insert(s.voiceAnchors).values(anchor).run();
+      return { result: anchor, objectId: anchor.campaignId, before, after: anchor };
+    });
+  }
+
+  async getVoiceAnchor(campaignId: string): Promise<VoiceAnchor | null> {
+    return this.db.select().from(s.voiceAnchors).where(eq(s.voiceAnchors.campaignId, campaignId)).get() ?? null;
+  }
+
+  async setPcSheet(sheet: PcSheet, meta: WriteMeta): Promise<PcSheet> {
+    const data = check(PcSheetData.passthrough(), sheet.data, "PC sheet") as Record<string, unknown>;
+    return this.write("pc_sheet", meta, (tx) => {
+      this.requireCampaign(tx, sheet.campaignId);
+      const before = tx.select().from(s.pcSheets).where(eq(s.pcSheets.campaignId, sheet.campaignId)).get() ?? null;
+      if (before) tx.update(s.pcSheets).set({ data }).where(eq(s.pcSheets.campaignId, sheet.campaignId)).run();
+      else tx.insert(s.pcSheets).values({ campaignId: sheet.campaignId, data }).run();
+      return { result: { campaignId: sheet.campaignId, data }, objectId: sheet.campaignId, before, after: { campaignId: sheet.campaignId, data } };
+    });
+  }
+
+  async getPcSheet(campaignId: string): Promise<PcSheet | null> {
+    return this.db.select().from(s.pcSheets).where(eq(s.pcSheets.campaignId, campaignId)).get() ?? null;
   }
 
   // ---- sessions and reads (bookkeeping: no versions row) ----

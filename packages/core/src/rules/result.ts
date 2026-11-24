@@ -10,6 +10,8 @@ export type RuleCode =
   | "not_found"
   | "session_closed"
   | "user_only"
+  | "duplicate"
+  | "intake_only"
   | "invalid";
 
 export interface Refusal {

@@ -1,8 +1,30 @@
 {
   "name": "@continuity/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "stdio MCP server. Implemented in Milestone 3.",
-  "dependencies": { "@continuity/core": "workspace:*" }
+  "description": "Continuity Engine MCP server (stdio).",
+  "bin": {
+    "continuity-mcp": "dist/bin/server.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node dist/bin/server.js",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@continuity/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.1.12",
+    "better-sqlite3": "^13.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
 }
