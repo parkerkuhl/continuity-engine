@@ -20,7 +20,7 @@ export default async function Review({ params, searchParams }: { params: Promise
   const { campaignId } = await params;
   const f = (FILTERS as readonly string[]).includes((await searchParams).filter ?? "") ? (await searchParams).filter! : "all";
   const scope = await campaignScope(campaignId);
-  const [{ items, hidden }, pages] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope)]);
+  const [{ items }, pages] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope)]);
   const base = `/c/${campaignId}`;
   const path = `${base}/review`;
   const c = scope.campaign!;
@@ -69,12 +69,6 @@ export default async function Review({ params, searchParams }: { params: Promise
       </div>
 
       {showPages && <PageQueue scope={scope} path={path} />}
-
-      {showUpdates && hidden > 0 && (
-        <p className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-5 py-3 text-muted">
-          {hidden} proposed update{hidden === 1 ? "" : "s"} the PC doesn&apos;t know {hidden === 1 ? "is" : "are"} hidden. Switch to GM view to review {hidden === 1 ? "it" : "them"}.
-        </p>
-      )}
 
       {conflicts.filter(keep).map((v) => (
         <section key={v.update.id} aria-label={`Conflict #${v.update.seq}`} className="flex flex-col gap-3.5 rounded-xl border-2 border-danger-line bg-surface px-6 py-5">
@@ -139,7 +133,7 @@ export default async function Review({ params, searchParams }: { params: Promise
         </section>
       )}
 
-      {items.length === 0 && hidden === 0 && pages.length === 0 ? (
+      {items.length === 0 && pages.length === 0 ? (
         <p className="text-muted">Nothing to review.</p>
       ) : (
         f !== "all" && counts[f as keyof typeof counts] === 0 && <p className="text-muted">Nothing here. <Link href={path} className="link">Show all</Link></p>

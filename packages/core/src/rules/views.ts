@@ -292,7 +292,9 @@ export class WebViews {
     const out = [];
     for (const entity of await this.engine.proposedPages(scope.world.id, scope.campaign?.id ?? null)) {
       const page = await this.storage.getPage(entity.id, { campaignId: scope.campaign?.id ?? null });
-      out.push({ entity, line: entity.summary.split("\n")[0]?.trim() ?? "", sections: page?.sections.length ?? 0 });
+      // The player view counts only public sections, so the count never hints that a page has a secret.
+      const sections = (page?.sections ?? []).filter((s) => scope.spoilers || s.visibility === "public").length;
+      out.push({ entity, line: entity.summary.split("\n")[0]?.trim() ?? "", sections });
     }
     return out;
   }

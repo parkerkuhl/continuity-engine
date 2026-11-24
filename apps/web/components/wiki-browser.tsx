@@ -141,7 +141,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
         </div>
       </div>
 
-      {!scope.spoilers && query && <p className="-mt-2 text-xs text-faint">Player view: matches only in secret sections are left out.</p>}
+      {!scope.spoilers && query && <p className="-mt-2 text-xs text-faint">Player view: search covers only what the PC knows.</p>}
       {unlabeled > 0 && (!type || type === "character") && (
         <p className="-mt-2 text-[13px] text-faint">
           {unlabeled} of {characters} characters have no “To the PC” label yet. The GM fills them in when the next chat opens the campaign.

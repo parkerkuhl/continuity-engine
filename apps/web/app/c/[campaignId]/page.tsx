@@ -76,12 +76,6 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
   const path = `/c/${campaignId}`;
   const s = c.settings;
   const pc = (d.pcSheet?.data ?? null) as Record<string, unknown> | null;
-  const h = d.hidden;
-  const hiddenParts = [
-    h.gmNotes && `${h.gmNotes} GM note${h.gmNotes === 1 ? "" : "s"}`,
-    h.secretSections && `${h.secretSections} secret section${h.secretSections === 1 ? "" : "s"}`,
-    h.updates && `${h.updates} update${h.updates === 1 ? "" : "s"} the PC doesn't know`,
-  ].filter(Boolean);
   const va = d.voiceAnchor;
   const pcName = pc && typeof pc.name === "string" ? pc.name : scope.pc?.name;
   const unlabeled = scope.pc
@@ -205,7 +199,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
               </button>
             </form>
             <div className="rounded-lg bg-canvas px-3 py-2.5 text-[13px] text-muted">
-              {scope.spoilers ? "GM view: everything is showing." : hiddenParts.length ? `Hidden right now: ${hiddenParts.join(", ")}.` : "Nothing is hidden right now."}
+              {scope.spoilers ? "GM view: everything is showing, secrets included." : `Player view: only what ${pcName ?? "the PC"} knows is showing.`}
             </div>
           </Card>
 

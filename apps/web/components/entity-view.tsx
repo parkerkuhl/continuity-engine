@@ -443,19 +443,6 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
 
               {emptySlots.length > 0 && <EmptySlots action={addSection} slots={emptySlots} />}
 
-              {view.hiddenSections > 0 && (
-                <div className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className={TITLE}>{view.hiddenSections === 1 ? "Secret section" : `${view.hiddenSections} secret sections`}</h2>
-                    <span className="text-xs font-semibold text-secret">Secret</span>
-                  </div>
-                  <p className="mt-2.5 text-muted">
-                    {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads{" "}
-                    {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show {view.hiddenSections === 1 ? "it" : "them"} here.
-                  </p>
-                </div>
-              )}
-
               <details id="add-section" className="group rounded-xl border border-dashed border-line-strong px-6 py-4 open:border-solid open:border-line open:bg-surface">
                 <summary className="cursor-pointer list-none text-[15px] font-semibold text-accent hover:text-accent-hover [&::-webkit-details-marker]:hidden">
                   <span className="group-open:text-ink">+ Add a section</span>
@@ -535,13 +522,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             <h2 id="updates-h" className="sr-only">
               Updates to this page
             </h2>
-            {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
+            {view.updates.length === 0 && <p className="text-muted">None yet.</p>}
             <ul className="flex flex-col gap-2">{view.updates.map((v) => updateItem(v))}</ul>
-            {view.hiddenUpdates > 0 && (
-              <p className="text-xs text-muted">
-                {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
-              </p>
-            )}
           </section>
         </div>
       )}
