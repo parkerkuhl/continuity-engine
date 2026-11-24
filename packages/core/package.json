@@ -13,7 +13,7 @@
     "db:generate": "drizzle-kit generate",
     "test:pglite": "CONTINUITY_TEST_BACKEND=pglite vitest run --maxWorkers=3",
     "test:pg": "CONTINUITY_TEST_BACKEND=postgres vitest run --maxWorkers=3",
-    "db:generate:pg": "drizzle-kit generate --config drizzle.pg.config.ts"
+    "db:generate:pg": "drizzle-kit generate --config drizzle.pg.config.ts && sed -i 's/REFERENCES \"public\"\\./REFERENCES /g' drizzle-pg/*.sql"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.16",
