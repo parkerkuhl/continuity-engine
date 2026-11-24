@@ -328,6 +328,25 @@ try {
     expect(!check.text.includes("PROPOSED PAGE"), `Ser Wyl is still proposed:\n${check.text.slice(0, 400)}`);
   });
 
+  await check("To the PC: open_campaign lists characters without a label; the label Claude sets shows on the wiki card and the page", async () => {
+    const c = await claude();
+    const opened = await c.call("open_campaign", { campaign_id: campaignId });
+    expect(/no "To the PC" line[\s\S]*Rickard Snow \(rickard-snow\)/.test(opened.text), "open_campaign doesn't list Rickard as missing a label");
+    await c.call("read_entity", { campaign_id: campaignId, entity: "Rickard Snow" });
+    const r = await c.call("edit_entity", { campaign_id: campaignId, entity: "Rickard Snow", sections: [{ key: "to-the-pc", body: "Liege lord" }] });
+    await c.close();
+    expect(!r.isError, `edit_entity failed: ${r.text}`);
+    await page.goto(`${C}/wiki?type=character`);
+    const card = page.getByRole("link", { name: /Rickard Snow/ });
+    expect((await card.innerText()).includes("Liege lord"), "the wiki card doesn't show the label");
+    expect((await page.getByRole("link", { name: /Ser Wyl/ }).innerText()).includes("To the PC: not set"), "a character without a label doesn't show the empty spot");
+    expect(!(await page.getByRole("link", { name: /Marro/ }).innerText()).includes("To the PC"), "the PC's card shows a To the PC spot");
+    await shot("13-wiki-to-the-pc");
+    await page.goto(`${C}/e/rickard-snow`);
+    await page.getByRole("link", { name: "To the PC: Liege lord" }).waitFor();
+    await shot("14-entity-to-the-pc");
+  });
+
   await page.goto(`${C}/wiki`);
   await shot("08-wiki-browser");
   await page.goto(`${BASE}/w/${worldId}`);
@@ -347,4 +366,4 @@ try {
 if (process.env.E2E_LOG) console.log(server.log());
 for (const [name, ok, why] of results) console.log(`${ok ? "PASS" : "FAIL"}  ${name}${why ? `\n      ${why}` : ""}`);
 console.log(`Screenshots: ${out}`);
-process.exit(results.every(([, ok]) => ok) && results.length === 8 ? 0 : 1);
+process.exit(results.every(([, ok]) => ok) && results.length === 9 ? 0 : 1);

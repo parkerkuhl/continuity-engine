@@ -116,7 +116,7 @@ export async function WikiBrowser({ scope, query, source, type }: { scope: Scope
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5">
           {shown
             .sort((a, b) => a.entity.name.localeCompare(b.entity.name))
-            .map(({ entity: e, line }) => {
+            .map(({ entity: e, line, toPc }) => {
               const p = pending.get(e.id);
               const unverified = e.source === "unverified";
               return (
@@ -136,6 +136,13 @@ export async function WikiBrowser({ scope, query, source, type }: { scope: Scope
                     ) : null}
                   </div>
                   <b className="font-serif text-[19px] font-semibold">{e.name}</b>
+                  {toPc ? (
+                    <span className="pill self-start bg-accent-soft py-[2px] text-[12px] text-accent-ink" title="Who they are to the player character">
+                      {toPc}
+                    </span>
+                  ) : scope.campaign && e.type === "character" && e.id !== pc ? (
+                    <span className="self-start rounded-full border border-dashed border-line-strong px-2 py-[1px] text-[12px] text-faint">To the PC: not set</span>
+                  ) : null}
                   {line && <span className="line-clamp-2 text-muted">{line}</span>}
                   <span className={`text-xs ${SOURCE_TEXT[e.source]}`}>
                     {SOURCE_LABEL[e.source]}

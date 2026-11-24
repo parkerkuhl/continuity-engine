@@ -174,7 +174,7 @@ Few, chunky tools, so a turn costs one or two calls. Every tool returns compact 
 
 | Tool | Inputs | Returns | Rules |
 | --- | --- | --- | --- |
-| `open_campaign` | campaign\_id | Settings, as-of moment, approval mode, voice anchor, pinned context, PC sheet, current chapter, open threads, every ruling, this chapter's logged scenes, **changed since last session**, any unlogged scene | Opens a new session. Must be the first call of every chat |
+| `open_campaign` | campaign\_id | Settings, as-of moment, approval mode, voice anchor, pinned context, PC sheet, current chapter, open threads, every ruling, this chapter's logged scenes, **changed since last session**, any unlogged scene, characters with no "To the PC" label yet | Opens a new session. Must be the first call of every chat |
 | `get_context` | campaign\_id, present\[\], place?, threads\[\]? | Summaries for each present entity and the place, latest confirmed and proposed updates for them, what each present character knows, related rulings, the voice block (the anchor's sample word for word, the avoid list and every voice ruling) | Logs each returned entity as read. Resolves aliases. The voice block is there so the GM checks its prose against the sample before every scene |
 | `read_entity` | entity\_id or name | Full page (secret sections only if spoilers on, or always for the GM's own use, see Spoiler model) | Logs a read |
 | `search_wiki` | query, type? | Matching entities with one-line summaries | Full-text over names, aliases, summaries, sections |
@@ -301,8 +301,8 @@ A local Next.js app reading the same SQLite file as the MCP server, through the 
 | Screen | What it does |
 | --- | --- |
 | Home | Worlds and their campaigns; create, export or import |
-| Wiki browser | Entities grouped by type, full-text search, filter by source (canon, ruling, invention, unverified) |
-| Entity page | Sections with inline editing, lock icons on user-edited sections, public/secret toggle per section, aliases, the updates that touch this entity, version history with restore |
+| Wiki browser | Entities grouped by type, full-text search, filter by source (canon, ruling, invention, unverified). In a campaign, each character card shows its "To the PC" label (who they are to the player character, such as "Older brother") |
+| Entity page | A character's "To the PC" label under the name (the campaign section `to-the-pc`, written by the GM, editable and lockable like any section, hidden in the player view if it is secret and the PC doesn't know it), sections with inline editing, lock icons on user-edited sections, public/secret toggle per section, aliases, the updates that touch this entity, version history with restore |
 | Edit confirm | On saving a fact change: "Retcon (always true)" or "Change from now on" |
 | Review queue | Proposed updates, conflicts pinned on top; approve, edit, reject each; bulk-approve all minor updates. Pages the AI drafted, approve or reject each (a world has its own queue for Phase 0) |
 | Campaign dashboard | Settings, approval mode and severity policy, spoiler toggle, PC sheet, open threads, chapter summaries, rulings, and a Voice section where the user reads and edits the voice anchor (sample, profile, interior level, avoid list; voice rulings listed) |

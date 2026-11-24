@@ -189,6 +189,7 @@ describe("M5: the entity page shows the type's outline and what play recorded", 
 
     const r = (await g.views.entity(await g.scope(), "rickard-snow"))!.profile;
     expect(r.outline.map((o) => [o.heading, o.sectionId !== null])).toEqual([
+      ["To the PC", false],
       ["Background", false],
       ["Appearance", true],
       ["Personality", false],

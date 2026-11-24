@@ -98,7 +98,7 @@ pnpm --filter @continuity/web e2e            # browser acceptance run (build mcp
 - [x] **Milestone 5, Web app** (accepted 2026-11-24, PR #6): Next.js app in `apps/web` with every SPEC screen, styled to Parker's UI design, plus a per-type entity outline and a profile drawn from play.
 - [x] **Milestone 6, Phase 0 flows** (accepted 2026-11-24, PR #7): interview with page approval, multi-file import checks, unverified labels, world as-of moment, secrets learned.
 - [x] **Milestone 7, Evaluation** (PR #8): the continuity test in SPEC "Evaluation", results in `eval/RESULTS.md`.
-- [ ] **Milestone 8, Remote** (current): Postgres (Supabase), sign-in, remote MCP endpoint for Claude's custom connector, Vercel. See `docs/remote.md`.
+- [x] **Milestone 8, Remote** (accepted 2026-11-24, PR #9; voice sample PR #10, auto-refresh PR #11, To the PC labels PR #12): Postgres (Supabase), sign-in, remote MCP endpoint for Claude's custom connector, Vercel. See `docs/remote.md`.
 
 ## Prompt modules (Milestone 4)
 
@@ -125,10 +125,12 @@ Scope and checks: SPEC "Milestone 8". Setup and layout: `docs/remote.md`.
 
 - **Voice sample (added after the M8 build with Parker's OK, SPEC updated):** the campaign dashboard ("Campaign settings") has a Voice card where the user reads and edits the voice anchor (`RulesEngine.editVoiceAnchor`, allowed at any time, keeps voice rulings and the audit count). `get_context` returns the anchor so Claude writes every scene against the sample; `log_scene` sets `voiceAuditDue` every `VOICE_AUDIT_SCENES` (4) scenes; a user edit shows in the changelog and the `open_campaign` change feed (the audit-count bookkeeping alone does not).
 
+- **To the PC label (added after the M8 build with Parker's OK, SPEC updated):** each character other than the PC has a campaign section `to-the-pc` (`TO_PC_KEY` in `engine.ts`), such as "Older brother". `edit_entity` always writes it in the campaign layer, even on a world character. `WebViews.wiki` rows carry `toPc` (player view applies); wiki cards show it as a chip and the character page under the name, with a "To the PC" outline slot first. `open_campaign` returns `missingToPc` so the GM backfills labels (`prompts/30-play.md`).
+
 Acceptance checks:
 
 - [x] The core test suite passes on both SQLite and Postgres
-- [ ] Claude on claude.ai adds the server as a custom connector, signs in, and can open a campaign, get context and log a scene (hosted sign-in and connector link confirmed 2026-11-24; play not yet run on the hosted server)
+- [x] Claude on claude.ai adds the server as a custom connector, signs in, and can open a campaign, get context and log a scene (confirmed 2026-11-24: Parker's claude.ai chat logged 9 scenes on the hosted server)
 - [x] A second account can't see or change the first account's worlds, through the connector or the web app
 - [x] The hosted web app needs sign-in
 - [x] The local setup (Claude Desktop plus SQLite) still works unchanged
