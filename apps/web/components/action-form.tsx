@@ -1,14 +1,22 @@
 "use client";
-import { useActionState, type ReactNode } from "react";
+import { startTransition, useActionState, type FormEvent, type ReactNode } from "react";
 
 export type ActionState = { ok?: string; error?: string; at?: number };
 type Action = (prev: ActionState, f: FormData) => Promise<ActionState>;
 
 /** A form bound to a server action, showing the engine's refusal or confirmation under it. */
-export function ActionForm({ action, children, className }: { action: Action; children: ReactNode; className?: string }) {
+export function ActionForm({ action, children, className, keepInput }: { action: Action; children: ReactNode; className?: string; keepInput?: boolean }) {
   const [state, formAction, pending] = useActionState(action, {});
+  // keepInput: submit without React's automatic form reset, so a refused form keeps what the user typed.
+  const onSubmit = keepInput
+    ? (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => formAction(data));
+      }
+    : undefined;
   return (
-    <form action={formAction} className={className} aria-busy={pending}>
+    <form action={formAction} onSubmit={onSubmit} className={className} aria-busy={pending}>
       {children}
       {state.error && (
         <p role="alert" className="mt-2 basis-full rounded-lg border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger">

@@ -269,7 +269,15 @@ export async function createPage(_: ActionState, f: FormData): Promise<ActionSta
     source: SOURCES.find((s) => s === str(f, "source")) ?? "canon",
     summary: (str(f, "summary") ?? "").trim(),
   });
-  if (!r.ok) return fail(r.refusal.message);
+  if (!r.ok) {
+    if (r.refusal.rule === "duplicate" && r.refusal.ref) {
+      const res = await (await app()).engine.storage.resolveEntity(req(f, "worldId"), r.refusal.ref, { campaignId });
+      const other = res.status === "resolved" ? res.entity.name : r.refusal.ref;
+      const taken = r.refusal.message.match(/^"([^"]+)"/)?.[1] ?? name;
+      return fail(`“${taken}” is already used by ${other}. Open that page and add to it, or pick another name.`);
+    }
+    return fail(r.refusal.message);
+  }
   revalidatePath("/", "layout");
   redirect(`${req(f, "base")}/e/${r.value.slug}`);
 }

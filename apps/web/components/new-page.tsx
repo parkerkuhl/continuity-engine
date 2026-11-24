@@ -26,7 +26,7 @@ export function NewPage({ scope, type }: { scope: Scope; type?: string }) {
             : `In ${scope.world.name}, for every campaign. The GM sees it at the start of the next session.`}
         </p>
       </div>
-      <ActionForm action={createPage} className="card grid max-w-2xl gap-4">
+      <ActionForm action={createPage} keepInput className="card grid max-w-2xl gap-4">
         <input type="hidden" name="worldId" value={scope.world.id} />
         <input type="hidden" name="campaignId" value={scope.campaign?.id ?? ""} />
         <input type="hidden" name="base" value={base} />
@@ -54,16 +54,24 @@ export function NewPage({ scope, type }: { scope: Scope; type?: string }) {
           Name
           <input name="name" required autoFocus className="input font-normal" placeholder="Wren Tallow" />
         </label>
-        <label className="grid gap-1.5 text-[13px] font-semibold">
-          Also called
-          <input name="aliases" className="input font-normal" placeholder="the Heron, Tallow" />
-          <span className="font-normal text-faint">Nicknames and titles, separated by commas. Search finds the page by any of them.</span>
-        </label>
-        <label className="grid gap-1.5 text-[13px] font-semibold">
-          Current state
-          <textarea name="summary" rows={3} className="input font-serif text-base font-normal" placeholder="Who or what this is right now, in a sentence or two." />
-          <span className="font-normal text-faint">What the GM reads first. You can add sections on the next screen.</span>
-        </label>
+        <div className="grid gap-1.5 text-[13px]">
+          <label htmlFor="np-aliases" className="font-semibold">
+            Also called
+          </label>
+          <input id="np-aliases" name="aliases" aria-describedby="np-aliases-hint" className="input" placeholder="the Heron, Tallow" />
+          <span id="np-aliases-hint" className="text-faint">
+            Nicknames and titles, separated by commas. Search finds the page by any of them.
+          </span>
+        </div>
+        <div className="grid gap-1.5 text-[13px]">
+          <label htmlFor="np-summary" className="font-semibold">
+            Current state
+          </label>
+          <textarea id="np-summary" name="summary" rows={3} aria-describedby="np-summary-hint" className="input font-serif text-base" placeholder="Who or what this is right now, in a sentence or two." />
+          <span id="np-summary-hint" className="text-faint">
+            What the GM reads first. You can add sections on the next screen.
+          </span>
+        </div>
         <div className="flex gap-2">
           <button className="btn-primary">Create page</button>
           <Link href={wiki} className="btn">
