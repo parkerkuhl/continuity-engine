@@ -339,6 +339,8 @@ try {
     await page.goto(`${C}/wiki?type=character`);
     const card = page.getByRole("link", { name: /Rickard Snow/ });
     expect((await card.innerText()).includes("Liege lord"), "the wiki card doesn't show the label");
+    expect((await page.getByRole("link", { name: /Ser Wyl/ }).innerText()).includes("To the PC: not set"), "a character without a label doesn't show the empty spot");
+    expect(!(await page.getByRole("link", { name: /Marro/ }).innerText()).includes("To the PC"), "the PC's card shows a To the PC spot");
     await shot("13-wiki-to-the-pc");
     await page.goto(`${C}/e/rickard-snow`);
     await page.getByRole("link", { name: "To the PC: Liege lord" }).waitFor();
