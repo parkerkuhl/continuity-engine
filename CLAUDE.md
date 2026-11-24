@@ -97,8 +97,8 @@ pnpm --filter @continuity/web e2e            # browser acceptance run (build mcp
 - [x] **Milestone 4, Prompt modules** (accepted 2026-11-24, PR #5; Parker still plays the test chapter by hand): the four modules in `prompts/`, plus `update_campaign` and a fuller `open_campaign` (SPEC.md updated with Parker's OK).
 - [x] **Milestone 5, Web app** (accepted 2026-11-24, PR #6): Next.js app in `apps/web` with every SPEC screen, styled to Parker's UI design, plus a per-type entity outline and a profile drawn from play.
 - [x] **Milestone 6, Phase 0 flows** (accepted 2026-11-24, PR #7): interview with page approval, multi-file import checks, unverified labels, world as-of moment, secrets learned.
-- [ ] **Milestone 7, Evaluation** (current): the continuity test in SPEC "Evaluation", results in `eval/RESULTS.md`.
-- [ ] Milestone 8 (after the MVP): see SPEC "Build plan".
+- [x] **Milestone 7, Evaluation** (PR #8): the continuity test in SPEC "Evaluation", results in `eval/RESULTS.md`.
+- [ ] **Milestone 8, Remote** (current): Postgres (Supabase), sign-in, remote MCP endpoint for Claude's custom connector, Vercel. See `docs/remote.md`.
 
 ## Prompt modules (Milestone 4)
 
@@ -108,12 +108,25 @@ pnpm --filter @continuity/web e2e            # browser acceptance run (build mcp
 
 Added in M6 with Parker's OK (SPEC.md updated): page status, `worlds.as_of_story_time`, the `update_world` tool, `edit_entity` `world_id` and `source`, and `log_scene` `secrets_learned`.
 
-## Current milestone: Milestone 7, Evaluation
+## Milestone 7, Evaluation (done)
 
-Scope (SPEC "Evaluation"): 20 facts in `eval/facts.md`, 10 tempting scene prompts in `eval/scenes/`, both runs (wiki-backed and plain GM prompt) scored per fact, plus unlogged scenes and refused updates counted.
+`eval/` is a workspace package: `seed.mjs`, `run.mjs` (Claude API), `score.mjs`; results in `eval/RESULTS.md`. See `eval/README.md`.
 
-`eval/` is a workspace package: `seed.mjs` stores the facts through the MCP server, `run.mjs` plays both arms against the Claude API (needs `ANTHROPIC_API_KEY`), `score.mjs` judges each scene and writes `eval/RESULTS.md`. See `eval/README.md`.
+## Current milestone: Milestone 8, Remote
+
+Scope and checks: SPEC "Milestone 8". Setup and layout: `docs/remote.md`.
+
+- **Two backends:** `SqliteStorage` (local) and `PgStorage` (`src/storage/pg.ts`, Drizzle pg-core, `entities_search` tsvector table instead of FTS5). `schema-pg.ts` mirrors `schema.ts` (`test/m8-schema-parity.test.ts`); Postgres migrations live in `drizzle-pg/` (`pnpm --filter @continuity/core db:generate:pg`). The core suite runs on either: `CONTINUITY_TEST_BACKEND=pglite|postgres` (`test:pglite`, `test:pg`).
+- **Per-account access:** `scopeStorage(storage, userId)` hides every world and campaign the account has no `permissions` row for (lookups read as missing, so engine paths refuse with `not_found`). M8 uses `owner` rows only; sharing is planned in SPEC "Later: sharing and invites". `RulesEngine` takes `{ ownerId, imports }`.
+- **Remote state:** `src/remote/store.ts` (`schema-remote.ts`, Postgres only): OAuth clients, codes and tokens (hashed), and pending imports. Infrastructure, not content: no `versions` rows; pending imports are deleted on confirm.
+- **Stateless MCP:** `createServer(engine, { stateless: true })` looks up a campaign's open session with `Storage.getOpenSession`. The HTTP endpoint is `apps/web/app/mcp/route.ts`.
+- **Web remote mode** (`CONTINUITY_DATABASE_URL` set): `app()` is per request and scoped to the Supabase user; `middleware.ts` sends signed-out visitors to `/login`. Without it the web app is the local M5 app.
+- **M7 follow-ups (fixed in M8 with Parker's OK):** `get_context`/`read_entity` put updates the PC doesn't know (and what an NPC knows that the PC doesn't) in the GM ONLY block (`assembleEntityContext` takes the PC id); the protocol module tells the GM to read every entity it will update before `log_scene`.
 
 Acceptance checks:
 
-- [ ] Results recorded in `eval/RESULTS.md`, with and without the wiki
+- [x] The core test suite passes on both SQLite and Postgres
+- [ ] Claude on claude.ai adds the server as a custom connector, signs in, and can open a campaign, get context and log a scene (hosted sign-in and connector link confirmed 2026-11-24; play not yet run on the hosted server)
+- [x] A second account can't see or change the first account's worlds, through the connector or the web app
+- [x] The hosted web app needs sign-in
+- [x] The local setup (Claude Desktop plus SQLite) still works unchanged

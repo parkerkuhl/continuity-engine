@@ -50,17 +50,38 @@ const sectionInput = z.object({
 });
 const campaignId = z.string().describe("campaign_id from list_worlds or create_campaign");
 
-export function createServer(engine: RulesEngine): McpServer {
+export interface ServerOptions {
+  /** Remote (streamable HTTP) servers are rebuilt per request, so open sessions are looked up in storage. */
+  stateless?: boolean;
+}
+
+export function createServer(engine: RulesEngine, opts: ServerOptions = {}): McpServer {
   const server = new McpServer({ name: "continuity-engine", version: VERSION });
   /** The open session for each campaign in this server process (open_campaign sets it). */
   const sessions = new Map<string, string>();
 
-  const session = (cid: string | undefined): Result<string> => {
+  /**
+   * The open session for a tool call. A local (stdio) server remembers the sessions open_campaign opened.
+   * A remote server is stateless (each HTTP request may land on a new instance), so it falls back to the
+   * campaign's open session in storage, or, with no campaign_id, the most recently opened one among the
+   * account's campaigns.
+   */
+  const session = async (cid: string | undefined): Promise<Result<string>> => {
     if (cid) {
-      const s = sessions.get(cid);
+      const s = sessions.get(cid) ?? (opts.stateless ? (await engine.storage.getOpenSession(cid))?.id : undefined);
       return s ? { ok: true, value: s } : { ok: false, refusal: { rule: "not_found", message: `No open session for campaign ${cid}. Call open_campaign with this campaign_id first.` } };
     }
     if (sessions.size === 1) return { ok: true, value: [...sessions.values()][0]! };
+    if (opts.stateless && sessions.size === 0) {
+      let latest: { id: string; openedAt: string } | null = null;
+      for (const { campaigns } of await engine.listWorlds()) {
+        for (const c of campaigns) {
+          const open = await engine.storage.getOpenSession(c.id);
+          if (open && (!latest || open.openedAt > latest.openedAt)) latest = open;
+        }
+      }
+      if (latest) return { ok: true, value: latest.id };
+    }
     return {
       ok: false,
       refusal: {
@@ -196,7 +217,7 @@ export function createServer(engine: RulesEngine): McpServer {
         let where: { sessionId: string } | { worldId: string };
         if (a.world_id && !a.campaign_id) where = { worldId: a.world_id };
         else {
-          const s = session(a.campaign_id);
+          const s = await session(a.campaign_id);
           if (!s.ok) return refused(s.refusal);
           where = { sessionId: s.value };
         }
@@ -337,7 +358,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.getContext({ sessionId: s.value, present: a.present, ...(a.place && { place: a.place }) });
         if (!r.ok) return refused(r.refusal);
@@ -360,7 +381,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.readEntity({ sessionId: s.value, ref: a.entity });
         if (!r.ok) return refused(r.refusal);
@@ -386,7 +407,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.searchWiki({ sessionId: s.value, query: a.query, view: a.view, ...(a.type && { type: a.type }) });
         if (!r.ok) return refused(r.refusal);
@@ -431,7 +452,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.logScene({
           sessionId: s.value,
@@ -460,7 +481,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.closeChapter({ sessionId: s.value, title: a.title, summary: a.summary });
         if (!r.ok) return refused(r.refusal);
@@ -482,7 +503,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.updateCampaign({
           sessionId: s.value,
@@ -504,7 +525,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.recordRuling({ sessionId: s.value, text: a.text, kind: a.kind });
         if (!r.ok) return refused(r.refusal);
@@ -517,7 +538,7 @@ export function createServer(engine: RulesEngine): McpServer {
     { title: "GM read", description: "Reads the hidden story design, clocks, twists and endings. GM only.", inputSchema: { campaign_id: campaignId } },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.gmRead({ sessionId: s.value });
         if (!r.ok) return refused(r.refusal);
@@ -534,7 +555,7 @@ export function createServer(engine: RulesEngine): McpServer {
     },
     (a) =>
       guard(async () => {
-        const s = session(a.campaign_id);
+        const s = await session(a.campaign_id);
         if (!s.ok) return refused(s.refusal);
         const r = await engine.gmWrite({ sessionId: s.value, kind: a.kind, key: a.key, body: a.body, ...(a.data && { data: a.data }) });
         if (!r.ok) return refused(r.refusal);

@@ -128,12 +128,16 @@ function entityBlock(ctx: EntityContext): { open: string; secret: string[] } {
   const secret: string[] = [];
   const updates: string[] = [];
   for (const i of ctx.items) {
-    if (i.secret) secret.push(`### ${e.name}: ${i.kind === "section" ? i.section.heading : "secret"}\n${i.kind === "section" ? i.section.bodyMd : ""}`);
+    if (i.secret && i.kind === "update") secret.push(`### ${e.name}: update the PC doesn't know\n${itemText(i)}`);
+    else if (i.secret) secret.push(`### ${e.name}: ${i.kind === "section" ? i.section.heading : "secret"}\n${i.kind === "section" ? i.section.bodyMd : ""}`);
     else if (i.kind === "update") updates.push(itemText(i));
     else open.push(itemText(i));
   }
   if (updates.length) open.push("### Updates", ...updates);
-  if (ctx.knows.length) open.push(`### Knows`, ...ctx.knows.map((u) => updateLine(u)));
+  const knowsOpen = ctx.knows.filter((u) => !ctx.secretUpdateIds.has(u.id));
+  const knowsSecret = ctx.knows.filter((u) => ctx.secretUpdateIds.has(u.id));
+  if (knowsOpen.length) open.push(`### Knows`, ...knowsOpen.map((u) => updateLine(u)));
+  if (knowsSecret.length) secret.push(`### ${e.name} knows (the PC doesn't)`, ...knowsSecret.map((u) => updateLine(u)));
   return { open: open.join("\n"), secret };
 }
 

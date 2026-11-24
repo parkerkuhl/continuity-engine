@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app } from "@/lib/server";
+import { app, isRemote } from "@/lib/server";
 import { LockIcon } from "./icons";
 import { HeaderSearch, NavLink } from "./nav-link";
 
@@ -31,7 +31,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
   const base = c ? `/c/${c.id}` : scope ? `/w/${scope.world.id}` : "/";
   let nav: ReactNode;
   if (c) {
-    const views = app().views;
+    const views = (await app()).views;
     const [d, queue, pages] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!)]);
     const waiting = queue.items.length + pages.length;
     nav = (
@@ -64,8 +64,8 @@ async function Sidebar({ scope }: { scope?: Scope }) {
       </>
     );
   } else if (scope) {
-    const row = (await app().views.home()).find((r) => r.world.id === scope.world.id);
-    const pages = await app().views.pageQueue(scope);
+    const row = (await (await app()).views.home()).find((r) => r.world.id === scope.world.id);
+    const pages = await (await app()).views.pageQueue(scope);
     nav = (
       <>
         <NavLink href={base} exact also={`${base}/e/`}>
@@ -83,7 +83,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
       </>
     );
   } else {
-    const rows = await app().views.home();
+    const rows = await (await app()).views.home();
     nav = (
       <>
         <NavLink href="/" exact>
@@ -128,6 +128,11 @@ async function Sidebar({ scope }: { scope?: Scope }) {
             All worlds
           </Link>
         </div>
+      )}
+      {isRemote() && (
+        <form action="/auth/signout" method="post" className={scope ? "flex flex-col" : "mt-auto flex flex-col border-t border-nav-line pt-4"}>
+          <button className="px-3 py-2 text-left text-nav-muted hover:text-white">Sign out</button>
+        </form>
       )}
     </nav>
   );

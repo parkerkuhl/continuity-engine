@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { AppShell } from "@/components/app-shell";
-import { app } from "@/lib/server";
+import { app, isRemote, localDbPath } from "@/lib/server";
 import { createCampaign, createWorld, importWorld } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const rows = await app().views.home();
+  const rows = await (await app()).views.home();
   return (
     <AppShell>
       <div>
         <h1 className="page-title">Worlds</h1>
-        <p className="mt-1.5 text-muted">The same database the GM uses: <code className="text-[13px]">{app().dbPath}</code></p>
+        <p className="mt-1.5 text-muted">
+          {isRemote() ? "Your worlds, the same ones Claude sees through the connector." : <>The same database the GM uses: <code className="text-[13px]">{localDbPath()}</code></>}
+        </p>
       </div>
 
       {rows.length === 0 && <p className="text-muted">No worlds yet. Create one below, import an export, or ask Claude to build one.</p>}

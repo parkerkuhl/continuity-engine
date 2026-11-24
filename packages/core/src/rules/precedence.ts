@@ -30,6 +30,8 @@ export interface EntityContext {
   items: ContextItem[];
   /** Confirmed or proposed updates this entity knows about (knowledge rows with it as holder). */
   knows: Update[];
+  /** Ids of updates in `items` or `knows` that the PC doesn't know (empty when there is no PC). */
+  secretUpdateIds: Set<string>;
 }
 
 export function labelFor(rank: Rank, extra?: string): string | null {
@@ -59,7 +61,17 @@ function updateRank(u: Update): Rank {
 
 const LIVE = ["confirmed", "proposed"] as const;
 
-export async function assembleEntityContext(storage: Storage, campaign: Campaign, entity: Entity): Promise<EntityContext> {
+/**
+ * `pcId` is the PC's entity (from the PC sheet). When it is given, an update the PC isn't listed as
+ * knowing is secret (SPEC "Spoiler model": updates whose `knows` list excludes the PC), so it goes in
+ * the GM ONLY block. With no PC on the sheet, updates aren't marked secret.
+ */
+export async function assembleEntityContext(
+  storage: Storage,
+  campaign: Campaign,
+  entity: Entity,
+  pcId: string | null = null,
+): Promise<EntityContext> {
   const items: ContextItem[] = [];
 
   const summaryRank: Rank =
@@ -88,17 +100,21 @@ export async function assembleEntityContext(storage: Storage, campaign: Campaign
   for (const u of updates) {
     const rank = updateRank(u);
     const label = labelFor(rank, u.conflictsWith ? "PROPOSED, IN CONFLICT (parked for review; the confirmed fact stands)" : undefined);
-    // Whether an update is secret depends on the PC's knowledge rows; the player-view filter comes in M5.
-    items.push({ kind: "update", rank, label, update: u, secret: false });
+    const secret = pcId ? !(await storage.listKnowers("update", u.id)).includes(pcId) : false;
+    items.push({ kind: "update", rank, label, update: u, secret });
   }
 
   items.sort((a, b) => a.rank - b.rank); // stable: keeps page order and seq order within a rank
 
   const knows: Update[] = [];
+  const secretUpdateIds = new Set(items.flatMap((i) => (i.kind === "update" && i.secret ? [i.update.id] : [])));
   for (const u of await storage.listUpdates(campaign.id, { status: [...LIVE] })) {
-    if ((await storage.listKnowers("update", u.id)).includes(entity.id)) knows.push(u);
+    const knowers = await storage.listKnowers("update", u.id);
+    if (!knowers.includes(entity.id)) continue;
+    knows.push(u);
+    if (pcId && !knowers.includes(pcId)) secretUpdateIds.add(u.id);
   }
-  return { entity, items, knows };
+  return { entity, items, knows, secretUpdateIds };
 }
 
 /** Rulings rank 1 and are always listed first. */

@@ -35,7 +35,7 @@ function Card({ title, id, action, children, className = "" }: { title: string; 
 export default async function Dashboard({ params }: { params: Promise<{ campaignId: string }> }) {
   const { campaignId } = await params;
   const scope = await campaignScope(campaignId);
-  const d = (await app().views.dashboard(scope))!;
+  const d = (await (await app()).views.dashboard(scope))!;
   const c = d.campaign;
   const path = `/c/${campaignId}`;
   const s = c.settings;

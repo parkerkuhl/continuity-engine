@@ -32,7 +32,7 @@ const fail = (message: string): ActionState => ({ error: message, at: Date.now()
 // ---------------- spoilers ----------------
 
 export async function setCampaignSpoilers(f: FormData) {
-  await app().engine.setSpoilers(req(f, "campaignId"), str(f, "on") === "1");
+  await (await app()).engine.setSpoilers(req(f, "campaignId"), str(f, "on") === "1");
   revalidatePath("/", "layout");
 }
 
@@ -44,7 +44,7 @@ export async function setWorldSpoilers(f: FormData) {
 // ---------------- home ----------------
 
 export async function createWorld(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.createWorld({
+  const r = await (await app()).engine.createWorld({
     name: req(f, "name"),
     pitch: str(f, "pitch") ?? "",
     depth: str(f, "depth") === "full" ? "full" : "compact",
@@ -56,7 +56,7 @@ export async function createWorld(_: ActionState, f: FormData): Promise<ActionSt
 }
 
 export async function createCampaign(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.createCampaign({ worldId: req(f, "worldId"), name: req(f, "name").trim(), author: "user" });
+  const r = await (await app()).engine.createCampaign({ worldId: req(f, "worldId"), name: req(f, "name").trim(), author: "user" });
   if (!r.ok) return fail(r.refusal.message);
   redirect(`/c/${r.value.id}`);
 }
@@ -72,7 +72,7 @@ export async function importWorld(_: ActionState, f: FormData): Promise<ActionSt
     return fail("That file isn't a readable .zip.");
   }
   const files = new Map(Object.entries(entries).filter(([p]) => p.endsWith(".md")).map(([p, b]) => [p, strFromU8(b)]));
-  const r = await app().engine.importWorld(files);
+  const r = await (await app()).engine.importWorld(files);
   if (!r.ok) return fail(`Nothing was imported: ${r.refusal.message}`);
   redirect(`/w/${r.value.id}`);
 }
@@ -81,7 +81,7 @@ export async function importWorld(_: ActionState, f: FormData): Promise<ActionSt
 
 export async function editSection(_: ActionState, f: FormData): Promise<ActionState> {
   const kind = editKind(f);
-  const r = await app().engine.userEditSection({
+  const r = await (await app()).engine.userEditSection({
     entityId: req(f, "entityId"),
     key: req(f, "key"),
     campaignId: str(f, "campaignId") || null,
@@ -99,7 +99,7 @@ export async function addSection(_: ActionState, f: FormData): Promise<ActionSta
   const key = heading.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   if (!key || key === "summary") return fail("Pick another heading.");
   const kind = editKind(f);
-  const r = await app().engine.userEditSection({
+  const r = await (await app()).engine.userEditSection({
     entityId: req(f, "entityId"),
     key,
     campaignId: str(f, "campaignId") || null,
@@ -113,7 +113,7 @@ export async function addSection(_: ActionState, f: FormData): Promise<ActionSta
 }
 
 export async function setSectionVisibility(f: FormData) {
-  await app().engine.userEditSection({
+  await (await app()).engine.userEditSection({
     entityId: req(f, "entityId"),
     key: req(f, "key"),
     campaignId: str(f, "campaignId") || null,
@@ -124,7 +124,7 @@ export async function setSectionVisibility(f: FormData) {
 
 export async function editSummary(_: ActionState, f: FormData): Promise<ActionState> {
   const kind = editKind(f);
-  const r = await app().engine.userEditEntity({ entityId: req(f, "entityId"), patch: { summary: req(f, "body") }, ...(kind && { editKind: kind }) });
+  const r = await (await app()).engine.userEditEntity({ entityId: req(f, "entityId"), patch: { summary: req(f, "body") }, ...(kind && { editKind: kind }) });
   if (!r.ok) return fail(r.refusal.message);
   return done(f, `Summary saved as ${kind === "retcon" ? "a retcon" : "a change from now on"}.`);
 }
@@ -134,27 +134,27 @@ export async function editAliases(_: ActionState, f: FormData): Promise<ActionSt
     .split(",")
     .map((a) => a.trim())
     .filter(Boolean);
-  const r = await app().engine.userEditEntity({ entityId: req(f, "entityId"), patch: { aliases } });
+  const r = await (await app()).engine.userEditEntity({ entityId: req(f, "entityId"), patch: { aliases } });
   if (!r.ok) return fail(r.refusal.message);
   return done(f, "Aliases saved.");
 }
 
 /** Upgrade an unverified page once the user has checked it (SPEC Phase 0, path C). */
 export async function markCanon(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.userEditEntity({ entityId: req(f, "entityId"), patch: { source: "canon" }, reason: "checked by the user" });
+  const r = await (await app()).engine.userEditEntity({ entityId: req(f, "entityId"), patch: { source: "canon" }, reason: "checked by the user" });
   if (!r.ok) return fail(r.refusal.message);
   return done(f, "Marked as canon. The GM no longer sees it labeled unverified.");
 }
 
 /** Approve or reject a page the GM drafted (it follows the approval mode). */
 export async function approvePage(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.approvePage(req(f, "entityId"));
+  const r = await (await app()).engine.approvePage(req(f, "entityId"));
   if (!r.ok) return fail(r.refusal.message);
   return done(f, `Approved. ${r.value.name} is canon now.`);
 }
 
 export async function rejectPage(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.rejectPage(req(f, "entityId"));
+  const r = await (await app()).engine.rejectPage(req(f, "entityId"));
   if (!r.ok) return fail(r.refusal.message);
   const back = str(f, "back");
   if (back) {
@@ -165,7 +165,7 @@ export async function rejectPage(_: ActionState, f: FormData): Promise<ActionSta
 }
 
 export async function setWorldAsOf(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.updateWorld({ worldId: req(f, "worldId"), asOf: str(f, "asOf") ?? "", author: "user" });
+  const r = await (await app()).engine.updateWorld({ worldId: req(f, "worldId"), asOf: str(f, "asOf") ?? "", author: "user" });
   if (!r.ok) return fail(r.refusal.message);
   return done(f, r.value.asOfStoryTime ? "Saved. New campaigns start at this moment." : "Cleared.");
 }
@@ -173,7 +173,7 @@ export async function setWorldAsOf(_: ActionState, f: FormData): Promise<ActionS
 export async function restoreVersion(_: ActionState, f: FormData): Promise<ActionState> {
   const kind = editKind(f);
   if (!kind) return fail("Choose retcon or change from now on.");
-  const r = await app().engine.restoreVersion(req(f, "versionId"), kind, str(f, "side") === "before" ? "before" : "after");
+  const r = await (await app()).engine.restoreVersion(req(f, "versionId"), kind, str(f, "side") === "before" ? "before" : "after");
   if (!r.ok) return fail(r.refusal.message);
   return done(f, "Restored. The restore is itself a new version.");
 }
@@ -181,20 +181,20 @@ export async function restoreVersion(_: ActionState, f: FormData): Promise<Actio
 // ---------------- review queue ----------------
 
 export async function approveUpdate(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.approveUpdate(req(f, "updateId"));
+  const r = await (await app()).engine.approveUpdate(req(f, "updateId"));
   if (!r.ok) return fail(r.refusal.message);
   return done(f, `Update #${r.value.seq} confirmed.`);
 }
 
 export async function rejectUpdate(_: ActionState, f: FormData): Promise<ActionState> {
-  const r = await app().engine.setUpdateStatus(req(f, "updateId"), "rejected");
+  const r = await (await app()).engine.setUpdateStatus(req(f, "updateId"), "rejected");
   if (!r.ok) return fail(r.refusal.message);
   return done(f, `Update #${r.value.seq} rejected. It stays on record.`);
 }
 
 export async function editUpdate(_: ActionState, f: FormData): Promise<ActionState> {
   const severity = str(f, "severity");
-  const r = await app().engine.userEditUpdate(req(f, "updateId"), {
+  const r = await (await app()).engine.userEditUpdate(req(f, "updateId"), {
     body: req(f, "body"),
     ...((severity === "minor" || severity === "major") && { severity }),
   });
@@ -204,7 +204,7 @@ export async function editUpdate(_: ActionState, f: FormData): Promise<ActionSta
 
 export async function approveAllMinor(_: ActionState, f: FormData): Promise<ActionState> {
   const scope = await campaignScope(req(f, "campaignId"));
-  const approved = await app().views.approveVisibleMinor(scope);
+  const approved = await (await app()).views.approveVisibleMinor(scope);
   return done(f, approved.length ? `Approved ${approved.length} minor update${approved.length === 1 ? "" : "s"}.` : "No minor updates to approve.");
 }
 
@@ -214,7 +214,7 @@ export async function setApprovalMode(_: ActionState, f: FormData): Promise<Acti
   const mode = req(f, "mode") as "review" | "batch" | "autopilot" | "mixed";
   const minor = str(f, "minor") as "review" | "batch" | "autopilot" | undefined;
   const major = str(f, "major") as "review" | "batch" | "autopilot" | undefined;
-  const r = await app().engine.setApprovalMode(req(f, "campaignId"), mode, minor && major ? { minor, major } : undefined);
+  const r = await (await app()).engine.setApprovalMode(req(f, "campaignId"), mode, minor && major ? { minor, major } : undefined);
   if (!r.ok) return fail(r.refusal.message);
   return done(f, "Approval mode saved.");
 }

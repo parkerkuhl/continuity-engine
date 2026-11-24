@@ -7,7 +7,7 @@ import { TYPE_LABEL } from "./wiki-browser";
 
 /** Pages the GM drafted that wait for approval (SPEC Phase 0: nothing drafted becomes canon without it). */
 export async function PageQueue({ scope, path }: { scope: Scope; path: string }) {
-  const pages = await app().views.pageQueue(scope);
+  const pages = await (await app()).views.pageQueue(scope);
   if (!pages.length) return null;
   const base = basePath(scope);
   return (

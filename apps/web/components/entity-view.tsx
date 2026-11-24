@@ -50,7 +50,7 @@ function FromPlay({ children }: { children: ReactNode }) {
 }
 
 export async function EntityView({ scope, slug }: { scope: Scope; slug: string }) {
-  const view = await app().views.entity(scope, slug);
+  const view = await (await app()).views.entity(scope, slug);
   if (!view) notFound();
   const { page } = view;
   const base = basePath(scope);
