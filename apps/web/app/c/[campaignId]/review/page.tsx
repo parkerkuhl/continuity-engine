@@ -20,7 +20,7 @@ export default async function Review({ params, searchParams }: { params: Promise
   const { campaignId } = await params;
   const f = (FILTERS as readonly string[]).includes((await searchParams).filter ?? "") ? (await searchParams).filter! : "all";
   const scope = await campaignScope(campaignId);
-  const [{ items, hidden }, pages] = await Promise.all([app().views.reviewQueue(scope), app().views.pageQueue(scope)]);
+  const [{ items, hidden }, pages] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope)]);
   const base = `/c/${campaignId}`;
   const path = `${base}/review`;
   const c = scope.campaign!;

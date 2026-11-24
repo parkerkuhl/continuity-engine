@@ -12,7 +12,7 @@ const MODE: Record<string, string> = {
 
 export default async function WorldReview({ params }: { params: Promise<{ worldId: string }> }) {
   const scope = await worldScope((await params).worldId);
-  const n = (await app().views.pageQueue(scope)).length;
+  const n = (await (await app()).views.pageQueue(scope)).length;
   return (
     <>
       <div>

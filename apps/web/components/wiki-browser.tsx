@@ -39,7 +39,7 @@ export function SourcePill({ source, prefix }: { source: Entity["source"]; prefi
 
 export async function WikiBrowser({ scope, query, source, type }: { scope: Scope; query?: string; source?: string; type?: string }) {
   const src = SOURCES.includes(source as Entity["source"]) ? (source as Entity["source"]) : undefined;
-  const all = (await app().views.wiki(scope, { ...(query && { query }) })).flatMap((g) => g.entities);
+  const all = (await (await app()).views.wiki(scope, { ...(query && { query }) })).flatMap((g) => g.entities);
   const typed = all.filter((r) => !type || r.entity.type === type);
   const shown = typed.filter((r) => !src || r.entity.source === src);
   const base = basePath(scope);
@@ -54,7 +54,7 @@ export async function WikiBrowser({ scope, query, source, type }: { scope: Scope
   };
 
   const pending = new Map<string, { proposed: number; conflict: boolean }>();
-  for (const i of (await app().views.reviewQueue(scope)).items) {
+  for (const i of (await (await app()).views.reviewQueue(scope)).items) {
     for (const e of i.entities) {
       const p = pending.get(e.id) ?? { proposed: 0, conflict: false };
       p.proposed++;
@@ -162,7 +162,7 @@ function Tab({ href, on, children }: { href: string; on: boolean; children: Reac
 
 /** Header for a wiki screen: title, page count, and the world's export. */
 export async function WikiHeader({ scope, title }: { scope: Scope; title: string }) {
-  const n = (await app().views.wiki(scope)).reduce((sum, g) => sum + g.entities.length, 0);
+  const n = (await (await app()).views.wiki(scope)).reduce((sum, g) => sum + g.entities.length, 0);
   const w = scope.world;
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">

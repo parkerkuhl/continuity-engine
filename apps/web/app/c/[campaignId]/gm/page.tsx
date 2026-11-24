@@ -7,7 +7,7 @@ const KIND_LABEL: Record<string, string> = { design: "Story design", clock: "Clo
 
 export default async function GmNotes({ params }: { params: Promise<{ campaignId: string }> }) {
   const scope = await campaignScope((await params).campaignId);
-  const notes = await app().views.gmNotes(scope);
+  const notes = await (await app()).views.gmNotes(scope);
   if (!notes) {
     return (
       <div className="mx-auto max-w-lg rounded-xl border border-dashed border-secret-line bg-secret-tint px-8 py-12 text-center">
