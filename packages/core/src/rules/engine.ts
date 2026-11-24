@@ -26,6 +26,7 @@ import {
   type UpdateStatus,
 } from "../enums";
 import { hasLevel2Heading } from "../markdown/sections";
+import { exportWorld, importWorld, type Files } from "../markdown/world";
 import { slugify } from "../slug";
 import type {
   Chapter,
@@ -707,14 +708,14 @@ export class RulesEngine {
     return out;
   }
 
-  async createWorld(input: { name: string; pitch?: string; depth: "compact" | "full"; approvalMode: Campaign["approvalMode"] }): Promise<Result<World>> {
+  async createWorld(input: { name: string; pitch?: string; depth: "compact" | "full"; approvalMode: Campaign["approvalMode"]; author?: "ai" | "user" }): Promise<Result<World>> {
     if (!input.name.trim()) return refuse("invalid", "A world needs a name.");
     if (!Depth.safeParse(input.depth).success) return refuse("invalid", 'depth must be "compact" or "full".');
     if (!ApprovalMode.safeParse(input.approvalMode).success) return refuse("invalid", "approval_mode must be review, batch, autopilot or mixed.");
     return ok(
       await this.storage.createWorld(
         { ownerId: await this.owner(), name: input.name.trim(), pitch: input.pitch ?? "", depth: input.depth, defaultApprovalMode: input.approvalMode },
-        AI("create_world"),
+        input.author === "user" ? { author: "user", reason: "web app" } : AI("create_world"),
       ),
     );
   }
@@ -831,7 +832,9 @@ export class RulesEngine {
     settings?: Campaign["settings"];
     approvalMode?: Campaign["approvalMode"];
     severityPolicy?: Campaign["severityPolicy"];
+    author?: "ai" | "user";
   }): Promise<Result<Campaign>> {
+    if (!input.name.trim()) return refuse("invalid", "A campaign needs a name.");
     const world = await this.storage.getWorld(input.worldId);
     if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
     const settings = CampaignSettings.safeParse(input.settings ?? {});
@@ -848,9 +851,24 @@ export class RulesEngine {
           approvalMode: input.approvalMode ?? world.defaultApprovalMode,
           ...(input.severityPolicy && { severityPolicy: input.severityPolicy }),
         },
-        AI("create_campaign"),
+        input.author === "user" ? { author: "user", reason: "web app" } : AI("create_campaign"),
       ),
     );
+  }
+
+  /** Markdown export of a world (SPEC "Page format and export layout"). */
+  async exportWorld(worldId: string): Promise<Result<Files>> {
+    if (!(await this.storage.getWorld(worldId))) return refuse("not_found", `No world ${worldId}.`);
+    return ok(await exportWorld(this.storage, worldId));
+  }
+
+  /** Import a world from its Markdown export, as the user. */
+  async importWorld(files: Files): Promise<Result<World>> {
+    try {
+      return ok(await importWorld(this.storage, files, { ownerId: await this.owner(), meta: { author: "user", reason: "imported from Markdown" } }));
+    } catch (e) {
+      return refuse("invalid", (e as Error).message);
+    }
   }
 
   /** Only during intake (before any scene is logged); later changes are voice rulings. */
@@ -939,19 +957,25 @@ export class RulesEngine {
     const open = await this.openSession(input.sessionId);
     if (!open.ok) return open;
     const { campaign } = open.value;
-    const hits = await this.storage.search(campaign.worldId, input.query, { campaignId: campaign.id, ...(input.type && { type: input.type }) });
-    if (input.view !== "player") return ok(hits);
-    const terms = (input.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+    return ok(await this.searchPages({ worldId: campaign.worldId, campaignId: campaign.id, query: input.query, view: input.view ?? "gm", ...(input.type && { type: input.type }) }));
+  }
+
+  /** Search shared by the MCP tool and the web app's wiki browser. */
+  async searchPages(input: { worldId: string; campaignId?: string | null; query: string; type?: Entity["type"]; view: "gm" | "player" }): Promise<{ entity: Entity; line: string }[]> {
+    const campaignId = input.campaignId ?? null;
+    const hits = await this.storage.search(input.worldId, input.query, { campaignId, ...(input.type && { type: input.type }) });
+    if (input.view !== "player") return hits;
+    const terms = input.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
     const out = [];
     for (const h of hits) {
-      const page = (await this.storage.getPage(h.entity.id, { campaignId: campaign.id }))!;
+      const page = (await this.storage.getPage(h.entity.id, { campaignId }))!;
       const visible = [page.name, ...page.aliases, page.summary, ...page.sections.filter((s) => s.visibility === "public").flatMap((s) => [s.heading, s.bodyMd])]
         .join(" ")
         .toLowerCase();
       const words = visible.match(/[\p{L}\p{N}]+/gu) ?? [];
       if (terms.every((t) => words.some((w) => w.startsWith(t)))) out.push(h);
     }
-    return ok(out);
+    return out;
   }
 
   /** The PC's entity, from the PC sheet's name. Drives the player view. */
@@ -1067,17 +1091,50 @@ export class RulesEngine {
     return ok(await this.storage.updateCampaign(campaignId, { approvalMode: mode, ...(policy && { severityPolicy: policy }) }, { author: "user" }));
   }
 
+  /** The spoiler toggle. It only changes what the web app shows; Claude always reads the GM view. */
+  async setSpoilers(campaignId: string, on: boolean): Promise<Result<Campaign>> {
+    const c = await this.storage.getCampaign(campaignId);
+    if (!c) return refuse("not_found", `No campaign ${campaignId}.`);
+    if (c.spoilersOn === on) return ok(c);
+    return ok(await this.storage.updateCampaign(campaignId, { spoilersOn: on }, { author: "user", reason: on ? "spoilers on" : "spoilers off" }));
+  }
+
+  /** Edit a proposed update in the review queue before approving it. */
+  async userEditUpdate(updateId: string, patch: { body?: string; severity?: Update["severity"] }): Promise<Result<Update>> {
+    const u = await this.storage.getUpdate(updateId);
+    if (!u) return refuse("not_found", `No update ${updateId}.`);
+    if (u.status !== "proposed") return refuse("invalid", `Update #${u.seq} is ${u.status}; only proposed updates can be edited here.`);
+    if (patch.body !== undefined && !patch.body.trim()) return refuse("invalid", "An update needs some text.");
+    if (patch.severity && !Severity.safeParse(patch.severity).success) return refuse("invalid", "Severity is minor or major.");
+    if (patch.severity === "minor" && FORCED_MAJOR_TYPES.has(u.type)) return refuse("invalid", `A ${u.type} update is always major.`);
+    return ok(
+      await this.storage.updateUpdate(u.id, { ...(patch.body !== undefined && { bodyMd: patch.body }), ...(patch.severity && { severity: patch.severity }) }, { author: "user", reason: "edited in review" }),
+    );
+  }
+
+  /** Bulk-approve every proposed minor update that isn't parked in a conflict. */
+  async approveAllMinor(campaignId: string): Promise<Result<Update[]>> {
+    const queue = await this.reviewQueue(campaignId);
+    const out: Update[] = [];
+    for (const u of queue.filter((x) => x.severity === "minor" && !x.conflictsWith)) {
+      const r = await this.approveUpdate(u.id);
+      if (r.ok) out.push(r.value);
+    }
+    return ok(out);
+  }
+
   /** Proposed updates for the review queue, conflicts pinned on top. */
   async reviewQueue(campaignId: string): Promise<Update[]> {
     const proposed = await this.storage.listUpdates(campaignId, { status: ["proposed"] });
     return [...proposed.filter((u) => u.conflictsWith), ...proposed.filter((u) => !u.conflictsWith)];
   }
 
-  /** Restore an entity, section or update to the state recorded in a version. Writes a new version. */
-  async restoreVersion(versionId: string, editKind: "retcon" | "forward"): Promise<Result<unknown>> {
+  /** Restore an entity, section or update to the state recorded in a version (or the state before it). Writes a new version. */
+  async restoreVersion(versionId: string, editKind: "retcon" | "forward", side: "after" | "before" = "after"): Promise<Result<unknown>> {
     const v = await this.storage.getVersion(versionId);
     if (!v) return refuse("not_found", `No version ${versionId}.`);
-    const state = (v.after ?? v.before) as Record<string, unknown> | null;
+    // "after" restores the state this version wrote; "before" undoes it.
+    const state = (side === "before" ? v.before : (v.after ?? v.before)) as Record<string, unknown> | null;
     if (!state) return refuse("invalid", "That version has no recorded state.");
     const meta: WriteMeta = { author: "user", editKind, reason: `restored version ${v.id}` };
     switch (v.objectType) {

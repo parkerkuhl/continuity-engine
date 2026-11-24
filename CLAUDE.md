@@ -41,7 +41,7 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 | `src/storage/types.ts` | The `Storage` interface. The only API the rest of the code uses |
 | `src/storage/sqlite.ts` | SQLite implementation |
 | `src/markdown/` | Entity page format (front matter + `##` sections) and world export/import |
-| `src/rules/` | Rules engine (`engine.ts`), precedence and context assembly (`precedence.ts`), refusal values (`result.ts`) |
+| `src/rules/` | Rules engine (`engine.ts`), precedence and context assembly (`precedence.ts`), refusal values (`result.ts`), web read models and the player view (`views.ts`) |
 
 ### apps/mcp layout
 
@@ -53,6 +53,16 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 | `build.mjs` | esbuild bundle to `dist/bin/server.js`, migrations copied to `dist/drizzle` |
 | `README.md` | Build and Claude Desktop setup |
 
+### apps/web layout
+
+| Path | What it holds |
+| --- | --- |
+| `lib/server.ts` | The one `RulesEngine` + `WebViews` per process, on `CONTINUITY_DB`; world and campaign scopes |
+| `app/actions.ts` | Server actions; each calls `RulesEngine` or `WebViews` only |
+| `app/` | Routes: `/` home, `/w/[worldId]` world wiki, `/c/[campaignId]` dashboard, `wiki`, `e/[slug]`, `review`, `gm` |
+| `components/` | Wiki browser, entity view, inline editor with the edit-confirm step, scope bar with the spoiler toggle |
+| `e2e/run.mjs` | Browser run of the M5 acceptance checks against the real MCP server and `next start` |
+
 ## Conventions
 
 - **Writes:** every `Storage` write method takes a `WriteMeta` (`author: ai | user`, optional `editKind: retcon | forward`, optional `reason`) and runs in one transaction that also inserts exactly one `versions` row. A failed write rolls back and leaves no `versions` row.
@@ -62,6 +72,7 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 - **Export layout** (SPEC "Page format and export layout"): `worlds/<world-slug>/00-load-guide.md` is generated and carries the world's own fields in its front matter. Entities go to `characters/`, `places/`, `factions/`, `items/`, `setting/` (concept and rule), and `events/` (event). Concept entities with slug `glossary` or `timeline` go to the world root as `glossary.md` and `timeline.md`.
 - **Bookkeeping is not content:** sessions, reads and `campaigns.last_session_at` (all written by `openSession`/`recordReads`/`closeSession`) and the FTS index write no `versions` row.
 - **Rules engine** (`src/rules/`): `RulesEngine` checks every rule before writing anything. AI calls carry a session id from `openCampaign`; user calls are the web app's. AI page edits during play apply directly to the page (an existing section is changed where it lives; a new section joins the entity's own layer), and every change, AI or user, shows in `RulesEngine.changelog` (built from `versions`). Tags are a fixed set of types for now: a `ch-NN` time tag or an entity (character, place, faction, item, event, concept, rule); `log_scene` results report each tag's type. Free-form tags are planned for later. `updates.conflicts_with` (added in M2 with Parker's OK; not yet in the SPEC data model table) links a parked update to the update or locked section it clashes with.
+- **Player view** (`WebViews`, spoilers off): public sections, plus secret sections and updates with the PC (the entity named on the PC sheet) as a knower; no GM notes. A campaign keeps its toggle in `campaigns.spoilers_on`; world-only screens use a cookie. The review queue follows the toggle too.
 - **Tests** live in `packages/core/test`, run against an in-memory database, and are named after the acceptance check they cover.
 
 ## Commands
@@ -72,6 +83,8 @@ pnpm test          # all packages
 pnpm typecheck
 pnpm --filter @continuity/core db:generate   # after changing src/schema.ts
 pnpm --filter @continuity/mcp build          # bundle the MCP server for Claude Desktop
+pnpm --filter @continuity/web dev            # web app on http://localhost:3100
+pnpm --filter @continuity/web e2e            # browser acceptance run (build mcp and web first)
 ```
 
 ## Milestones
@@ -79,16 +92,21 @@ pnpm --filter @continuity/mcp build          # bundle the MCP server for Claude 
 - [x] **Milestone 1, Storage core** (done 2026-11-23, PR #2): monorepo scaffold, Drizzle schema and migrations, storage interface, one `versions` row per write, alias resolution, FTS5 search, Markdown export and import of a world.
 - [x] **Milestone 2, Rules engine** (done 2026-11-24, PR #3): sessions and reads, every server-enforced rule, changelog, tag types.
 - [x] **Milestone 3, MCP server (local)** (accepted 2026-11-24, PR #4; Parker still runs the Claude Desktop check by hand): stdio server with every SPEC tool, `GM ONLY` block, README setup.
-- [ ] **Milestone 4, Prompt modules** (current)
-- [ ] Milestones 5 to 8: see SPEC "Build plan".
+- [x] **Milestone 4, Prompt modules** (accepted 2026-11-24, PR #5; Parker still plays the test chapter by hand): the four modules in `prompts/`, plus `update_campaign` and a fuller `open_campaign` (SPEC.md updated with Parker's OK).
+- [ ] **Milestone 5, Web app** (current)
+- [ ] Milestones 6 to 8: see SPEC "Build plan".
 
-## Current milestone: Milestone 4, Prompt modules
+## Prompt modules (Milestone 4)
 
-Scope: the four GM prompt modules in `prompts/` (SPEC "GM prompt refactor"): `00-protocol.md` (when to call each tool, always loaded), `10-worldbuilding.md` (Phase 0 paths A, B, C), `20-intake.md` (Phases 1 and 2, hidden story design), `30-play.md` (priority order, narration, interior voice, voice audit, companions, mechanics, OOC commands). The storytelling rules come from the existing GM prompt; its storage duties (ledger, chapter-end restatement, file-read tracking, load-guide lookup, save blocks) are removed because the server does them. `(OOC) save` confirms the last scene is logged; `ledger`, `recap`, `rulings`, `sheet` and `canon` call the tools (player view where answers are limited to what the character knows).
+`prompts/` holds the GM prompt as four modules (SPEC "GM prompt refactor"): `00-protocol.md` (when to call each tool, always loaded), `10-worldbuilding.md` (Phase 0), `20-intake.md` (Phases 1 and 2, hidden story design), `30-play.md` (play rules and OOC commands). The storytelling rules come from Parker's GM prompt; its storage duties live in the server. Added in M4 with Parker's OK (SPEC.md updated): an `update_campaign` tool (settings, as-of moment, PC sheet outside a scene), and `open_campaign` also returns every ruling and this chapter's logged scenes. `close_chapter` restarts the voice-audit scene count, since the play module audits at every chapter opening. Every tool name, argument and enum value a module mentions in a code span must match `apps/mcp/src/server.ts`; `apps/mcp/test/m4-prompts.test.ts` checks this.
 
-Added in M4 with Parker's OK (SPEC.md updated): an `update_campaign` tool (settings, as-of moment, PC sheet outside a scene), and `open_campaign` also returns every ruling and this chapter's logged scenes. `close_chapter` restarts the voice-audit scene count, since the play module audits at every chapter opening. Every tool name, argument and enum value a module mentions in a code span must match `apps/mcp/src/server.ts`; `apps/mcp/test/m4-prompts.test.ts` checks this.
+## Current milestone: Milestone 5, Web app
 
-Acceptance checks (Parker plays one short chapter by hand):
+Scope: a local Next.js app in `apps/web` with the screens in SPEC "Web app screens" (home, wiki browser, entity page, edit confirm, review queue, campaign dashboard, GM notes), reading the same SQLite file as the MCP server through `packages/core` only. The spoiler toggle sits in the top bar on every campaign screen and defaults to off.
 
-- [ ] Every scene in the chapter was logged without a reminder
-- [ ] A new chat resumes the campaign from `open_campaign` alone, with no save block
+Acceptance checks:
+
+- [ ] Editing a section locks it, and an AI write to it is then refused
+- [ ] A user edit appears in the next `open_campaign` change feed with its edit kind
+- [ ] Approving in the review queue flips the update to confirmed; restore from history works
+- [ ] Spoiler toggle off hides secret sections, `gm/` notes, and updates the PC doesn't know

@@ -8,3 +8,4 @@ export { exportWorld, importWorld, readFiles, writeFiles, entityPath, renderLoad
 export * from "./rules/result";
 export * from "./rules/precedence";
 export * from "./rules/engine";
+export * from "./rules/views";
