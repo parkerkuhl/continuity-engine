@@ -2,13 +2,13 @@
 //
 //   node eval/run.mjs [--arm wiki|plain|both] [--scenes 01,04] [--model claude-opus-5-5] [--effort high] [--out eval/runs/<stamp>]
 //
-// Needs ANTHROPIC_API_KEY in the environment and a built MCP server (pnpm --filter @continuity/mcp build).
+// Needs EVAL_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) in the environment and a built MCP server (pnpm --filter @continuity/mcp build).
 //
 // Each scene starts fresh from the same chapter-1 state, so the ten scenes are independent tests of the twenty facts:
 //   wiki arm:  a new database seeded by seed.mjs, the four prompt modules as the system prompt, every MCP tool.
 //   plain arm: Parker's original GM prompt as the system prompt, the save block pasted as the first message, no tools.
 // Both arms then get the same player turns, word for word, ending with "(OOC) Let's end the scene here."
-import Anthropic from "@anthropic-ai/sdk";
+import { makeClient } from "./lib/client.mjs";
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -172,8 +172,7 @@ export function transcriptMd(run) {
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("Set ANTHROPIC_API_KEY first (Project settings, environment variables).");
-  const client = new Anthropic();
+  const client = makeClient();
   const scenes = loadScenes(o.scenes);
   const arms = o.arm === "both" ? ["wiki", "plain"] : [o.arm];
   mkdirSync(o.out, { recursive: true });

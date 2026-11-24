@@ -5,7 +5,7 @@ The continuity test from SPEC "Evaluation". Twenty facts (`facts.md`) and ten te
 ```
 pnpm install
 pnpm --filter @continuity/mcp build
-export ANTHROPIC_API_KEY=...            # set it in the environment; never paste it into a chat
+export EVAL_ANTHROPIC_API_KEY=...       # or ANTHROPIC_API_KEY; set it in the environment, never paste it into a chat
 node eval/run.mjs --arm both            # writes eval/runs/<stamp>/{wiki,plain}-NN.{json,md}
 node eval/score.mjs eval/runs/<stamp>   # LLM judge, writes scores.json and eval/RESULTS.md
 ```

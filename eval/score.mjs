@@ -5,7 +5,7 @@
 // A judge model reads each scene's narration (never the tool calls, so the wiki arm gets no credit for what it read
 // but didn't use) and scores every fact the scene tests as honored, violated or not_tested, with a short quote.
 // Its verdicts land in <run>/scores.json; review them against the transcripts before trusting RESULTS.md.
-import Anthropic from "@anthropic-ai/sdk";
+import { makeClient } from "./lib/client.mjs";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { repo } from "./lib/mcp.mjs";
@@ -136,7 +136,7 @@ async function main() {
     .filter((f) => /^(wiki|plain)-\d\d\.json$/.test(f))
     .sort()
     .map((f) => JSON.parse(readFileSync(join(runDir, f), "utf8")));
-  const client = new Anthropic();
+  const client = makeClient();
   const scores = [];
   for (const run of runs) {
     process.stderr.write(`judging ${run.arm}-${run.scene} ... `);
