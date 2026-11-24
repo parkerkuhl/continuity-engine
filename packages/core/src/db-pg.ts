@@ -4,6 +4,8 @@
  * - `postgres://…` / `postgresql://…`: a real server (Supabase in production) through postgres-js.
  *   With Supabase's transaction pooler (port 6543) prepared statements must be off; set
  *   `CONTINUITY_PG_PREPARE=0` or use a URL with `?prepare=false`.
+ * The migrations name no schema (generated `"public".` prefixes are stripped), so tables land in the
+ * connection's search_path; the hosted app's role defaults to the `continuity` schema.
  * - `pglite:` (in memory) or `pglite:<dir>`: embedded Postgres, for tests and local runs with no server.
  */
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
