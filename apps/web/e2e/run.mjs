@@ -213,7 +213,7 @@ try {
     await item.getByRole("button", { name: "Approve" }).click();
     await item.waitFor({ state: "detached" }); // approved updates leave the queue
     await page.goto(`${C}/e/rickard-snow`);
-    const upd = page.locator("aside li", { hasText: "Rickard limps on his left leg." });
+    const upd = page.locator("section[aria-labelledby=updates-h] li", { hasText: "Rickard limps on his left leg." });
     expect(/confirmed/i.test(await upd.innerText()), "approved update isn't confirmed on the entity page");
 
     const c = await claude();

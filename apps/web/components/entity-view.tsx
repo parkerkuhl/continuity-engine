@@ -415,32 +415,9 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
             </section>
           )}
 
-          <section id="add-section" className="card scroll-mt-6">
-            <h2 className="card-title">Add a section</h2>
-            <ConfirmedForm
-              action={addSection}
-              hidden={hidden}
-              submit="Add section"
-              trigger="Add section"
-              triggerClass="btn-primary btn-sm mt-3"
-              context={`${page.name} · new section`}
-              note="The new section is locked against GM edits, and the GM sees it at the start of the next session."
-            >
-              <div className="mt-3 grid gap-2">
-                <input name="heading" placeholder="Heading" className="input" aria-label="New section heading" required />
-                <textarea name="body" rows={4} placeholder="Markdown" className="input font-serif text-base" aria-label="New section body" />
-                <label className="flex items-center gap-2 text-[13px] text-muted">
-                  <input type="checkbox" name="visibility" value="secret" className="accent-accent" /> Secret (hidden in player view)
-                </label>
-              </div>
-            </ConfirmedForm>
-          </section>
-        </article>
-
-        <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
           {scope.campaign && (
-            <section className="card-sm flex flex-col gap-3">
-              <h2 id="updates-h" className="text-[15px] font-semibold">
+            <section className="card flex flex-col gap-3" aria-labelledby="updates-h">
+              <h2 id="updates-h" className={TITLE}>
                 Updates to this page
               </h2>
               {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
@@ -464,6 +441,29 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
             </section>
           )}
 
+          <section id="add-section" className="card scroll-mt-6">
+            <h2 className="card-title">Add a section</h2>
+            <ConfirmedForm
+              action={addSection}
+              hidden={hidden}
+              submit="Add section"
+              trigger="Add section"
+              triggerClass="btn-primary btn-sm mt-3"
+              context={`${page.name} · new section`}
+              note="The new section is locked against GM edits, and the GM sees it at the start of the next session."
+            >
+              <div className="mt-3 grid gap-2">
+                <input name="heading" placeholder="Heading" className="input" aria-label="New section heading" required />
+                <textarea name="body" rows={4} placeholder="Markdown" className="input font-serif text-base" aria-label="New section body" />
+                <label className="flex items-center gap-2 text-[13px] text-muted">
+                  <input type="checkbox" name="visibility" value="secret" className="accent-accent" /> Secret (hidden in player view)
+                </label>
+              </div>
+            </ConfirmedForm>
+          </section>
+        </article>
+
+        <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
           {scope.campaign && (
             <section className="card-sm flex flex-col gap-2.5">
               <h2 className="text-[15px] font-semibold">Appearances</h2>
