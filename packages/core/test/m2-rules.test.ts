@@ -3,8 +3,8 @@
 //  - A write refused by a rule changes nothing in storage
 // Each `describe` below is one rule. Refused paths compare a dump of every table before and after.
 import { describe, expect, it } from "vitest";
-import { RulesEngine, SqliteStorage, formatChangelog, type Campaign, type UpdateInput } from "../src";
-import { AI, USER, seed, setup } from "./helpers";
+import { RulesEngine, formatChangelog, type Campaign, type UpdateInput } from "../src";
+import { AI, USER, seed, setup, type TestStorage } from "./helpers";
 
 async function game(approvalMode: Campaign["approvalMode"] = "autopilot") {
   const base = await setup();
@@ -26,12 +26,12 @@ const fact = (over: Partial<UpdateInput> = {}): UpdateInput => ({
 });
 
 /** Assert that `fn` is refused with `rule` and that no table changed. */
-async function expectRefusedNoChange(storage: SqliteStorage, rule: string, fn: () => Promise<{ ok: boolean; refusal?: { rule: string } }>) {
-  const before = storage.dump();
+async function expectRefusedNoChange(storage: TestStorage, rule: string, fn: () => Promise<{ ok: boolean; refusal?: { rule: string } }>) {
+  const before = (await storage.dump());
   const r = await fn();
   expect(r.ok).toBe(false);
   expect(r.refusal!.rule).toBe(rule);
-  expect(storage.dump()).toEqual(before);
+  expect((await storage.dump())).toEqual(before);
   return r as { ok: false; refusal: { rule: string; message: string; suggestions?: string[] } };
 }
 
@@ -411,8 +411,8 @@ describe("Rule: unlogged scenes", () => {
     if (!next.ok) throw new Error();
     expect(next.value.warnings).toEqual([]);
     expect(next.value.scene.number).toBe(2);
-    const scenes = g.storage.dump().scenes as { number: number; logged_at: string | null }[];
-    expect(scenes.map((sc) => [sc.number, sc.logged_at !== null])).toEqual([
+    const scenes = (await g.storage.dump()).scenes as { number: number; logged_at: string | null }[];
+    expect([...scenes].sort((a, b) => a.number - b.number).map((sc) => [sc.number, sc.logged_at !== null])).toEqual([
       [1, true],
       [2, false],
     ]);
@@ -505,7 +505,7 @@ describe("Acceptance: a write refused by a rule changes nothing in storage", () 
     expect(r.value.results.map((x) => x.ok)).toEqual([true, false]);
     const stored = await g.storage.listUpdates(g.campaign.id);
     expect(stored.map((u) => u.bodyMd)).toEqual(["Kept."]);
-    const dump = g.storage.dump();
+    const dump = (await g.storage.dump());
     expect(dump.knowledge).toEqual([]);
     expect((dump.versions as { object_type: string }[]).filter((v) => v.object_type === "update")).toHaveLength(1);
   });

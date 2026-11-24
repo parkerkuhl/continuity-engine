@@ -1,6 +1,6 @@
 // Milestone 1 acceptance: "Every write produces exactly one versions row".
 import { describe, expect, it } from "vitest";
-import { SqliteStorage, type Storage } from "../src";
+import { PgStorage, SqliteStorage, type Storage } from "../src";
 import { AI, USER, seed, setup } from "./helpers";
 
 type Ctx = Awaited<ReturnType<typeof setup>> & Awaited<ReturnType<typeof seed>>;
@@ -152,8 +152,11 @@ async function ctx(): Promise<Ctx> {
 }
 
 describe("M1: every write produces exactly one versions row", () => {
-  it("the table below covers every write method on Storage", () => {
-    const methods = Object.getOwnPropertyNames(SqliteStorage.prototype).filter((m) => m !== "constructor" && !m.startsWith("require"));
+  it.each([
+    ["SqliteStorage", SqliteStorage],
+    ["PgStorage", PgStorage],
+  ])("the table below covers every write method on %s", (_name, impl) => {
+    const methods = Object.getOwnPropertyNames(impl.prototype).filter((m) => m !== "constructor" && !m.startsWith("require"));
     const writes = methods.filter((m) => !READ_ONLY.test(m) && !BOOKKEEPING.includes(m) && !PRIVATE.includes(m));
     expect(writes.sort()).toEqual(WRITES.map((w) => w.method).sort());
   });
