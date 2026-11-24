@@ -50,6 +50,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
           Rulings <span className="text-xs text-nav-muted">{d!.rulings.length}</span>
         </NavLink>
         <NavLink href={`${base}#chapters`}>Chapters</NavLink>
+        <NavLink href={`${base}#voice`}>Voice</NavLink>
         <NavLink href={base} exact>
           Campaign settings
         </NavLink>

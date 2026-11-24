@@ -210,6 +210,19 @@ export async function approveAllMinor(_: ActionState, f: FormData): Promise<Acti
 
 // ---------------- campaign dashboard ----------------
 
+export async function editVoiceAnchor(_: ActionState, f: FormData): Promise<ActionState> {
+  const avoid = str(f, "avoidList");
+  const r = await (await app()).engine.editVoiceAnchor({
+    campaignId: req(f, "campaignId"),
+    sample: req(f, "sample"),
+    ...(str(f, "profile") !== undefined && { profile: str(f, "profile") }),
+    ...(str(f, "interiorLevel") !== undefined && { interiorLevel: str(f, "interiorLevel") }),
+    ...(avoid !== undefined && { avoidList: avoid.split("\n") }),
+  });
+  if (!r.ok) return fail(r.refusal.message);
+  return done(f, "Voice saved. The GM checks every scene against it from the next one.");
+}
+
 export async function setApprovalMode(_: ActionState, f: FormData): Promise<ActionState> {
   const mode = req(f, "mode") as "review" | "batch" | "autopilot" | "mixed";
   const minor = str(f, "minor") as "review" | "batch" | "autopilot" | undefined;

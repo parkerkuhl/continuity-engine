@@ -270,6 +270,26 @@ try {
     expect(ivo.isError, "Claude can still read the rejected page");
   });
 
+  await check("Voice: editing the sample in campaign settings reaches Claude in open_campaign and every get_context", async () => {
+    await page.goto(C);
+    const card = page.locator("section#voice");
+    expect((await card.innerText()).includes("Rain came off the Black Wall"), "the stored sample isn't shown");
+    await card.getByText("Edit voice").click();
+    await card.getByRole("textbox", { name: /Sample/ }).fill("Snow fell on the Black Wall, and nobody counted it.");
+    await card.getByRole("textbox", { name: /Avoid/ }).fill("neat closing lines\nepigrams");
+    await card.getByRole("button", { name: "Save voice" }).click();
+    await page.getByText("Voice saved.").waitFor();
+    await page.reload();
+    await shot("11-voice-settings");
+    const c = await claude();
+    const opened = await c.call("open_campaign", { campaign_id: campaignId });
+    const ctx = await c.call("get_context", { campaign_id: campaignId, present: ["Rickard Snow"] });
+    await c.close();
+    expect(opened.text.includes("voice anchor (write against the new version"), "the voice edit isn't in the change feed");
+    expect(ctx.text.includes("> Snow fell on the Black Wall, and nobody counted it."), `get_context lacks the new sample:\n${ctx.text.slice(0, 1200)}`);
+    expect(ctx.text.includes("Avoid: neat closing lines; epigrams"), "get_context lacks the avoid list");
+  });
+
   await page.goto(`${C}/wiki`);
   await shot("08-wiki-browser");
   await page.goto(`${BASE}/w/${worldId}`);
@@ -289,4 +309,4 @@ try {
 if (process.env.E2E_LOG) console.log(server.log());
 for (const [name, ok, why] of results) console.log(`${ok ? "PASS" : "FAIL"}  ${name}${why ? `\n      ${why}` : ""}`);
 console.log(`Screenshots: ${out}`);
-process.exit(results.every(([, ok]) => ok) && results.length === 5 ? 0 : 1);
+process.exit(results.every(([, ok]) => ok) && results.length === 6 ? 0 : 1);

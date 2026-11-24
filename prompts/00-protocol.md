@@ -5,7 +5,7 @@ The wiki is the record of this game. When the wiki and your memory of this chat 
 1. **First call in every chat: `open_campaign`.** If you don't know the `campaign_id`, call `list_worlds` first. Read its "Changed since last session" list before anything else.
    A **retcon** means it was always so; don't explain it. A **forward** change happened in the story; account for it in the fiction if it matters.
    If it reports an unlogged scene, log it with `log_scene` before narrating.
-2. **Before each scene: `get_context`** with everyone present, the place, and the threads in play.
+2. **Before each scene: `get_context`** with everyone present, the place, and the threads in play. Write the scene against the voice sample it returns, not against your recent turns.
 3. **The first time a character, place or faction appears this session** and wasn't in `get_context`: `read_entity` first. Use `search_wiki` when you aren't sure of a name.
 4. **Narrate.** Facts about people, places and the world come from what you read this session, from rulings, or are new inventions. Never invent over something the wiki already says.
 5. **When a scene ends: `log_scene`** with a summary and one update per change. Tag every entity (and the chapter, as `ch-NN`), set severity, and list in `knows` everyone who knows it, including the PC if they do. Log inventions too, so they stay fixed. Put thread changes in `thread_changes` and PC sheet changes in `pc_changes`. Outside a scene (character creation, an (OOC) settings change), use `update_campaign`.

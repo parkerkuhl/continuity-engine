@@ -123,6 +123,8 @@ Scope and checks: SPEC "Milestone 8". Setup and layout: `docs/remote.md`.
 - **Web remote mode** (`CONTINUITY_DATABASE_URL` set): `app()` is per request and scoped to the Supabase user; `middleware.ts` sends signed-out visitors to `/login`. Without it the web app is the local M5 app.
 - **M7 follow-ups (fixed in M8 with Parker's OK):** `get_context`/`read_entity` put updates the PC doesn't know (and what an NPC knows that the PC doesn't) in the GM ONLY block (`assembleEntityContext` takes the PC id); the protocol module tells the GM to read every entity it will update before `log_scene`.
 
+- **Voice sample (added after the M8 build with Parker's OK, SPEC updated):** the campaign dashboard ("Campaign settings") has a Voice card where the user reads and edits the voice anchor (`RulesEngine.editVoiceAnchor`, allowed at any time, keeps voice rulings and the audit count). `get_context` returns the anchor so Claude writes every scene against the sample; `log_scene` sets `voiceAuditDue` every `VOICE_AUDIT_SCENES` (4) scenes; a user edit shows in the changelog and the `open_campaign` change feed (the audit-count bookkeeping alone does not).
+
 Acceptance checks:
 
 - [x] The core test suite passes on both SQLite and Postgres
