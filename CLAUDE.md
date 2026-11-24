@@ -125,8 +125,8 @@ Scope and checks: SPEC "Milestone 8". Setup and layout: `docs/remote.md`.
 
 Acceptance checks:
 
-- [ ] The core test suite passes on both SQLite and Postgres
-- [ ] Claude on claude.ai adds the server as a custom connector, signs in, and can open a campaign, get context and log a scene
-- [ ] A second account can't see or change the first account's worlds, through the connector or the web app
-- [ ] The hosted web app needs sign-in
-- [ ] The local setup (Claude Desktop plus SQLite) still works unchanged
+- [x] The core test suite passes on both SQLite and Postgres
+- [ ] Claude on claude.ai adds the server as a custom connector, signs in, and can open a campaign, get context and log a scene (hosted sign-in and connector link confirmed 2026-11-24; play not yet run on the hosted server)
+- [x] A second account can't see or change the first account's worlds, through the connector or the web app
+- [x] The hosted web app needs sign-in
+- [x] The local setup (Claude Desktop plus SQLite) still works unchanged
