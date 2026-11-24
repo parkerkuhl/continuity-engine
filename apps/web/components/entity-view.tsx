@@ -217,7 +217,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
     return (
       <li
         key={u.id}
-        className={`flex items-start gap-3 rounded-[10px] border px-3 py-2.5 ${proposed ? "border-warn-line bg-warn-tint" : "border-line"} ${gone ? "text-faint" : ""}`}
+        className={`flex flex-col gap-2 rounded-[10px] sm:flex-row sm:items-start sm:gap-3 border px-3 py-2.5 ${proposed ? "border-warn-line bg-warn-tint" : "border-line"} ${gone ? "text-faint" : ""}`}
       >
         <details className="group min-w-0 flex-1">
           <summary className="flex cursor-pointer list-none flex-col gap-0.5 [&::-webkit-details-marker]:hidden">
