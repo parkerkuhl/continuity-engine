@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Scope } from "@continuity/core";
-import { approvePage, rejectPage } from "@/app/actions";
+import { approvePage, approvePages, rejectPage } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { TYPE_LABEL } from "./wiki-browser";
@@ -14,8 +14,15 @@ export async function PageQueue({ scope, path }: { scope: Scope; path: string })
     <section aria-label="New pages" className="overflow-hidden rounded-xl border border-line bg-surface">
       <div className="flex items-center justify-between gap-3 border-b border-line bg-subtle px-5 py-3 text-[13px] text-muted">
         <span>New pages the GM drafted</span>
-        <span>
+        <span className="flex items-center gap-3">
           {pages.length} waiting
+          <ActionForm action={approvePages} className="flex flex-col items-end">
+            {pages.map(({ entity: e }) => (
+              <input key={e.id} type="hidden" name="entityId" value={e.id} />
+            ))}
+            <input type="hidden" name="path" value={path} />
+            <button className="btn-primary btn-sm">Approve all pages ({pages.length})</button>
+          </ActionForm>
         </span>
       </div>
       <ul>

@@ -14,7 +14,7 @@ const MODE: Record<string, [string, string]> = {
   autopilot: ["Autopilot", "Only conflicts wait here; everything else went straight to canon."],
   mixed: ["Mixed by severity", "Each update follows the rule for its severity."],
 };
-const FILTERS = ["all", "conflicts", "major", "minor"] as const;
+const FILTERS = ["all", "conflicts", "major", "minor", "pages"] as const;
 
 export default async function Review({ params, searchParams }: { params: Promise<{ campaignId: string }>; searchParams: Promise<{ filter?: string }> }) {
   const { campaignId } = await params;
@@ -27,8 +27,10 @@ export default async function Review({ params, searchParams }: { params: Promise
   const conflicts = items.filter((i) => i.update.conflictsWith);
   const rest = items.filter((i) => !i.update.conflictsWith);
   const minor = rest.filter((i) => i.update.severity === "minor").length;
-  const counts = { all: items.length, conflicts: conflicts.length, major: items.filter((i) => i.update.severity === "major").length, minor: items.filter((i) => i.update.severity === "minor").length };
+  const counts = { all: items.length + pages.length, pages: pages.length, conflicts: conflicts.length, major: items.filter((i) => i.update.severity === "major").length, minor: items.filter((i) => i.update.severity === "minor").length };
   const keep = (i: (typeof items)[number]) => f === "all" || (f === "conflicts" ? !!i.update.conflictsWith : i.update.severity === f);
+  const showPages = f === "all" || f === "pages";
+  const showUpdates = f !== "pages";
   const [modeName, modeNote] = MODE[c.approvalMode] ?? ["", ""];
   const n = items.length;
 
@@ -55,7 +57,7 @@ export default async function Review({ params, searchParams }: { params: Promise
 
       <div role="group" aria-label="Filter" className="-mt-1 flex flex-wrap gap-2">
         {FILTERS.map((k) => {
-          const label = { all: "All", conflicts: "Conflicts", major: "Major", minor: "Minor" }[k];
+          const label = { all: "All", conflicts: "Conflicts", major: "Major updates", minor: "Minor updates", pages: "New pages" }[k];
           const on = f === k;
           const cls = on ? "chip-on" : k === "conflicts" && counts.conflicts ? "chip border-danger-border font-semibold text-danger" : "chip";
           return (
@@ -66,9 +68,9 @@ export default async function Review({ params, searchParams }: { params: Promise
         })}
       </div>
 
-      <PageQueue scope={scope} path={path} />
+      {showPages && <PageQueue scope={scope} path={path} />}
 
-      {hidden > 0 && (
+      {showUpdates && hidden > 0 && (
         <p className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-5 py-3 text-muted">
           {hidden} proposed update{hidden === 1 ? "" : "s"} the PC doesn&apos;t know {hidden === 1 ? "is" : "are"} hidden. Switch to GM view to review {hidden === 1 ? "it" : "them"}.
         </p>
@@ -137,7 +139,11 @@ export default async function Review({ params, searchParams }: { params: Promise
         </section>
       )}
 
-      {items.length === 0 && hidden === 0 && pages.length === 0 && <p className="text-muted">Nothing to review.</p>}
+      {items.length === 0 && hidden === 0 && pages.length === 0 ? (
+        <p className="text-muted">Nothing to review.</p>
+      ) : (
+        f !== "all" && counts[f as keyof typeof counts] === 0 && <p className="text-muted">Nothing here. <Link href={path} className="link">Show all</Link></p>
+      )}
     </>
   );
 }
