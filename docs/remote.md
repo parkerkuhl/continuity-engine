@@ -56,6 +56,11 @@ REVOKE ALL ON SCHEMA continuity FROM anon, authenticated, public;
 Authentication, URL Configuration: set **Site URL** to the production URL and add
 `<production URL>/auth/callback` to **Redirect URLs**. Without this the sign-in email links to localhost.
 
+Authentication, Emails, **Magic Link** template: make the link
+`<a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">Sign in</a>`
+so the link works in any browser or device. (The default `{{ .ConfirmationURL }}` link uses a PKCE code,
+which only works in the browser that asked for it; `/auth/callback` still accepts it.)
+
 ## Adding the connector in Claude
 
 Settings, Connectors, Add custom connector, URL `<production URL>/mcp`. Claude registers itself, opens the
