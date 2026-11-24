@@ -116,10 +116,37 @@ export interface ImportItemInput {
   sections?: { heading: string; body: string; key?: string; visibility?: "public" | "secret" }[];
 }
 
-interface PendingImport {
+export interface PendingImport {
   worldId: string;
   title: string;
   entities: ImportItemInput[];
+}
+
+/**
+ * Where import_document keeps a pending import until confirm_import. In memory by default; the remote
+ * server (M8) is stateless between requests, so it passes a store backed by the database.
+ */
+export interface ImportStore {
+  get(id: string): Promise<PendingImport | null>;
+  set(id: string, value: PendingImport): Promise<void>;
+  delete(id: string): Promise<void>;
+  listForWorld(worldId: string): Promise<[string, PendingImport][]>;
+}
+
+export function memoryImportStore(): ImportStore {
+  const m = new Map<string, PendingImport>();
+  return {
+    get: async (id) => m.get(id) ?? null,
+    set: async (id, v) => void m.set(id, v),
+    delete: async (id) => void m.delete(id),
+    listForWorld: async (worldId) => [...m.entries()].filter(([, p]) => p.worldId === worldId),
+  };
+}
+
+export interface EngineOptions {
+  /** The signed-in account (remote server). Its worlds are created with this owner. Without it, the install's single owner is used. */
+  ownerId?: string;
+  imports?: ImportStore;
 }
 
 export interface ImportReport {
@@ -223,7 +250,13 @@ export const VOICE_AUDIT_EVERY = 6;
 const AI = (reason?: string): WriteMeta => ({ author: "ai", reason: reason ?? null });
 
 export class RulesEngine {
-  constructor(readonly storage: Storage) {}
+  constructor(
+    readonly storage: Storage,
+    opts: EngineOptions = {},
+  ) {
+    this.ownerId = opts.ownerId ?? null;
+    this.imports = opts.imports ?? memoryImportStore();
+  }
 
   // ================= sessions =================
 
@@ -923,7 +956,7 @@ export class RulesEngine {
     return null;
   }
 
-  private imports = new Map<string, PendingImport>();
+  private readonly imports: ImportStore;
 
   /**
    * Checks Claude's split of a file against the wiki. Writes nothing until confirm_import.
@@ -939,7 +972,7 @@ export class RulesEngine {
       if (!e.name.trim()) return refuse("invalid", `Item ${index} needs a name.`);
     }
     const importId = crypto.randomUUID();
-    const pendingHere = [...this.imports.entries()].filter(([, p]) => p.worldId === world.id);
+    const pendingHere = await this.imports.listForWorld(world.id);
     const items: ImportReport["items"] = [];
     for (const [index, e] of input.entities.entries()) {
       const dup = await this.findDuplicate(world.id, null, [e.name, ...(e.aliases ?? [])]);
@@ -964,13 +997,13 @@ export class RulesEngine {
       }
       items.push({ index, name: e.name, type: e.type, duplicateOf: dup?.entity.slug ?? null, disagreements, newAliases, alsoIn });
     }
-    this.imports.set(importId, { worldId: world.id, title: input.title, entities: input.entities });
+    await this.imports.set(importId, { worldId: world.id, title: input.title, entities: input.entities });
     return ok({ importId, title: input.title, items });
   }
 
   /** Writes the accepted items as canon. Items that duplicate an existing entity are refused one by one. */
   async confirmImport(input: { importId: string; accept: number[] }): Promise<Result<{ created: EntityPage[]; refused: { index: number; refusal: Refusal }[] }>> {
-    const pending = this.imports.get(input.importId);
+    const pending = await this.imports.get(input.importId);
     if (!pending) return refuse("not_found", `No pending import ${input.importId}. Imports are held until confirmed or the server restarts; call import_document again.`);
     const created: EntityPage[] = [];
     const refused: { index: number; refusal: Refusal }[] = [];
@@ -984,7 +1017,7 @@ export class RulesEngine {
       if (r.ok) created.push(r.value);
       else refused.push({ index, refusal: r.refusal });
     }
-    this.imports.delete(input.importId);
+    await this.imports.delete(input.importId);
     return ok({ created, refused });
   }
 

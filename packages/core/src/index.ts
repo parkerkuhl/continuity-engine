@@ -4,6 +4,7 @@ export { slugify } from "./slug";
 export * from "./storage/types";
 export { SqliteStorage } from "./storage/sqlite";
 export { PgStorage } from "./storage/pg";
+export { scopeStorage } from "./storage/access";
 export { openPgDb, type PgDb } from "./db-pg";
 export { parseEntityPage, renderEntityPage, PageFormatError } from "./markdown/entity-page";
 export { exportWorld, importWorld, readFiles, writeFiles, entityPath, renderLoadGuide, type Files } from "./markdown/world";

@@ -56,6 +56,7 @@ import {
   type Storage,
   type User,
   type Version,
+  type Permission,
   type World,
   type WorldPatch,
   type WriteMeta,
@@ -160,8 +161,8 @@ export class PgStorage implements Storage {
 
   // ---- users ----
 
-  async createUser(input: { name: string }, meta: WriteMeta): Promise<User> {
-    const user = { id: randomUUID(), name: input.name };
+  async createUser(input: { id?: string; name: string }, meta: WriteMeta): Promise<User> {
+    const user = { id: input.id ?? randomUUID(), name: input.name };
     return this.write("user", meta, async (tx) => {
       await tx.insert(s.users).values(user);
       return { result: user, objectId: user.id, before: null, after: user };
@@ -170,6 +171,10 @@ export class PgStorage implements Storage {
 
   async getUser(id: string): Promise<User | null> {
     return await this.db.select().from(s.users).where(eq(s.users.id, id)).limit(1).then(first) ?? null;
+  }
+
+  async listPermissions(userId: string): Promise<Permission[]> {
+    return await this.db.select().from(s.permissions).where(eq(s.permissions.userId, userId));
   }
 
   // ---- worlds ----
@@ -602,6 +607,16 @@ export class PgStorage implements Storage {
 
   async getSession(id: string): Promise<Session | null> {
     return await this.db.select().from(s.sessions).where(eq(s.sessions.id, id)).limit(1).then(first) ?? null;
+  }
+
+  async getOpenSession(campaignId: string): Promise<Session | null> {
+    return (
+      (await this.db
+        .select()
+        .from(s.sessions)
+        .where(and(eq(s.sessions.campaignId, campaignId), isNull(s.sessions.closedAt)))
+        .orderBy(desc(s.sessions.openedAt)).limit(1).then(first)) ?? null
+    );
   }
 
   async recordReads(sessionId: string, entityIds: string[]): Promise<void> {

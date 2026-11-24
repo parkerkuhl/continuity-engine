@@ -36,6 +36,13 @@ export interface User {
   name: string;
 }
 
+export interface Permission {
+  subjectType: "world" | "campaign";
+  subjectId: string;
+  userId: string;
+  role: "owner" | "editor" | "player" | "viewer";
+}
+
 export interface World {
   id: string;
   ownerId: string;
@@ -277,8 +284,11 @@ export interface SearchHit {
 
 export interface Storage {
   // users
-  createUser(input: { name: string }, meta: WriteMeta): Promise<User>;
+  /** `id` is optional: the remote server (M8) uses the sign-in provider's user id. */
+  createUser(input: { id?: string; name: string }, meta: WriteMeta): Promise<User>;
   getUser(id: string): Promise<User | null>;
+  /** Every permissions row for a user (M8: what an account may see). */
+  listPermissions(userId: string): Promise<Permission[]>;
 
   // worlds
   createWorld(input: NewWorld, meta: WriteMeta): Promise<World>;
@@ -346,6 +356,8 @@ export interface Storage {
   openSession(campaignId: string): Promise<{ session: Session; previous: Session | null }>;
   closeSession(id: string): Promise<Session>;
   getSession(id: string): Promise<Session | null>;
+  /** The campaign's open session, if any (at most one is open). The remote server is stateless, so it looks sessions up here. */
+  getOpenSession(campaignId: string): Promise<Session | null>;
   recordReads(sessionId: string, entityIds: string[]): Promise<void>;
   hasRead(sessionId: string, entityId: string): Promise<boolean>;
 
