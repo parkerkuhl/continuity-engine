@@ -212,6 +212,51 @@ export interface Session {
   closedAt: string | null;
 }
 
+export interface Thread {
+  id: string;
+  campaignId: string;
+  title: string;
+  bodyMd: string;
+  state: "open" | "resolved";
+  tags: string[];
+  openedChapter: number | null;
+  resolvedChapter: number | null;
+}
+export type ThreadPatch = Partial<Pick<Thread, "title" | "bodyMd" | "state" | "tags" | "resolvedChapter">>;
+
+export interface Chapter {
+  id: string;
+  campaignId: string;
+  number: number;
+  title: string;
+  summaryMd: string;
+  closedAt: string | null;
+}
+
+export interface GmNote {
+  id: string;
+  campaignId: string;
+  kind: "design" | "clock" | "twist" | "ending" | "setup" | "motif";
+  key: string;
+  bodyMd: string;
+  data: Record<string, unknown> | null;
+}
+
+export interface VoiceAnchor {
+  campaignId: string;
+  sampleVerbatim: string;
+  profileMd: string;
+  interiorLevel: string;
+  avoidList: string[];
+  voiceRulings: string[];
+  scenesSinceAudit: number;
+}
+
+export interface PcSheet {
+  campaignId: string;
+  data: Record<string, unknown>;
+}
+
 export type Resolution =
   | { status: "resolved"; entity: Entity; matchedOn: "id" | "slug" | "name" | "alias" }
   | { status: "ambiguous"; ref: string; candidates: Entity[] }
@@ -269,6 +314,23 @@ export interface Storage {
   createScene(input: { campaignId: string; chapter: number; placeEntityId?: string | null; presentEntityIds?: string[] }, meta: WriteMeta): Promise<Scene>;
   updateScene(id: string, patch: ScenePatch, meta: WriteMeta): Promise<Scene>;
   getLatestScene(campaignId: string): Promise<Scene | null>;
+  listScenes(campaignId: string): Promise<Scene[]>;
+
+  // threads, chapters, GM notes, voice anchor, PC sheet
+  createThread(input: { campaignId: string; title: string; bodyMd?: string; tags?: string[]; openedChapter?: number | null }, meta: WriteMeta): Promise<Thread>;
+  updateThread(id: string, patch: ThreadPatch, meta: WriteMeta): Promise<Thread>;
+  listThreads(campaignId: string, state?: Thread["state"]): Promise<Thread[]>;
+  createChapter(input: { campaignId: string; number: number; title: string; summaryMd: string; closedAt?: string | null }, meta: WriteMeta): Promise<Chapter>;
+  listChapters(campaignId: string): Promise<Chapter[]>;
+  createGmNote(input: Omit<GmNote, "id">, meta: WriteMeta): Promise<GmNote>;
+  updateGmNote(id: string, patch: Partial<Pick<GmNote, "bodyMd" | "data">>, meta: WriteMeta): Promise<GmNote>;
+  listGmNotes(campaignId: string): Promise<GmNote[]>;
+  /** Insert or replace the campaign's voice anchor. */
+  setVoiceAnchor(anchor: VoiceAnchor, meta: WriteMeta): Promise<VoiceAnchor>;
+  getVoiceAnchor(campaignId: string): Promise<VoiceAnchor | null>;
+  /** Insert or replace the campaign's PC sheet. */
+  setPcSheet(sheet: PcSheet, meta: WriteMeta): Promise<PcSheet>;
+  getPcSheet(campaignId: string): Promise<PcSheet | null>;
 
   // sessions and reads: bookkeeping, not content, so these write no `versions` row
   /** Closes any open session of the campaign, opens a new one, and stamps `campaigns.last_session_at`. */

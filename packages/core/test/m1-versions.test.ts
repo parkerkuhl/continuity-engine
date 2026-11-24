@@ -81,6 +81,48 @@ const WRITES: WriteCase[] = [
     prepare: async (c) => c.storage.createScene({ campaignId: (await camp(c)).id, chapter: 1 }, AI),
     run: (c, scene) => c.storage.updateScene(scene.id, { loggedAt: new Date().toISOString() }, AI),
   },
+  { method: "createThread", objectType: "thread", run: async (c) => c.storage.createThread({ campaignId: (await camp(c)).id, title: "The debt" }, AI) },
+  {
+    method: "updateThread",
+    objectType: "thread",
+    prepare: async (c) => c.storage.createThread({ campaignId: (await camp(c)).id, title: "The debt" }, AI),
+    run: (c, t) => c.storage.updateThread(t.id, { state: "resolved" }, AI),
+  },
+  {
+    method: "createChapter",
+    objectType: "chapter",
+    run: async (c) => c.storage.createChapter({ campaignId: (await camp(c)).id, number: 1, title: "Siege", summaryMd: "x" }, AI),
+  },
+  {
+    method: "createGmNote",
+    objectType: "gm_note",
+    run: async (c) =>
+      c.storage.createGmNote({ campaignId: (await camp(c)).id, kind: "clock", key: "siege", bodyMd: "", data: { step: 0, steps: 4, advances_on: "x" } }, AI),
+  },
+  {
+    method: "updateGmNote",
+    objectType: "gm_note",
+    prepare: async (c) => c.storage.createGmNote({ campaignId: (await camp(c)).id, kind: "twist", key: "traitor", bodyMd: "a", data: null }, AI),
+    run: (c, n) => c.storage.updateGmNote(n.id, { bodyMd: "b" }, AI),
+  },
+  {
+    method: "setVoiceAnchor",
+    objectType: "voice_anchor",
+    run: async (c) => {
+      const id = (await camp(c)).id;
+      await c.storage.setVoiceAnchor({ campaignId: id, sampleVerbatim: "s", profileMd: "p", interiorLevel: "high", avoidList: [], voiceRulings: [], scenesSinceAudit: 0 }, USER);
+      return { id };
+    },
+  },
+  {
+    method: "setPcSheet",
+    objectType: "pc_sheet",
+    run: async (c) => {
+      const id = (await camp(c)).id;
+      await c.storage.setPcSheet({ campaignId: id, data: { name: "Rickard Snow" } }, USER);
+      return { id };
+    },
+  },
 ];
 
 /** Session and read bookkeeping: not content changes, so no versions row (see CLAUDE.md). */

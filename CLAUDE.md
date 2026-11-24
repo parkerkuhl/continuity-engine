@@ -43,6 +43,16 @@ apps/web   (Next.js, M5)           ─┼─> packages/core ──> SQLite (bett
 | `src/markdown/` | Entity page format (front matter + `##` sections) and world export/import |
 | `src/rules/` | Rules engine (`engine.ts`), precedence and context assembly (`precedence.ts`), refusal values (`result.ts`) |
 
+### apps/mcp layout
+
+| Path | What it holds |
+| --- | --- |
+| `src/server.ts` | `createServer(engine)`: registers every SPEC tool with Zod input schemas; keeps one open session per campaign |
+| `src/render.ts` | Compact Markdown for each result; secrets go in a final `GM ONLY` block |
+| `src/index.ts` | stdio entry point (`CONTINUITY_DB`, default `~/.continuity-engine/continuity.db`) |
+| `build.mjs` | esbuild bundle to `dist/bin/server.js`, migrations copied to `dist/drizzle` |
+| `README.md` | Build and Claude Desktop setup |
+
 ## Conventions
 
 - **Writes:** every `Storage` write method takes a `WriteMeta` (`author: ai | user`, optional `editKind: retcon | forward`, optional `reason`) and runs in one transaction that also inserts exactly one `versions` row. A failed write rolls back and leaves no `versions` row.
@@ -61,21 +71,23 @@ pnpm install
 pnpm test          # all packages
 pnpm typecheck
 pnpm --filter @continuity/core db:generate   # after changing src/schema.ts
+pnpm --filter @continuity/mcp build          # bundle the MCP server for Claude Desktop
 ```
 
 ## Milestones
 
 - [x] **Milestone 1, Storage core** (done 2026-11-23, PR #2): monorepo scaffold, Drizzle schema and migrations, storage interface, one `versions` row per write, alias resolution, FTS5 search, Markdown export and import of a world.
-- [ ] **Milestone 2, Rules engine** (current)
-- [ ] Milestones 3 to 8: see SPEC "Build plan".
+- [x] **Milestone 2, Rules engine** (done 2026-11-24, PR #3): sessions and reads, every server-enforced rule, changelog, tag types.
+- [ ] **Milestone 3, MCP server (local)** (current)
+- [ ] Milestones 4 to 8: see SPEC "Build plan".
 
-## Current milestone: Milestone 2, Rules engine
+## Current milestone: Milestone 3, MCP server (local)
 
-Scope: sessions and reads, read-before-write, approval modes and severity policy, forced-major types, user locks, conflict parking, change feed with edit kinds, unlogged-scene detection, precedence ordering for context assembly.
+Scope: a stdio MCP server in `apps/mcp` exposing every tool in SPEC "MCP tools", with Zod schemas, compact Markdown results, and the `GM ONLY` block. Document how to add it to Claude Desktop.
 
 Acceptance checks:
 
-- [ ] One passing unit test per rule in SPEC "Server-enforced rules", covering both the allowed and refused path
-- [ ] A write refused by a rule changes nothing in storage
+- [ ] From Claude Desktop: create a world and entities, open a campaign, get context, log a scene
+- [ ] A refusal (unread entity, locked section, unknown alias) shows Claude a message that says how to fix it
 
-The rules engine lives in `packages/core/src/rules/`. MCP tools (M3) and the web app (M5) call the engine, never `Storage` write methods directly. A refusal is returned as a value (`{ ok: false, refusal }`) with a rule code and a message that says how to fix it; it never leaves a partial write.
+Tools call `RulesEngine` methods only; each returns compact Markdown for Claude plus a small JSON status, and every write reports what was stored and whether it is `proposed` or `confirmed`.
