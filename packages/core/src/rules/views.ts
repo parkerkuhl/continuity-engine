@@ -5,7 +5,8 @@
  * Player view (spoilers off) shows public sections, plus the secret sections and the updates
  * the PC knows (knowledge rows with the PC as holder), and no GM notes. GM view shows everything.
  */
-import type { Campaign, Chapter, Entity, GmNote, PcSheet, Ruling, Section, Thread, Update, Version, VoiceAnchor, World } from "../storage/types";
+import type { Campaign, Chapter, Entity, GmNote, PcSheet, Ruling, Scene, Section, Thread, Update, Version, VoiceAnchor, World } from "../storage/types";
+import { slugify } from "../slug";
 import type { RulesEngine } from "./engine";
 
 export interface Scope {
@@ -23,6 +24,46 @@ export interface UpdateView {
   knows: Pick<Entity, "id" | "slug" | "name">[];
   /** What a parked update clashes with, in words. */
   conflict: string | null;
+  /** The same, split for a side-by-side view: what it clashes with, and that text. */
+  conflictWith: { label: string; body: string } | null;
+  /** Each tag's type: "time" for ch-NN, else the tagged entity's type ("other" if it no longer resolves). */
+  tagTypes: { tag: string; type: Entity["type"] | "time" | "other" }[];
+}
+
+/**
+ * The standard outline of a page, by type. It is a display aid only: a page may have any sections,
+ * and an outline slot the page lacks shows as empty, ready to write. Keys are slugified headings.
+ */
+export const OUTLINES: Record<Entity["type"], string[]> = {
+  character: ["Background", "Appearance", "Personality", "Wants", "Relationships", "Inventory"],
+  place: ["Description", "History", "Notable people", "Dangers"],
+  faction: ["Overview", "Goals", "Leadership", "Members", "Resources", "Rivals"],
+  item: ["Description", "History", "Properties", "Current holder"],
+  event: ["What happened", "Causes", "Who was involved", "Aftermath"],
+  concept: ["Overview", "Details"],
+  rule: ["Rule", "How it is applied"],
+};
+
+type Ref = Pick<Entity, "id" | "slug" | "name">;
+
+/** What play has recorded about one entity in a campaign, for the entity page. */
+export interface EntityProfile {
+  /** Outline slots in order; `section` is null where the page has nothing under that heading yet. */
+  outline: { key: string; heading: string; sectionId: string | null }[];
+  /** Relationship updates that name this entity together with others. */
+  relationships: { other: Ref; update: Update }[];
+  /** Other entities present in the same logged scenes, most often first. */
+  appearsWith: { other: Ref; scenes: number }[];
+  /** Item updates that touch this entity. */
+  items: Update[];
+  /** Updates this entity is recorded as knowing (player view: only those the PC also knows). */
+  knows: Update[];
+  /** Logged scenes this entity was present in, or that took place here. */
+  scenes: (Pick<Scene, "id" | "chapter" | "number" | "summaryMd"> & { place: Ref | null })[];
+  /** Campaign threads tagged with this entity. */
+  threads: Thread[];
+  /** The PC sheet, when this entity is the PC. */
+  pcSheet: PcSheet | null;
 }
 
 export interface EntityView {
@@ -33,6 +74,7 @@ export interface EntityView {
   hiddenUpdates: number;
   /** Newest first: the entity's own versions and its sections'. */
   history: (Version & { label: string; restorable: boolean })[];
+  profile: EntityProfile;
 }
 
 export interface Dashboard {
@@ -44,6 +86,8 @@ export interface Dashboard {
   chapters: Chapter[];
   rulings: Ruling[];
   reviewCount: number;
+  /** What the player view leaves out right now (all zero with spoilers on). */
+  hidden: { gmNotes: number; secretSections: number; updates: number };
 }
 
 export const TYPE_ORDER: Entity["type"][] = ["character", "place", "faction", "item", "event", "concept", "rule"];
@@ -104,16 +148,28 @@ export class WebViews {
 
   async updateView(u: Update): Promise<UpdateView> {
     let conflict: string | null = null;
+    let conflictWith: UpdateView["conflictWith"] = null;
     if (u.conflictsWith) {
       if (u.conflictsWith.type === "update") {
         const other = await this.storage.getUpdate(u.conflictsWith.id);
         conflict = other ? `Clashes with update #${other.seq} (${other.status}): ${other.bodyMd}` : "Clashes with another update.";
+        if (other) conflictWith = { label: `Update #${other.seq} (${other.status})`, body: other.bodyMd };
       } else {
         const sec = await this.storage.getSection(u.conflictsWith.id);
         conflict = sec ? `Would change the locked section "${sec.heading}": ${sec.bodyMd}` : "Would change a locked section.";
+        if (sec) conflictWith = { label: `Your locked section "${sec.heading}"`, body: sec.bodyMd };
       }
     }
-    return { update: u, entities: await this.describe(u.entityIds), knows: await this.describe(await this.storage.listKnowers("update", u.id)), conflict };
+    const campaign = await this.storage.getCampaign(u.campaignId);
+    const tagTypes: UpdateView["tagTypes"] = [];
+    for (const tag of u.tags) {
+      if (/^ch-\d+$/.test(tag)) tagTypes.push({ tag, type: "time" });
+      else {
+        const e = campaign ? await this.storage.getEntityBySlug(campaign.worldId, tag) : null;
+        tagTypes.push({ tag, type: e ? e.type : "other" });
+      }
+    }
+    return { update: u, entities: await this.describe(u.entityIds), knows: await this.describe(await this.storage.listKnowers("update", u.id)), conflict, conflictWith, tagTypes };
   }
 
   /** Updates the current view may show: all of them in GM view, only what the PC knows in player view. */
@@ -151,7 +207,63 @@ export class WebViews {
       for (const v of await this.storage.listVersions({ objectType: "section", objectId: s.id })) history.push({ ...v, label: `Section "${s.heading}"`, restorable: v.after !== null });
     }
     history.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-    return { page: { ...page, sections }, hiddenSections, updates, hiddenUpdates, history };
+    const profile = await this.profile(scope, e, page.sections, sections);
+    return { page: { ...page, sections }, hiddenSections, updates, hiddenUpdates, history, profile };
+  }
+
+  private async profile(scope: Scope, e: Entity, all: Section[], shown: Section[]): Promise<EntityProfile> {
+    // A secret section the view hides still fills its outline slot, so the slot isn't offered as empty.
+    const outline = OUTLINES[e.type].map((heading) => {
+      const key = slugify(heading);
+      const sec = all.find((s) => s.key === key);
+      return { key, heading, sectionId: sec && shown.some((x) => x.id === sec.id) ? sec.id : sec ? "hidden" : null };
+    });
+    const empty: EntityProfile = { outline, relationships: [], appearsWith: [], items: [], knows: [], scenes: [], threads: [], pcSheet: null };
+    const c = scope.campaign;
+    if (!c) return empty;
+
+    const refs = new Map<string, Ref | null>();
+    const ref = async (id: string) => {
+      if (!refs.has(id)) {
+        const x = await this.storage.getEntity(id);
+        refs.set(id, x ? { id: x.id, slug: x.slug, name: x.name } : null);
+      }
+      return refs.get(id)!;
+    };
+    const live = (u: Update) => u.status === "proposed" || u.status === "confirmed";
+
+    const mine = (await this.visibleUpdates(scope, (await this.storage.listUpdates(c.id, { entityId: e.id })).filter(live))).shown;
+    const relationships: EntityProfile["relationships"] = [];
+    for (const u of mine.filter((x) => x.type === "relationship")) {
+      for (const id of u.entityIds) {
+        if (id === e.id) continue;
+        const other = await ref(id);
+        if (other) relationships.push({ other, update: u });
+      }
+    }
+    const items = mine.filter((u) => u.type === "item");
+
+    const knows: Update[] = [];
+    const every = (await this.visibleUpdates(scope, (await this.storage.listUpdates(c.id)).filter(live))).shown;
+    for (const u of every) if ((await this.storage.listKnowers("update", u.id)).includes(e.id)) knows.push(u);
+
+    const scenes: EntityProfile["scenes"] = [];
+    const together = new Map<string, number>();
+    for (const sc of await this.storage.listScenes(c.id)) {
+      if (!sc.loggedAt) continue;
+      if (!sc.presentEntityIds.includes(e.id) && sc.placeEntityId !== e.id) continue;
+      scenes.push({ id: sc.id, chapter: sc.chapter, number: sc.number, summaryMd: sc.summaryMd, place: sc.placeEntityId ? await ref(sc.placeEntityId) : null });
+      if (sc.presentEntityIds.includes(e.id)) for (const id of sc.presentEntityIds) if (id !== e.id) together.set(id, (together.get(id) ?? 0) + 1);
+    }
+    const appearsWith: EntityProfile["appearsWith"] = [];
+    for (const [id, n] of [...together].sort((a, b) => b[1] - a[1])) {
+      const other = await ref(id);
+      if (other) appearsWith.push({ other, scenes: n });
+    }
+
+    const threads = (await this.storage.listThreads(c.id)).filter((t) => t.tags.includes(e.slug));
+    const pcSheet = scope.pc?.id === e.id ? await this.storage.getPcSheet(c.id) : null;
+    return { outline, relationships, appearsWith, items, knows, scenes: scenes.reverse(), threads, pcSheet };
   }
 
   /** The review queue: proposed updates, conflicts first. Player view leaves out what the PC doesn't know. */
@@ -176,6 +288,15 @@ export class WebViews {
     const c = scope.campaign;
     if (!c) return null;
     const threads = await this.storage.listThreads(c.id);
+    const hidden = { gmNotes: 0, secretSections: 0, updates: 0 };
+    if (!scope.spoilers) {
+      hidden.gmNotes = (await this.storage.listGmNotes(c.id)).length;
+      hidden.updates = (await this.visibleUpdates(scope, await this.storage.listUpdates(c.id))).hidden;
+      for (const e of await this.storage.listEntities(c.worldId, { campaignId: c.id })) {
+        const page = await this.storage.getPage(e.id, { campaignId: c.id });
+        for (const s of page?.sections ?? []) if (s.visibility === "secret" && !(await this.pcKnows(scope, "section", s.id))) hidden.secretSections++;
+      }
+    }
     return {
       campaign: c,
       voiceAnchor: await this.storage.getVoiceAnchor(c.id),
@@ -185,6 +306,7 @@ export class WebViews {
       chapters: await this.storage.listChapters(c.id),
       rulings: await this.storage.listRulings(c.worldId, c.id),
       reviewCount: (await this.reviewQueue(scope)).items.length,
+      hidden,
     };
   }
 

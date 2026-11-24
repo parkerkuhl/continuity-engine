@@ -1,4 +1,6 @@
-import type { Scope } from "@continuity/core";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import type { Scope, Version } from "@continuity/core";
 import { notFound } from "next/navigation";
 import { addSection, editAliases, editSection, editSummary, restoreVersion, setSectionVisibility } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
@@ -6,8 +8,10 @@ import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
 import { Markdown } from "./markdown";
 import { ConfirmedForm, InlineEditor } from "./section-editor";
-import { UpdateMeta } from "./update-card";
-import { SourceBadge } from "./wiki-browser";
+import { ApproveButton, Knows, RejectButton, StatusPill, TagChips, UpdateMeta, chapterTag, editProps } from "./update-card";
+import { PcSheetBody, text } from "./pc-sheet";
+import { UpdateItem } from "./update-item";
+import { SourcePill, TYPE_LABEL, TYPE_PLURAL } from "./wiki-browser";
 
 function stateText(v: unknown): string {
   if (!v || typeof v !== "object") return "";
@@ -16,142 +20,466 @@ function stateText(v: unknown): string {
   return md.replace(/^#+\s*/gm, "").replace(/\s+/g, " ").trim();
 }
 
+const ago = (iso: string) => {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  const d = Math.round(s / 86400);
+  return d < 14 ? `${d} day${d === 1 ? "" : "s"} ago` : new Date(iso).toLocaleDateString("en-US", { dateStyle: "medium" });
+};
+
+/** "edited the Wants section", "created the page", "restored an earlier version of the Wants section". */
+function historyLine(v: Version & { label: string }) {
+  const what = v.label === "Page" ? "the page" : `the ${v.label.replace(/^Section "(.*)"$/, "$1")} section`;
+  if (v.reason?.startsWith("restored version")) return `restored an earlier version of ${what}`;
+  if (v.before === null) return `created ${what}`;
+  return `edited ${what}`;
+}
+
+const TITLE = "section-title";
+
+/** A block of facts drawn from play (updates, scenes, the PC sheet), set apart from the written prose. */
+function FromPlay({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-[10px] bg-canvas px-4 py-3 text-[15px]">
+      <div className="text-xs font-semibold tracking-[0.6px] text-muted uppercase">From play</div>
+      {children}
+    </div>
+  );
+}
+
 export async function EntityView({ scope, slug }: { scope: Scope; slug: string }) {
   const view = await app().views.entity(scope, slug);
   if (!view) notFound();
   const { page } = view;
   const base = basePath(scope);
+  const wiki = scope.campaign ? `${base}/wiki` : base;
   const path = `${base}/e/${page.slug}`;
   const campaignId = scope.campaign?.id ?? "";
   const hidden = { entityId: page.id, campaignId, path };
+  const { profile } = view;
+  const outlineKeys = new Set(profile.outline.map((o) => o.key));
 
-  return (
-    <article className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="min-w-0">
-        <header>
-          <p className="label">{page.type}</p>
-          <h1 className="mt-1 flex flex-wrap items-center gap-3 font-serif text-3xl font-semibold">
-            {page.name}
-            <SourceBadge source={page.source} />
-          </h1>
-          <ActionForm action={editAliases} className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-            <input type="hidden" name="entityId" value={page.id} />
-            <input type="hidden" name="path" value={path} />
-            <label htmlFor="aliases" className="label">
-              Aliases
-            </label>
-            <input id="aliases" name="aliases" defaultValue={page.aliases.join(", ")} className="input max-w-md" placeholder="Comma-separated" />
-            <button className="btn">Save aliases</button>
-          </ActionForm>
-          {page.source === "unverified" && (
-            <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-              Unverified: drafted from an established setting and not yet checked. Claude sees it labeled as such.
-            </p>
-          )}
-        </header>
-
-        <section className="mt-6" aria-labelledby="summary-h">
-          <h2 id="summary-h" className="label mb-1">
-            Summary
-          </h2>
-          <InlineEditor action={editSummary} body={page.summary} hidden={hidden} label="summary">
-            <Markdown>{page.summary}</Markdown>
-          </InlineEditor>
-        </section>
-
-        {page.sections.map((s) => (
-          <section key={s.id} className="mt-6 border-t border-stone-200 pt-4 dark:border-stone-800" aria-labelledby={`s-${s.id}`}>
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <h2 id={`s-${s.id}`} className="font-serif text-xl font-semibold">
-                {s.heading}
-              </h2>
-              {s.lockedByUser && (
-                <span className="badge border-sky-300 text-sky-800 dark:border-sky-700 dark:text-sky-300" title="You edited this section, so AI writes to it are refused.">
-                  <LockIcon className="h-3 w-3" /> locked
-                </span>
-              )}
-              {s.visibility === "secret" && (
-                <span className="badge border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300">{s.knownByPc ? "secret, known to the PC" : "secret"}</span>
-              )}
-              {s.campaignId && <span className="badge border-emerald-300 text-emerald-800 dark:border-emerald-700 dark:text-emerald-300">this campaign</span>}
-              <form action={setSectionVisibility} className="ml-auto">
-                <input type="hidden" name="entityId" value={page.id} />
-                <input type="hidden" name="key" value={s.key} />
-                <input type="hidden" name="campaignId" value={s.campaignId ?? ""} />
-                <input type="hidden" name="path" value={path} />
-                <input type="hidden" name="visibility" value={s.visibility === "secret" ? "public" : "secret"} />
-                <button className="btn text-xs">Make {s.visibility === "secret" ? "public" : "secret"}</button>
-              </form>
-            </div>
-            <InlineEditor action={editSection} body={s.bodyMd} hidden={{ ...hidden, key: s.key, campaignId: s.campaignId ?? "" }} label={`section ${s.heading}`}>
-              <Markdown>{s.bodyMd}</Markdown>
-            </InlineEditor>
-          </section>
-        ))}
-
-        {view.hiddenSections > 0 && (
-          <p className="mt-6 rounded border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-500 dark:border-stone-700">
-            {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden. Turn spoilers on to see {view.hiddenSections === 1 ? "it" : "them"}.
-          </p>
-        )}
-
-        <details className="mt-8 card">
-          <summary className="cursor-pointer text-sm font-semibold">Add a section</summary>
-          <ConfirmedForm action={addSection} hidden={hidden} verb="Add" trigger="Add section">
-            <div className="mt-3 grid gap-2">
-              <input name="heading" placeholder="Heading" className="input" aria-label="New section heading" required />
-              <textarea name="body" rows={4} placeholder="Markdown" className="input font-serif" aria-label="New section body" />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="visibility" value="secret" /> Secret (hidden in player view)
-              </label>
-            </div>
-          </ConfirmedForm>
-        </details>
-      </div>
-
-      <aside className="space-y-6">
-        {scope.campaign && (
-          <section className="card">
-            <h2 className="label mb-2">Updates in this campaign</h2>
-            {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-sm text-stone-500">None yet.</p>}
-            <ul className="space-y-3">
-              {view.updates.map((v) => (
-                <li key={v.update.id}>
-                  <UpdateMeta v={v} base={base} />
-                  <p className="mt-1 font-serif">{v.update.bodyMd}</p>
+  /** What play recorded for an outline slot, shown under its prose. */
+  const recorded = (key: string): ReactNode => {
+    if (key === "relationships" && (profile.relationships.length || profile.appearsWith.length)) {
+      return (
+        <FromPlay>
+          {profile.relationships.length > 0 && (
+            <ul className="flex flex-col gap-1.5">
+              {profile.relationships.map((r) => (
+                <li key={`${r.update.id}-${r.other.id}`}>
+                  <Link href={`${base}/e/${r.other.slug}`} className="link font-semibold">
+                    {r.other.name}
+                  </Link>
+                  : {r.update.bodyMd} {r.update.status === "proposed" && <StatusPill status="proposed" />}
                 </li>
               ))}
             </ul>
-            {view.hiddenUpdates > 0 && (
-              <p className="mt-3 text-xs text-stone-500">
-                {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
-              </p>
+          )}
+          {profile.appearsWith.length > 0 && (
+            <p className="text-muted">
+              Often in scenes with:{" "}
+              {profile.appearsWith.slice(0, 8).map((w, i) => (
+                <span key={w.other.id}>
+                  {i > 0 && ", "}
+                  <Link href={`${base}/e/${w.other.slug}`} className="link">
+                    {w.other.name}
+                  </Link>{" "}
+                  ({w.scenes} scene{w.scenes === 1 ? "" : "s"})
+                </span>
+              ))}
+            </p>
+          )}
+        </FromPlay>
+      );
+    }
+    const carried = Array.isArray(profile.pcSheet?.data.inventory) ? (profile.pcSheet!.data.inventory as unknown[]) : [];
+    if (key === "inventory" && (carried.length || profile.items.length)) {
+      return (
+        <FromPlay>
+          {carried.length > 0 && (
+            <ul className="list-disc pl-5">
+              {carried.map((x, i) => (
+                <li key={i}>{text(x)}</li>
+              ))}
+            </ul>
+          )}
+          {profile.items.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {profile.items.map((u) => (
+                <li key={u.id}>
+                  {u.bodyMd} <span className="text-xs text-faint">#{u.seq}{u.chapter !== null && <> · {chapterTag(u.chapter)}</>}</span>{" "}
+                  {u.status === "proposed" && <StatusPill status="proposed" />}
+                </li>
+              ))}
+            </ul>
+          )}
+        </FromPlay>
+      );
+    }
+    return null;
+  };
+
+  const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode) => {
+    const secret = s.visibility === "secret";
+    return (
+      <InlineEditor
+        key={s.id}
+        action={editSection}
+        body={s.bodyMd}
+        hidden={{ ...hidden, key: s.key, campaignId: s.campaignId ?? "" }}
+        label={`section ${s.heading}`}
+        context={`${page.name} · ${s.heading}`}
+        labelledBy={`s-${s.id}`}
+        className={secret ? "rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5" : "card"}
+        title={
+          <h2 id={`s-${s.id}`} className={TITLE}>
+            {s.heading}
+          </h2>
+        }
+        meta={
+          <>
+            {s.lockedByUser && (
+              <span className="flex items-center gap-1.5 text-xs text-muted" title="You edited this section, so GM writes to it are refused.">
+                <LockIcon className="h-[13px] w-[13px]" />
+                Edited by you · locked
+              </span>
             )}
+            {s.campaignId && <span className="pill bg-sunken text-body">This campaign</span>}
+            {secret && <span className="text-xs font-semibold text-secret">{s.knownByPc ? "Secret · the PC knows it" : "Secret section"}</span>}
+            <form action={setSectionVisibility}>
+              <input type="hidden" name="entityId" value={page.id} />
+              <input type="hidden" name="key" value={s.key} />
+              <input type="hidden" name="campaignId" value={s.campaignId ?? ""} />
+              <input type="hidden" name="path" value={path} />
+              <input type="hidden" name="visibility" value={secret ? "public" : "secret"} />
+              <button className="btn-ghost text-muted">Make {secret ? "public" : "secret"}</button>
+            </form>
+          </>
+        }
+      >
+        <Markdown>{s.bodyMd}</Markdown>
+        {extra}
+      </InlineEditor>
+    );
+  };
+
+  return (
+    <>
+      <div className="text-[13px] text-faint">
+        <Link href={wiki} className="link">
+          Wiki
+        </Link>{" "}
+        /{" "}
+        <Link href={`${wiki}?type=${page.type}`} className="link">
+          {TYPE_PLURAL[page.type]}
+        </Link>{" "}
+        / {page.name}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-[1_1_420px] flex-col gap-2.5">
+          <h1 className="font-serif text-[40px] leading-[1.1] font-semibold">{page.name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="pill bg-accent-soft py-[3px] text-accent-ink">{TYPE_LABEL[page.type]}</span>
+            <SourcePill source={page.source} prefix />
+            {page.campaignId && <span className="pill bg-sunken py-[3px] text-body">This campaign only</span>}
+            <details className="group text-[13px] text-muted">
+              <summary className="cursor-pointer list-none">
+                {page.aliases.length ? <>Also called: {page.aliases.join(" · ")}</> : "No aliases"} <span className="link ml-1">Edit</span>
+              </summary>
+              <ActionForm action={editAliases} className="mt-2 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="entityId" value={page.id} />
+                <input type="hidden" name="path" value={path} />
+                <input name="aliases" defaultValue={page.aliases.join(", ")} className="input max-w-md" placeholder="Comma-separated" aria-label="Aliases" />
+                <button className="btn btn-sm">Save aliases</button>
+              </ActionForm>
+            </details>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <a href="#history" className="btn">
+            History
+          </a>
+          <a href="#add-section" className="btn-primary">
+            Add section
+          </a>
+        </div>
+      </div>
+
+      {page.source === "unverified" && (
+        <p className="rounded-xl border border-dashed border-warn-dash bg-warn-tint px-5 py-3 font-semibold text-warn">
+          Unverified: drafted from an established setting and not yet checked. The GM sees it labeled as such. Confirm or correct it.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-start gap-6">
+        <article className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
+          <InlineEditor
+            action={editSummary}
+            body={page.summary}
+            hidden={hidden}
+            label="summary"
+            context={`${page.name} · Current state`}
+            labelledBy="summary-h"
+            title={
+              <h2 id="summary-h" className="label">
+                Current state
+              </h2>
+            }
+            meta={<span className="text-xs text-faint">What the GM reads first</span>}
+          >
+            <Markdown>{page.summary}</Markdown>
+          </InlineEditor>
+
+          {profile.pcSheet && (
+            <section className="card flex flex-col gap-3" aria-labelledby="sheet-h">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="sheet-h" className={TITLE}>
+                  Character sheet
+                </h2>
+                <span className="text-xs text-faint">Player character · kept by the GM</span>
+              </div>
+              <PcSheetBody data={profile.pcSheet.data as Record<string, unknown>} showName={false} showInventory={false} />
+            </section>
+          )}
+
+          {profile.outline.map((o) => {
+            if (o.sectionId === "hidden") return null;
+            const extra = recorded(o.key);
+            const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+            if (sec) return sectionCard(sec, extra);
+            return (
+              <InlineEditor
+                key={o.key}
+                action={addSection}
+                body=""
+                hidden={{ ...hidden, heading: o.heading }}
+                label={`section ${o.heading}`}
+                editText="Write"
+                context={`${page.name} · ${o.heading}`}
+                labelledBy={`slot-${o.key}`}
+                className="rounded-xl border border-dashed border-line-strong px-6 py-5"
+                title={
+                  <h2 id={`slot-${o.key}`} className={`${TITLE} text-muted`}>
+                    {o.heading}
+                  </h2>
+                }
+                meta={<span className="text-xs text-faint">Not written yet</span>}
+              >
+                {extra ?? <p className="text-faint">Nothing here yet. The GM fills it in as the story touches it, or write it yourself.</p>}
+              </InlineEditor>
+            );
+          })}
+
+          {page.sections.filter((x) => !outlineKeys.has(x.key)).map((x) => sectionCard(x, null))}
+
+          {view.hiddenSections > 0 && (
+            <div className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={TITLE}>{view.hiddenSections === 1 ? "Secret section" : `${view.hiddenSections} secret sections`}</h2>
+                <span className="text-xs font-semibold text-secret">Secret</span>
+              </div>
+              <p className="mt-2.5 text-muted">
+                {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show{" "}
+                {view.hiddenSections === 1 ? "it" : "them"} here.
+              </p>
+            </div>
+          )}
+
+          {scope.campaign && (page.type === "character" || profile.knows.length > 0) && (
+            <section className="card flex flex-col gap-3" aria-labelledby="knows-h">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="knows-h" className={TITLE}>
+                  What {page.name} knows
+                </h2>
+                <span className="text-xs text-faint">From the knowledge recorded in play</span>
+              </div>
+              {profile.knows.length === 0 ? (
+                <p className="text-faint">Nothing recorded yet.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {profile.knows.map((u) => (
+                    <li key={u.id} className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-serif text-base">{u.bodyMd}</span>
+                      <span className="text-xs text-faint">
+                        #{u.seq}
+                        {u.chapter !== null && <> · {chapterTag(u.chapter)}</>}
+                      </span>
+                      {u.status === "proposed" && <StatusPill status="proposed" />}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          <section id="add-section" className="card scroll-mt-6">
+            <h2 className="card-title">Add a section</h2>
+            <ConfirmedForm
+              action={addSection}
+              hidden={hidden}
+              submit="Add section"
+              trigger="Add section"
+              triggerClass="btn-primary btn-sm mt-3"
+              context={`${page.name} · new section`}
+              note="The new section is locked against GM edits, and the GM sees it at the start of the next session."
+            >
+              <div className="mt-3 grid gap-2">
+                <input name="heading" placeholder="Heading" className="input" aria-label="New section heading" required />
+                <textarea name="body" rows={4} placeholder="Markdown" className="input font-serif text-base" aria-label="New section body" />
+                <label className="flex items-center gap-2 text-[13px] text-muted">
+                  <input type="checkbox" name="visibility" value="secret" className="accent-accent" /> Secret (hidden in player view)
+                </label>
+              </div>
+            </ConfirmedForm>
           </section>
-        )}
-        <section className="card">
-          <h2 className="label mb-2">History</h2>
-          <ol className="space-y-3 text-sm">
-            {view.history.map((v) => (
-              <li key={v.id} className="border-l-2 border-stone-200 pl-3 dark:border-stone-700">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
-                  <time dateTime={v.createdAt}>{new Date(v.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</time>
-                  <span className={v.author === "user" ? "font-semibold text-sky-700 dark:text-sky-300" : ""}>{v.author === "user" ? "you" : "Claude"}</span>
-                  {v.editKind && <span className="badge border-stone-300">{v.editKind}</span>}
-                </div>
-                <p className="mt-0.5">{v.label}{v.reason ? `: ${v.reason.startsWith("restored version") ? "restored an earlier version" : v.reason}` : ""}</p>
-                {stateText(v.after) && <p className="mt-1 line-clamp-3 font-serif text-stone-600 dark:text-stone-400">{stateText(v.after)}</p>}
-                {v.before !== null && v.after !== null && (
-                  <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1">
-                    <ConfirmedForm action={restoreVersion} hidden={{ versionId: v.id, side: "before", path }} verb="Undo" trigger="Undo this change" />
-                    <ConfirmedForm action={restoreVersion} hidden={{ versionId: v.id, side: "after", path }} verb="Restore" trigger="Restore this version" />
+        </article>
+
+        <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+          {scope.campaign && (
+            <section className="card-sm flex flex-col gap-3">
+              <h2 className="text-[15px] font-semibold">Updates to this page</h2>
+              {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
+              <ul className="flex flex-col gap-3">
+                {view.updates.map((v) => {
+                  const u = v.update;
+                  const proposed = u.status === "proposed";
+                  const gone = u.status === "superseded" || u.status === "rejected" || u.status === "retconned";
+                  return (
+                    <li key={u.id} className={`rounded-[10px] border p-3 ${proposed ? "border-warn-line bg-warn-tint" : "border-line"} ${gone ? "text-faint" : ""}`}>
+                      {proposed ? (
+                        <UpdateItem
+                          layout="stack"
+                          head={<UpdateMeta v={v} base={base} />}
+                          body={u.bodyMd}
+                          foot={
+                            <>
+                              <Knows v={v} />
+                              <TagChips tags={v.tagTypes} />
+                            </>
+                          }
+                          approve={<ApproveButton v={v} path={path} />}
+                          reject={<RejectButton v={v} path={path} />}
+                          edit={editProps(v, path)}
+                        />
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <UpdateMeta v={v} base={base} />
+                          <p className={gone ? "line-through" : ""}>{u.bodyMd}</p>
+                          <Knows v={v} />
+                          <TagChips tags={v.tagTypes} />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {view.hiddenUpdates > 0 && (
+                <p className="text-xs text-muted">
+                  {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
+                </p>
+              )}
+            </section>
+          )}
+
+          {scope.campaign && (
+            <section className="card-sm flex flex-col gap-2.5">
+              <h2 className="text-[15px] font-semibold">Appearances</h2>
+              {profile.scenes.length === 0 ? (
+                <p className="text-[13px] text-faint">Not in any logged scene yet.</p>
+              ) : (
+                <ol className="flex flex-col gap-2.5 text-[13px]">
+                  {profile.scenes.map((sc) => (
+                    <li key={sc.id}>
+                      <b>
+                        {chapterTag(sc.chapter)} · scene {sc.number}
+                      </b>
+                      {sc.place && sc.place.id !== page.id && (
+                        <>
+                          {" "}
+                          at{" "}
+                          <Link href={`${base}/e/${sc.place.slug}`} className="link">
+                            {sc.place.name}
+                          </Link>
+                        </>
+                      )}
+                      {sc.summaryMd && <p className="mt-0.5 line-clamp-3 font-serif text-sm text-muted">{sc.summaryMd}</p>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          )}
+
+          {profile.threads.length > 0 && (
+            <section className="card-sm flex flex-col gap-2.5">
+              <h2 className="text-[15px] font-semibold">Threads</h2>
+              {profile.threads.map((t) => (
+                <div key={t.id} className={`border-l-[3px] pl-2.5 text-[13px] ${t.state === "open" ? "border-pending" : "border-line-strong text-faint"}`}>
+                  <b>{t.title}</b>
+                  <div className="text-faint">
+                    {t.state === "open" ? "Open" : "Resolved"}
+                    {t.openedChapter !== null && <> · opened {chapterTag(t.openedChapter)}</>}
                   </div>
-                )}
-              </li>
-            ))}
-          </ol>
-        </section>
-      </aside>
-    </article>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section id="history" className="card-sm flex scroll-mt-6 flex-col gap-2.5">
+            <h2 className="text-[15px] font-semibold">Recent history</h2>
+            <ol className="flex flex-col gap-3 text-[13px]">
+              {view.history.map((v) => {
+                const restorable = v.before !== null && v.after !== null;
+                const name = v.label === "Page" ? `${page.name} · page` : `${page.name} · ${v.label.replace(/^Section "(.*)"$/, "$1")}`;
+                return (
+                  <li key={v.id}>
+                    <div>
+                      <b>{v.author === "user" ? "You" : "GM"}</b> {historyLine(v)}{" "}
+                      {v.editKind && <span className="pill bg-accent-soft px-2 py-px font-normal text-accent-ink">{v.editKind === "retcon" ? "Retcon" : "Change from now on"}</span>}
+                    </div>
+                    <div className="text-faint">
+                      <time dateTime={v.createdAt} title={new Date(v.createdAt).toLocaleString("en-US")}>
+                        {ago(v.createdAt)}
+                      </time>
+                    </div>
+                    {stateText(v.after) && <p className="mt-1 line-clamp-2 font-serif text-sm text-muted">{stateText(v.after)}</p>}
+                    {restorable && (
+                      <div className="mt-1 flex flex-wrap gap-x-1">
+                        <ConfirmedForm
+                          action={restoreVersion}
+                          hidden={{ versionId: v.id, side: "before", path }}
+                          submit="Undo change"
+                          trigger="Undo this change"
+                          context={name}
+                          before={stateText(v.after)}
+                          after={stateText(v.before)}
+                          note="The undo is itself a new version, so you can redo it from here."
+                          triggerClass="btn-ghost -ml-2"
+                        />
+                        <ConfirmedForm
+                          action={restoreVersion}
+                          hidden={{ versionId: v.id, side: "after", path }}
+                          submit="Restore version"
+                          trigger="Restore this version"
+                          context={name}
+                          after={stateText(v.after)}
+                          note="The restore is itself a new version, so nothing is lost."
+                          triggerClass="btn-ghost"
+                        />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        </aside>
+      </div>
+    </>
   );
 }
+

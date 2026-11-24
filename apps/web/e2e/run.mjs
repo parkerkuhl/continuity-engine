@@ -67,9 +67,10 @@ async function seed() {
     updates: [
       { entities: ["Rickard Snow"], tags: ["ch-01"], type: "status-change", severity: "minor", body: "Rickard limps on his left leg.", knows: ["Rickard Snow", "Marro"] },
       { entities: ["Rickard Snow"], tags: ["ch-01"], type: "item", severity: "minor", body: "Rickard gave Marro his old whetstone.", knows: ["Rickard Snow", "Marro"] },
+      { entities: ["Rickard Snow", "Marro"], tags: ["ch-01"], type: "relationship", severity: "minor", body: "Rickard trusts Marro with the company payroll.", knows: ["Rickard Snow", "Marro"] },
       { entities: ["Rickard Snow", "Golden Company"], tags: ["ch-01"], type: "faction-shift", severity: "major", body: "Rickard sold the Company's siege plans to the Triarch.", knows: ["Rickard Snow"] },
     ],
-    thread_changes: [{ title: "Rickard's limp", body: "He won't say where he got it." }],
+    thread_changes: [{ title: "Rickard's limp", body: "He won't say where he got it.", tags: ["rickard-snow"] }],
   });
   if (logged.isError || logged.status.updates.some((u) => u.status === "refused")) throw new Error(`seed scene not fully logged:\n${logged.text}`);
   await c.call("gm_write", { campaign_id: campaignId, kind: "twist", key: "the-sale", body: "Rickard is the traitor; the limp is from the meeting at the Long Bridge." });
@@ -114,7 +115,7 @@ const expect = (cond, msg) => {
 const { campaignId, worldId } = await seed();
 const server = await startWeb();
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 const shot = (name) => page.screenshot({ path: join(out, `${name}.png`), fullPage: true });
 const C = `${BASE}/c/${campaignId}`;
 const text = () => page.locator("main").innerText();
@@ -131,7 +132,7 @@ try {
     expect(t.includes("1 secret section is hidden"), "no hidden-section notice");
     expect(t.includes("Rickard limps on his left leg."), "an update the PC knows is missing");
     expect(!t.includes("siege plans"), "an update the PC doesn't know is shown");
-    expect((await page.getByRole("link", { name: "GM notes" }).count()) === 0, "GM notes link shown with spoilers off");
+    expect((await page.getByRole("img", { name: "Hidden in player view" }).count()) === 1, "GM notes link isn't marked hidden with spoilers off");
     await shot("02-entity-player-view");
     await page.goto(`${C}/gm`);
     expect((await text()).includes("GM notes are hidden"), "GM notes page shows notes with spoilers off");
@@ -158,7 +159,8 @@ try {
     await page.getByRole("textbox", { name: "section Wants" }).fill("A keep by the sea, and a name nobody spits at.");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await shot("05-edit-confirm");
-    await page.getByRole("button", { name: "Save as change from now on" }).click();
+    await page.getByRole("radio", { name: "Change from now on" }).check();
+    await page.getByRole("button", { name: "Save edit" }).click();
     await page.getByText("The section is now locked against AI edits.").waitFor();
     const wants = page.locator("section", { has: page.getByRole("heading", { name: "Wants" }) });
     expect((await wants.innerText()).includes("locked"), "no lock badge after editing");
@@ -180,7 +182,8 @@ try {
     await page.getByRole("button", { name: "Edit summary" }).click();
     await page.getByRole("textbox", { name: "summary" }).fill("The oldest of the Free Cities, now under siege by the Triarch's elephants.");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page.getByRole("button", { name: "Save as retcon (always true)" }).click();
+    await page.getByRole("radio", { name: "Retcon: it was always this way" }).check();
+    await page.getByRole("button", { name: "Save edit" }).click();
     await page.getByText("Summary saved as a retcon.").waitFor();
     const c = await claude();
     const opened = await c.call("open_campaign", { campaign_id: campaignId });
@@ -194,12 +197,12 @@ try {
     const t = await text();
     expect(t.includes("1 proposed update the PC doesn't know is hidden"), "hidden proposed update not reported");
     await shot("06-review-queue");
-    const item = page.locator("li.card", { hasText: "Rickard limps on his left leg." });
+    const item = page.locator("section[aria-label='Proposed updates'] li", { hasText: "Rickard limps on his left leg." });
     await item.getByRole("button", { name: "Approve" }).click();
     await item.waitFor({ state: "detached" }); // approved updates leave the queue
     await page.goto(`${C}/e/rickard-snow`);
     const upd = page.locator("aside li", { hasText: "Rickard limps on his left leg." });
-    expect((await upd.innerText()).includes("confirmed"), "approved update isn't confirmed on the entity page");
+    expect(/confirmed/i.test(await upd.innerText()), "approved update isn't confirmed on the entity page");
 
     const c = await claude();
     await c.call("open_campaign", { campaign_id: campaignId });
@@ -208,9 +211,10 @@ try {
     expect(/Rickard limps on his left leg\.[^\n]*\[confirmed\]|\[confirmed\][^\n]*Rickard limps/.test(ctx.text) || !/PROPOSED[^\n]*Rickard limps/.test(ctx.text), "Claude still sees the approved update as proposed");
 
     // Restore: undo the Wants edit from the history panel.
-    const row = page.locator("aside li", { hasText: 'Section "Wants"' }).first();
+    const row = page.locator("aside li", { hasText: "the Wants section" }).first();
     await row.getByRole("button", { name: "Undo this change" }).click();
-    await row.getByRole("button", { name: "Undo as retcon (always true)" }).click();
+    await page.getByRole("radio", { name: "Retcon: it was always this way" }).check();
+    await page.getByRole("button", { name: "Undo change" }).click();
     await page.getByText("Restored. The restore is itself a new version.").waitFor();
     await page.reload();
     await shot("07-entity-history");
@@ -219,10 +223,14 @@ try {
     await shot("07-entity-history");
   });
 
-  await page.goto(`${BASE}/w/${worldId}`);
+  await page.goto(`${C}/wiki`);
   await shot("08-wiki-browser");
+  await page.goto(`${BASE}/w/${worldId}`);
+  await shot("08b-world-wiki");
   await page.goto(C);
   await shot("09-campaign-dashboard");
+  await page.goto(`${C}/e/marro`);
+  await shot("09b-entity-pc");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${C}/e/rickard-snow`);
   await shot("10-entity-phone");

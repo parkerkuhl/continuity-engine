@@ -1,80 +1,137 @@
-import { approveAllMinor, approveUpdate, editUpdate, rejectUpdate } from "@/app/actions";
+import Link from "next/link";
+import { approveAllMinor } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
-import { UpdateMeta } from "@/components/update-card";
+import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps } from "@/components/update-card";
+import { UpdateItem } from "@/components/update-item";
 import { app, campaignScope } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function Review({ params }: { params: Promise<{ campaignId: string }> }) {
+const MODE: Record<string, [string, string]> = {
+  review: ["Review everything", "Nothing counts until you approve it."],
+  batch: ["Batch review", "The GM is already using them as soft canon until you decide."],
+  autopilot: ["Autopilot", "Only conflicts wait here; everything else went straight to canon."],
+  mixed: ["Mixed by severity", "Each update follows the rule for its severity."],
+};
+const FILTERS = ["all", "conflicts", "major", "minor"] as const;
+
+export default async function Review({ params, searchParams }: { params: Promise<{ campaignId: string }>; searchParams: Promise<{ filter?: string }> }) {
   const { campaignId } = await params;
+  const f = (FILTERS as readonly string[]).includes((await searchParams).filter ?? "") ? (await searchParams).filter! : "all";
   const scope = await campaignScope(campaignId);
   const { items, hidden } = await app().views.reviewQueue(scope);
   const base = `/c/${campaignId}`;
   const path = `${base}/review`;
-  const minor = items.filter((i) => i.update.severity === "minor" && !i.update.conflictsWith).length;
+  const c = scope.campaign!;
+  const conflicts = items.filter((i) => i.update.conflictsWith);
+  const rest = items.filter((i) => !i.update.conflictsWith);
+  const minor = rest.filter((i) => i.update.severity === "minor").length;
+  const counts = { all: items.length, conflicts: conflicts.length, major: items.filter((i) => i.update.severity === "major").length, minor: items.filter((i) => i.update.severity === "minor").length };
+  const keep = (i: (typeof items)[number]) => f === "all" || (f === "conflicts" ? !!i.update.conflictsWith : i.update.severity === f);
+  const [modeName, modeNote] = MODE[c.approvalMode] ?? ["", ""];
+  const n = items.length;
+
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-2xl font-semibold">Review queue</h1>
-          <p className="text-sm text-stone-500">
-            Proposed updates from Claude. Approving makes one canon; rejecting keeps it on record. Conflicts are pinned on top.
+          <h1 className="page-title">Review queue</h1>
+          <p className="mt-1.5 text-muted">
+            {n === 0 ? "Nothing waiting." : `${n} update${n === 1 ? "" : "s"} the GM proposed.`} Mode: <b className="text-ink">{modeName}</b>. {modeNote}
           </p>
         </div>
         <ActionForm action={approveAllMinor}>
           <input type="hidden" name="campaignId" value={campaignId} />
           <input type="hidden" name="path" value={path} />
           <button className="btn-primary" disabled={minor === 0}>
-            Approve all {minor} minor
+            Approve all minor ({minor})
           </button>
         </ActionForm>
       </div>
+
+      <div role="group" aria-label="Filter" className="-mt-1 flex flex-wrap gap-2">
+        {FILTERS.map((k) => {
+          const label = { all: "All", conflicts: "Conflicts", major: "Major", minor: "Minor" }[k];
+          const on = f === k;
+          const cls = on ? "chip-on" : k === "conflicts" && counts.conflicts ? "chip border-danger-border font-semibold text-danger" : "chip";
+          return (
+            <Link key={k} href={k === "all" ? path : `${path}?filter=${k}`} aria-pressed={on} className={cls}>
+              {label} {counts[k]}
+            </Link>
+          );
+        })}
+      </div>
+
       {hidden > 0 && (
-        <p className="mt-4 rounded border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-500 dark:border-stone-700">
-          {hidden} proposed update{hidden === 1 ? "" : "s"} the PC doesn&apos;t know {hidden === 1 ? "is" : "are"} hidden. Turn spoilers on to review {hidden === 1 ? "it" : "them"}.
+        <p className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-5 py-3 text-muted">
+          {hidden} proposed update{hidden === 1 ? "" : "s"} the PC doesn&apos;t know {hidden === 1 ? "is" : "are"} hidden. Switch to GM view to review {hidden === 1 ? "it" : "them"}.
         </p>
       )}
-      {items.length === 0 && hidden === 0 && <p className="mt-8 text-stone-500">Nothing to review.</p>}
-      <ul className="mt-6 space-y-4">
-        {items.map((v) => (
-          <li key={v.update.id} className={`card ${v.conflict ? "border-red-300 dark:border-red-800" : ""}`}>
-            {v.conflict && (
-              <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-                <span className="font-semibold">Conflict.</span> {v.conflict}
-              </p>
-            )}
-            <UpdateMeta v={v} base={base} />
-            <p className="mt-2 font-serif text-[17px]">{v.update.bodyMd}</p>
-            <div className="mt-3 flex flex-wrap items-start gap-2">
-              <ActionForm action={approveUpdate}>
-                <input type="hidden" name="updateId" value={v.update.id} />
-                <input type="hidden" name="path" value={path} />
-                <button className="btn-primary">Approve</button>
-              </ActionForm>
-              <ActionForm action={rejectUpdate}>
-                <input type="hidden" name="updateId" value={v.update.id} />
-                <input type="hidden" name="path" value={path} />
-                <button className="btn-danger">Reject</button>
-              </ActionForm>
-              <details className="min-w-[16rem] flex-1">
-                <summary className="btn cursor-pointer list-none">Edit</summary>
-                <ActionForm action={editUpdate} className="mt-2 grid gap-2">
-                  <input type="hidden" name="updateId" value={v.update.id} />
-                  <input type="hidden" name="path" value={path} />
-                  <textarea name="body" defaultValue={v.update.bodyMd} rows={3} className="input font-serif" aria-label={`Edit update #${v.update.seq}`} />
-                  <div className="flex gap-2">
-                    <select name="severity" defaultValue={v.update.severity} className="input w-auto" aria-label="Severity">
-                      <option value="minor">minor</option>
-                      <option value="major">major</option>
-                    </select>
-                    <button className="btn">Save edit</button>
-                  </div>
-                </ActionForm>
-              </details>
+
+      {conflicts.filter(keep).map((v) => (
+        <section key={v.update.id} aria-label={`Conflict #${v.update.seq}`} className="flex flex-col gap-3.5 rounded-xl border-2 border-danger-line bg-surface px-6 py-5">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <b className="text-sm">#{v.update.seq}</b>
+            <span className="pill bg-danger-soft font-bold text-danger">{v.update.conflictsWith!.type === "section" ? "Conflicts with your locked section" : "Conflicts with canon"}</span>
+            <span className="font-semibold text-warn">
+              <Severity severity={v.update.severity} /> · {v.update.type.replace(/-/g, " ")}
+            </span>
+            <span className="text-faint">
+              {[chapterTag(v.update.chapter), ...v.entities.map((e) => e.name)].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-[1_1_300px] rounded-[10px] bg-warn-tint px-4 py-3.5">
+              <div className="text-xs font-semibold tracking-[0.6px] text-warn uppercase">GM proposes</div>
+              <p className="mt-1.5 font-serif text-[17px]">{v.update.bodyMd}</p>
             </div>
-          </li>
-        ))}
-      </ul>
+            <div className="flex-[1_1_300px] rounded-[10px] bg-canon-tint px-4 py-3.5">
+              <div className="text-xs font-semibold tracking-[0.6px] text-accent-ink uppercase">Current canon · {v.conflictWith?.label ?? "existing record"}</div>
+              <p className="mt-1.5 font-serif text-[17px]">{v.conflictWith?.body ?? v.conflict}</p>
+            </div>
+          </div>
+          <UpdateItem
+            layout="stack"
+            head={null}
+            body={v.update.bodyMd}
+            hideBody
+            approve={<RejectButton v={v} path={path} label="Keep canon, reject" primary />}
+            reject={<ApproveButton v={v} path={path} label="Accept and overrule" />}
+            edit={editProps(v, path)}
+            editLabel="Edit before deciding"
+          />
+        </section>
+      ))}
+
+      {rest.filter(keep).length > 0 && (
+        <section aria-label="Proposed updates" className="overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="flex items-center justify-between gap-3 border-b border-line bg-subtle px-5 py-3 text-[13px] text-muted">
+            <span>Proposed updates</span>
+            <span>Oldest first</span>
+          </div>
+          <ul>
+            {rest.filter(keep).map((v) => (
+              <li key={v.update.id} className="border-b border-line-soft px-5 py-4 last:border-b-0">
+                <UpdateItem
+                  head={<UpdateMeta v={v} base={base} status={false} />}
+                  body={v.update.bodyMd}
+                  foot={
+                    <>
+                      <Knows v={v} />
+                      <TagChips tags={v.tagTypes} />
+                    </>
+                  }
+                  approve={<ApproveButton v={v} path={path} />}
+                  reject={<RejectButton v={v} path={path} />}
+                  edit={editProps(v, path)}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {items.length === 0 && hidden === 0 && <p className="text-muted">Nothing to review.</p>}
     </>
   );
 }

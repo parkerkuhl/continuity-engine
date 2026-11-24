@@ -146,6 +146,9 @@ describe("M5: spoiler toggle off hides secret sections, gm notes, and updates th
     expect(await g.views.gmNotes(scope)).toBeNull();
     const search = await g.views.wiki(scope, { query: "mother" }); // only in the secret "Hiding" section
     expect(search).toEqual([]);
+    const dash = (await g.views.dashboard(scope))!;
+    expect(dash.hidden).toEqual({ gmNotes: 1, secretSections: 1, updates: 1 });
+    expect(view.updates[0]!.tagTypes).toEqual([{ tag: "ch-01", type: "time" }]);
   });
 
   it("GM view after turning spoilers on, and back off again", async () => {
@@ -156,9 +159,73 @@ describe("M5: spoiler toggle off hides secret sections, gm notes, and updates th
     expect(view.page.sections.map((s) => s.heading)).toContain("Hiding");
     expect(view.updates).toHaveLength(2);
     expect((await g.views.gmNotes(on))!.map((n) => n.key)).toEqual(["the-sale"]);
+    expect((await g.views.dashboard(on))!.hidden).toEqual({ gmNotes: 0, secretSections: 0, updates: 0 });
     expect((await g.views.wiki(on, { query: "mother" })).flatMap((grp) => grp.entities.map((e) => e.entity.slug))).toEqual(["rickard-snow"]);
 
     await g.engine.setSpoilers(g.campaign.id, false);
     expect((await g.views.entity(await g.scope(), "rickard-snow"))!.hiddenSections).toBe(1);
+  });
+});
+
+describe("M5: the entity page shows the type's outline and what play recorded", () => {
+  it("lists outline slots, relationships, items, knowledge, scenes, threads and the PC sheet", async () => {
+    const g = await game();
+    const marro = await g.engine.createEntity({ worldId: g.world.id, campaignId: g.campaign.id, type: "character", name: "Marro", source: "ruling", summary: "Rickard's squire." });
+    if (!marro.ok) throw new Error();
+    await g.engine.updateCampaign({ sessionId: g.sessionId, pcSheet: { name: "Marro", inventory: ["dagger"] } });
+    await g.engine.readEntity({ sessionId: g.sessionId, ref: "rickard-snow" });
+    await g.engine.readEntity({ sessionId: g.sessionId, ref: "marro" });
+    const logged = await g.engine.logScene({
+      sessionId: g.sessionId,
+      summary: "Night watch.",
+      present: ["rickard-snow", "marro"],
+      updates: [
+        fact({ entities: ["rickard-snow", "marro"], type: "relationship", body: "Rickard trusts Marro with the payroll.", knows: ["rickard-snow", "marro"] }),
+        fact({ type: "item", body: "Rickard gave Marro his whetstone.", knows: ["marro"] }),
+      ],
+    });
+    if (!logged.ok) throw new Error(logged.refusal.message);
+    await g.storage.createThread({ campaignId: g.campaign.id, title: "Rickard's limp", tags: ["rickard-snow"] }, USER);
+
+    const r = (await g.views.entity(await g.scope(), "rickard-snow"))!.profile;
+    expect(r.outline.map((o) => [o.heading, o.sectionId !== null])).toEqual([
+      ["Background", false],
+      ["Appearance", true],
+      ["Personality", false],
+      ["Wants", true],
+      ["Relationships", false],
+      ["Inventory", false],
+    ]);
+    expect(r.relationships.map((x) => [x.other.slug, x.update.bodyMd])).toEqual([["marro", "Rickard trusts Marro with the payroll."]]);
+    expect(r.items.map((u) => u.bodyMd)).toEqual(["Rickard gave Marro his whetstone."]);
+    expect(r.appearsWith).toEqual([{ other: expect.objectContaining({ slug: "marro" }), scenes: 1 }]);
+    expect(r.scenes.map((s) => s.summaryMd)).toEqual(["Night watch."]);
+    expect(r.threads.map((t) => t.title)).toEqual(["Rickard's limp"]);
+    expect(r.pcSheet).toBeNull();
+
+    const m = (await g.views.entity(await g.scope(), "marro"))!.profile;
+    expect(m.pcSheet?.data.inventory).toEqual(["dagger"]);
+    expect(m.knows.map((u) => u.bodyMd)).toEqual(["Rickard trusts Marro with the payroll.", "Rickard gave Marro his whetstone."]);
+  });
+
+  it("player view leaves out knowledge and relationships the PC doesn't know", async () => {
+    const g = await game();
+    await g.engine.createEntity({ worldId: g.world.id, campaignId: g.campaign.id, type: "character", name: "Marro", source: "ruling", summary: "Squire." });
+    await g.engine.updateCampaign({ sessionId: g.sessionId, pcSheet: { name: "Marro" } });
+    await g.engine.readEntity({ sessionId: g.sessionId, ref: "rickard-snow" });
+    await g.engine.readEntity({ sessionId: g.sessionId, ref: "golden-company" });
+    await g.engine.logScene({
+      sessionId: g.sessionId,
+      summary: "A secret meeting.",
+      present: ["rickard-snow"],
+      updates: [fact({ entities: ["rickard-snow", "golden-company"], type: "relationship", body: "Rickard plans to betray the Company.", knows: ["rickard-snow"] })],
+    });
+    const off = (await g.views.entity(await g.scope(), "rickard-snow"))!.profile;
+    expect(off.relationships).toEqual([]);
+    expect(off.knows).toEqual([]);
+    await g.engine.setSpoilers(g.campaign.id, true);
+    const on = (await g.views.entity(await g.scope(), "rickard-snow"))!.profile;
+    expect(on.relationships.map((x) => x.other.slug)).toEqual(["golden-company"]);
+    expect(on.knows.map((u) => u.bodyMd)).toEqual(["Rickard plans to betray the Company."]);
   });
 });

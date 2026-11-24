@@ -11,12 +11,12 @@ export function ActionForm({ action, children, className }: { action: Action; ch
     <form action={formAction} className={className} aria-busy={pending}>
       {children}
       {state.error && (
-        <p role="alert" className="mt-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+        <p role="alert" className="mt-2 basis-full rounded-lg border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger">
           {state.error}
         </p>
       )}
       {state.ok && (
-        <p role="status" className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
+        <p role="status" className="mt-2 basis-full text-[13px] text-ok">
           {state.ok}
         </p>
       )}

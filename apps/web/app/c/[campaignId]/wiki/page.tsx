@@ -1,15 +1,15 @@
-import { WikiBrowser } from "@/components/wiki-browser";
+import { WikiBrowser, WikiHeader } from "@/components/wiki-browser";
 import { campaignScope } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function CampaignWiki({ params, searchParams }: { params: Promise<{ campaignId: string }>; searchParams: Promise<{ q?: string; source?: string }> }) {
+export default async function CampaignWiki({ params, searchParams }: { params: Promise<{ campaignId: string }>; searchParams: Promise<{ q?: string; source?: string; type?: string }> }) {
   const scope = await campaignScope((await params).campaignId);
-  const { q, source } = await searchParams;
+  const { q, source, type } = await searchParams;
   return (
     <>
-      <h1 className="mb-4 font-serif text-2xl font-semibold">Wiki</h1>
-      <WikiBrowser scope={scope} {...(q && { query: q })} {...(source && { source })} />
+      <WikiHeader scope={scope} title="Wiki" />
+      <WikiBrowser scope={scope} {...(q && { query: q })} {...(source && { source })} {...(type && { type })} />
     </>
   );
 }

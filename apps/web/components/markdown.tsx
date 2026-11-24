@@ -1,10 +1,10 @@
 import ReactMarkdown from "react-markdown";
 
 /** Page bodies are Markdown. Raw HTML is not rendered. */
-export function Markdown({ children }: { children: string }) {
-  if (!children.trim()) return <p className="text-stone-400 italic">Empty.</p>;
+export function Markdown({ children, className = "prose-page" }: { children: string; className?: string }) {
+  if (!children.trim()) return <p className="text-faint italic">Empty.</p>;
   return (
-    <div className="prose-page">
+    <div className={className}>
       <ReactMarkdown>{children}</ReactMarkdown>
     </div>
   );
