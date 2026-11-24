@@ -1,0 +1,16 @@
+{
+  "name": "@continuity/eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The continuity test (SPEC \"Evaluation\"): seed, run both arms, score.",
+  "scripts": {
+    "seed": "node seed.mjs",
+    "run": "node run.mjs",
+    "score": "node score.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.13.0",
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  }
+}

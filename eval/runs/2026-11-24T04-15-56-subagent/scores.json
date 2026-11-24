@@ -1,0 +1,370 @@
+[
+  {
+    "arm": "wiki",
+    "scene": "01",
+    "fact": "F01",
+    "verdict": "honored",
+    "quote": "His left arm, strapped across his chest, jerked against the binding and did nothing at all. He made a sound through his teeth that wasn't a word. The shield stayed where it hung.",
+    "reason": "Rickard cannot raise the shield when ordered and the shoulder visibly costs him throughout the scene."
+  },
+  {
+    "arm": "wiki",
+    "scene": "01",
+    "fact": "F02",
+    "verdict": "honored",
+    "quote": "a right hand with two splinted fingers that couldn't have held a blade if he'd had one. He came off the willow's cover anyway, cudgel dragged into his left fist",
+    "reason": "The narration keeps Marro's right hand useless for gripping and has him fight with the left."
+  },
+  {
+    "arm": "wiki",
+    "scene": "01",
+    "fact": "F13",
+    "verdict": "honored",
+    "quote": "His hand went to his belt and closed on nothing. The dagger was at the bottom of the Rhoyne.",
+    "reason": "The GM corrects the player's dagger draw in the fiction and Marro fights with the cudgel."
+  },
+  {
+    "arm": "wiki",
+    "scene": "07",
+    "fact": "F03",
+    "verdict": "honored",
+    "quote": "She kept her head turned a little to the left, always, so the good eye covered the side the patch didn't.",
+    "reason": "Hesse has one good eye and a patch throughout, and turning her head left so her right eye covers her blind left side matches a left-eye loss; Rickard's line 'They've taken one already' agrees."
+  },
+  {
+    "arm": "wiki",
+    "scene": "07",
+    "fact": "F09",
+    "verdict": "honored",
+    "quote": "So she remembered. Of course she remembered. Hesse forgot nothing",
+    "reason": "Hesse hints at Marro's past as something she already knows and covers for him, while Rickard shows no knowledge of it and learns nothing ('Slavers?')."
+  },
+  {
+    "arm": "wiki",
+    "scene": "10",
+    "fact": "F07",
+    "verdict": "honored",
+    "quote": "\"Two months of grain on the Triarch's credit,\" he said.",
+    "reason": "Lysono, who knows the debt, states it correctly and Rickard frames the grain as credit (\"Credit's a leash\"), never as a gift or paid."
+  },
+  {
+    "arm": "wiki",
+    "scene": "10",
+    "fact": "F08",
+    "verdict": "honored",
+    "quote": "He could feel the shape of the thing in the room, the way you feel a step in the dark before your foot finds it. He didn't have a name for it. He didn't want one.",
+    "reason": "The captains and Lysono suspect a leak and Marro notices Rickard's tell, but no one learns the sale as fact and Rickard deflects to an unnamed mouth in the camp."
+  },
+  {
+    "arm": "wiki",
+    "scene": "10",
+    "fact": "F01",
+    "verdict": "honored",
+    "quote": "Rickard's left arm didn't move. It couldn't. It sat bound against his chest where the bolt had gone in",
+    "reason": "Rickard cannot take the shield on his wounded left arm and sets it aside, so the injury holds."
+  },
+  {
+    "arm": "wiki",
+    "scene": "09",
+    "fact": "F18",
+    "verdict": "honored",
+    "quote": "Lissa's letter sat flat against his chest under the cloak. Her mother was over there somewhere, past the gate and the clerk and a mile of river.",
+    "reason": "The letter is Lissa's, still in Marro's possession, and the errand to her mother in the Dragon's Den is remembered; delivery is blocked in-fiction by the bridge gate, not forgotten or contradicted."
+  },
+  {
+    "arm": "wiki",
+    "scene": "09",
+    "fact": "F06",
+    "verdict": "honored",
+    "quote": "\"Thirty silver stags, in Pallo's hand, before the moon is dark. Not twenty-nine.\"",
+    "reason": "The sum (30 stags), lender (Pallo) and new-moon deadline all match, and the deadline correctly shrinks from four days to three as time passes."
+  },
+  {
+    "arm": "wiki",
+    "scene": "08",
+    "fact": "F11",
+    "verdict": "violated",
+    "quote": "\"I don't know,\" Marro said.\n\nIt was true. He was surprised how little that helped.",
+    "reason": "Hesse is never told, but the narration says it is true that Marro doesn't know why a Maegyr would host Rickard, which contradicts his knowing that Rickard's mother was a Maegyr daughter."
+  },
+  {
+    "arm": "wiki",
+    "scene": "08",
+    "fact": "F19",
+    "verdict": "honored",
+    "quote": "His mother had taught him letters on the backs of tally sheets, and he read it the way she'd made him, slowly, every word.",
+    "reason": "Marro reads the seating card himself and the narration credits his mother's teaching, which matches the ruling."
+  },
+  {
+    "arm": "plain",
+    "scene": "05",
+    "fact": "F20",
+    "verdict": "honored",
+    "quote": "At the near end the Triarch's men had built a barricade of carts and timber, a dozen spears behind it and a long queue of people who weren't getting through",
+    "reason": "The bridge stays closed and guarded and Marro is stopped and questioned rather than crossing unchallenged; the pass is a new in-story handoff from Rickard, not something Marro already held, though the GM conjuring it does soften the obstacle."
+  },
+  {
+    "arm": "plain",
+    "scene": "05",
+    "fact": "F15",
+    "verdict": "honored",
+    "quote": "\"Company's got nothing spare. Not a mule. You walk, same as everyone.\"",
+    "reason": "Hesse refuses to lend the lame Ash, confirms there are no spare horses, and Marro goes to the bridge on foot."
+  },
+  {
+    "arm": "wiki",
+    "scene": "02",
+    "fact": "F08",
+    "verdict": "honored",
+    "quote": "\"The company has a leak, squire. The Triarch knows what we mean to do before our captains have finished arguing about it. I don't know who. I would like to.\"",
+    "reason": "Lysono only suspects (a glance toward the captains' tents) and never states that Rickard sold the plans, and the narration tells Marro nothing that confirms it."
+  },
+  {
+    "arm": "wiki",
+    "scene": "02",
+    "fact": "F10",
+    "verdict": "honored",
+    "quote": "\"I don't tell one man what another tells me. You'd want the same courtesy, I think.\"",
+    "reason": "Asked how he knows about Rickard's tent, Lysono deflects with public sources and refuses to name informants, keeping Hesse hidden without naming any contradicting source."
+  },
+  {
+    "arm": "plain",
+    "scene": "02",
+    "fact": "F08",
+    "verdict": "honored",
+    "quote": "\"I don't know who,\" the paymaster went on. \"If I knew, he would already be in the river.\"",
+    "reason": "Lysono confirms only that someone is leaking and does not know it is Rickard, and nothing in the narration tells Marro that Rickard sold the plans."
+  },
+  {
+    "arm": "plain",
+    "scene": "02",
+    "fact": "F10",
+    "verdict": "honored",
+    "quote": "That wasn't an answer, and he plainly knew it wasn't. ... It didn't prove anything. Half the camp needed a horse.",
+    "reason": "Lysono deflects and never names Hesse; a won Wits roll only gives Marro a glance toward Hesse's mare, which the narration presents as unproven suspicion rather than a reveal, and no other source contradicts the fact."
+  },
+  {
+    "arm": "plain",
+    "scene": "03",
+    "fact": "F16",
+    "verdict": "honored",
+    "quote": "Hesse's face when he'd sworn it, three weeks back, her one eye fixed on him like a crossbow. *Never again, Sergeant. By the Black Wall.*",
+    "reason": "Marro's interior voice recalls the oath to Hesse at the dice table, and the GM never has him throw or decides for the player."
+  },
+  {
+    "arm": "plain",
+    "scene": "03",
+    "fact": "F06",
+    "verdict": "honored",
+    "quote": "\"Four days,\" the man went on, pleasant as weather. \"Thirty silver stags, at the new moon.\"",
+    "reason": "Pallo's man states the correct lender, sum of 30 silver stags and due date at the new moon four days off."
+  },
+  {
+    "arm": "plain",
+    "scene": "08",
+    "fact": "F11",
+    "verdict": "honored",
+    "quote": "\"And what I told you stays between you and me. Not Hesse. Not anyone.\"",
+    "reason": "Marro's interior voice treats Rickard's Maegyr mother as known to him, Hesse is never told, and the GM blocks her whispered question because she cannot know."
+  },
+  {
+    "arm": "plain",
+    "scene": "08",
+    "fact": "F19",
+    "verdict": "honored",
+    "quote": "Once there's a card in front of him, Marro reads it without trouble. His mother taught him.",
+    "reason": "The GM refused the non-existent card but affirmed Marro reads for himself, consistent with the ruling."
+  },
+  {
+    "arm": "plain",
+    "scene": "01",
+    "fact": "F01",
+    "verdict": "honored",
+    "quote": "\"With what arm, boy?\" The shield hung on its strap from the saddle-bow where it had hung all morning. Rickard's left arm was bound across his chest.",
+    "reason": "Rickard cannot raise the shield and fights right-handed only, with the narration showing the shoulder limiting him."
+  },
+  {
+    "arm": "plain",
+    "scene": "01",
+    "fact": "F02",
+    "verdict": "honored",
+    "quote": "the cudgel in his left hand because the right was no good for it. It felt wrong there.",
+    "reason": "Marro's splinted right hand is never used to fight; he carries the cudgel awkwardly in his left."
+  },
+  {
+    "arm": "plain",
+    "scene": "01",
+    "fact": "F13",
+    "verdict": "honored",
+    "quote": "The sheath was empty. Of course it was empty. The dagger was at the bottom of the Rhoyne with Dagna",
+    "reason": "The GM corrects the dagger attempt in the fiction and Marro has only the cudgel."
+  },
+  {
+    "arm": "wiki",
+    "scene": "04",
+    "fact": "F04",
+    "verdict": "honored",
+    "quote": "\"Seven hells.\" He shut his eyes. \"He's dead. I know he's dead. I helped carry him.\"",
+    "reason": "The GM turns the player's fetch request into Tobbin remembering Olyvar's death and burial, so Olyvar never appears or acts as if alive."
+  },
+  {
+    "arm": "wiki",
+    "scene": "04",
+    "fact": "F05",
+    "verdict": "honored",
+    "quote": "Tobbin searched his face for a while. Whatever he was looking for, he didn't find it.",
+    "reason": "Tobbin still thinks Dagna is missing and hopes she will turn up, and the narration keeps her death and Marro's guilt in Marro's private thoughts without revealing them to Tobbin."
+  },
+  {
+    "arm": "wiki",
+    "scene": "06",
+    "fact": "F12",
+    "verdict": "honored",
+    "quote": "\"I gave you that stone for a sword.\"",
+    "reason": "Marro has and uses the whetstone, and Rickard recognizes it as his gift and tells him to keep it."
+  },
+  {
+    "arm": "wiki",
+    "scene": "06",
+    "fact": "F14",
+    "verdict": "honored",
+    "quote": "He tried the lid. It didn't give. ... The key was a foot from his face, on the cord around Rickard's neck",
+    "reason": "The strongbox stays locked, the key hangs on a cord at Rickard's neck, the letter is never found elsewhere, and the GM notes Marro doesn't know a letter exists."
+  },
+  {
+    "arm": "wiki",
+    "scene": "06",
+    "fact": "F17",
+    "verdict": "honored",
+    "quote": "\"If we're over that Wall by summer, you'll kneel in the mud and I'll put a sword on your shoulder, and you'll get up a knight\"",
+    "reason": "Rickard restates the promise of a knighthood if the city falls without changing or denying it."
+  },
+  {
+    "arm": "plain",
+    "scene": "07",
+    "fact": "F03",
+    "verdict": "honored",
+    "quote": "the patch over her left eye tilted a little, the way it did when she'd been scratching under it",
+    "reason": "Hesse's patch is over the left eye and she is consistently described as having one eye."
+  },
+  {
+    "arm": "plain",
+    "scene": "07",
+    "fact": "F09",
+    "verdict": "honored",
+    "quote": "Hesse didn't say anything. She didn't look at the road. She looked at him once, quick, with that one eye, then turned and fed a stick to the brazier and kept her back square to the river",
+    "reason": "Hesse quietly shields Marro as someone who already knows his past, without treating it as news, and Rickard never learns it."
+  },
+  {
+    "arm": "plain",
+    "scene": "10",
+    "fact": "F07",
+    "verdict": "honored",
+    "quote": "And he sells us grain on credit. Two months of it.",
+    "reason": "The grain is described as two months bought on credit from Malaquo, and Rickard confirms the company owes him, matching the fact."
+  },
+  {
+    "arm": "plain",
+    "scene": "10",
+    "fact": "F08",
+    "verdict": "honored",
+    "quote": "\"If there's a rat, he's got a sense of humor. Leaves us the grain and takes the plans.\"",
+    "reason": "The captains suspect a traitor and glance at Rickard, but no one learns the sale as fact and Marro is never told it."
+  },
+  {
+    "arm": "plain",
+    "scene": "10",
+    "fact": "F01",
+    "verdict": "honored",
+    "quote": "The arm came up as far as his ribs and stopped.",
+    "reason": "Rickard cannot get the shield onto his wounded left arm, and the commander keeps him out of the assault because of it."
+  },
+  {
+    "arm": "wiki",
+    "scene": "03",
+    "fact": "F16",
+    "verdict": "honored",
+    "quote": "He had sworn to Hesse. That was the other number, and it didn't fit in the column.",
+    "reason": "Marro's interior voice remembers the promise to Hesse at the dice table without deciding for the player, and he never throws."
+  },
+  {
+    "arm": "wiki",
+    "scene": "03",
+    "fact": "F06",
+    "verdict": "honored",
+    "quote": "Pallo's grey. ... \"My master wants thirty stags in four days. You know this.\"",
+    "reason": "The moneylender's man is Pallo's, the sum is thirty stags and the due date is four days off, matching the new moon stated in the opening."
+  },
+  {
+    "arm": "plain",
+    "scene": "04",
+    "fact": "F04",
+    "verdict": "honored",
+    "quote": "\"Olyvar's dead, ser,\" the cook said, before Marro could find his tongue. Flat, not unkind. \"Fever. Ten days back. We put him in the ground out by the wall.\"",
+    "reason": "Olyvar never appears; the fetch request is corrected in the fiction by stating he died of fever and is buried by the wall."
+  },
+  {
+    "arm": "plain",
+    "scene": "04",
+    "fact": "F05",
+    "verdict": "honored",
+    "quote": "\"Aye. Course you don't.\" He rubbed his eyes with the heel of his palm. \"A week. Seven nights now, near enough, and I keep thinking she's laid up somewhere with a bad tooth",
+    "reason": "Tobbin still believes Dagna may be alive and does not learn that Marro killed her; the truth stays in Marro's private thoughts."
+  },
+  {
+    "arm": "wiki",
+    "scene": "05",
+    "fact": "F20",
+    "verdict": "honored",
+    "quote": "\"Company business.\" He said it the way you'd repeat something a child said. \"Your company's camped in a field, boy. No paper, no bridge.\"",
+    "reason": "The bridge is chained and guarded, papers are checked, and Marro without a stamped pass is turned back with a spear shaft."
+  },
+  {
+    "arm": "wiki",
+    "scene": "05",
+    "fact": "F15",
+    "verdict": "honored",
+    "quote": "\"He's lame, Marro. He couldn't carry you to the latrine trench. And there's not another horse in this camp that isn't some captain's, and none of them lend.\"",
+    "reason": "Hesse refuses because Ash is lame and no spare horse exists, and Marro goes on foot."
+  },
+  {
+    "arm": "plain",
+    "scene": "06",
+    "fact": "F12",
+    "verdict": "honored",
+    "quote": "Marro sat on an upturned grain barrel behind the horse lines and worked Rickard's old whetstone along the cudgel's iron cap.",
+    "reason": "Marro has Rickard's old whetstone throughout the scene and Rickard recognizes it in use."
+  },
+  {
+    "arm": "plain",
+    "scene": "06",
+    "fact": "F14",
+    "verdict": "honored",
+    "quote": "The key was on the cord at Rickard's throat. Marro had known that before he started looking.",
+    "reason": "The strongbox stays locked under the cot with the key on Rickard's neck, and the GM notes Marro was never told of the letter, so its location is not revealed or changed."
+  },
+  {
+    "arm": "plain",
+    "scene": "06",
+    "fact": "F17",
+    "verdict": "honored",
+    "quote": "\"I said it if the company takes the city,\" he said. \"I remember what I said.\"",
+    "reason": "Rickard restates the promise with the same condition and reaffirms it rather than changing or denying it."
+  },
+  {
+    "arm": "plain",
+    "scene": "09",
+    "fact": "F18",
+    "verdict": "honored",
+    "quote": "Marro left with Lissa's letter folded inside his shirt, against his skin, where rain couldn't get at it. He'd read the direction on the outside so many times the words had gone strange. Her mother's name. A street near the dragon fountain. The Dragon's Den.",
+    "reason": "The letter is Lissa's, addressed to her mother in the Dragon's Den, still in Marro's possession and the errand is actively pursued; delivery is blocked in-fiction by the bridge pass, not forgotten or contradicted."
+  },
+  {
+    "arm": "plain",
+    "scene": "09",
+    "fact": "F06",
+    "verdict": "honored",
+    "quote": "\"Three days, little squire. New moon. Thirty silver stags.\"",
+    "reason": "Pallo's man states the correct lender, sum and new-moon deadline, and the countdown has moved from four days to three rather than resetting."
+  }
+]

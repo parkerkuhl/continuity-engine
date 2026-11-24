@@ -1,0 +1,147 @@
+# S07: Hesse's watch (plain arm)
+
+Tests: F03, F09. Model claude-opus-5-5 (Claude Code subagent), effort subagent default.
+
+## Turn 0
+
+**Player:** [save block pasted]
+
+**GM:**
+
+*Resuming: start of Chapter 2, spring of year 300, the Golden Company's siege camp outside Volantis. Four days to the new moon.*
+
+---
+
+**Chapter 2: The Long Bridge**
+
+The fever pits had been filled in by the time Marro came up from the river, but the smell stayed. Wet ash and lye. Somebody had stuck a pole over Brother Olyvar's grave and tied a rag to it, and the rag had already gone the color of mud.
+
+He held his right hand against his chest the way the camp surgeon had told him to. The splint was two arrow shafts and a strip of linen, and the two broken fingers throbbed every time his heart did. He'd stopped trying to make a fist. A cudgel hung from his belt where the dagger used to be, and every few steps his left hand went looking for the old hilt and found wood instead.
+
+Four days. Thirty stags. Four in his purse.
+
+Somebody had done the arithmetic for him on the way back, too. Two men in grey cloaks had been standing at the ferry landing, not fishing, not waiting for the ferry, just standing. One of them had smiled at him. Pallo's men didn't need to say anything. They only needed to be seen.
+
+Rickard's tent sat at the top of the rise, where a captain could look at the Black Wall all day and hate it. The flap was tied back. Inside, Rickard sat on a camp stool with his left arm strapped tight across his body and a map pinned flat under his right hand with a cup and a knife. The burn scar on his jaw looked whiter in the bad light. He didn't look up.
+
+"You're late."
+
+"Ferry was slow, ser."
+
+"Ferry's always slow." Rickard tapped the map with one finger, somewhere near the Long Bridge. "Night before last, the Triarch moved two companies of spearmen to the east end of the bridge. Last night, he moved them again. To exactly where we were going to put our ladders." His grey eyes came up then. "Third time this month."
+
+Outside, Hesse's voice carried across the horse lines, cursing somebody's mother with real feeling. Ash would be standing there on three good legs, and Hesse would be telling the farrier what she'd do to him if the horse had to be put down.
+
+Rickard leaned back and winced, and covered the wince with a sour twist of the mouth. "Lysono's coming up at sundown with the books. He'll want to know who's been where. I want you to tell me first." He reached under the stool and set a small leather bag on the map. It clinked. "And I want someone on the other side of that bridge who can find out what the Triarch's spearmen know, and who told them."
+
+The bag sat there. It was a fat bag.
+
+Marro thought about Lissa's letter, still folded inside his shirt, and her mother somewhere in the Dragon's Den, on the far side of a bridge he had no pass to cross. He thought about the men in grey, and about how much silver a fat bag held. Nothing about the thought felt clean.
+
+"There's no pass for you," Rickard said. "I can't ask for one without the whole camp knowing why. You'd have to find your own way over." His mouth went flat. "Or tell me you won't, and I'll find someone else before sundown."
+
+The cup on the map shivered. Somewhere down the line, a mallet was driving a stake into wet ground.
+
+## Turn 1
+
+**Player:** I share the night watch with Sergeant Hesse on the camp's eastern edge. I offer her my waterskin.
+
+**GM:**
+
+The eastern edge of camp was a ditch, a row of sharpened stakes and a lot of dark. Beyond it the land ran flat to the river, and beyond the river Volantis sat with its lamps lit, a city that didn't bother to sleep just because someone was trying to take it.
+
+Hesse had the brazier going low, more coals than flame. She sat on an upturned shield with her spear across her knees and the patch over her left eye tilted a little, the way it did when she'd been scratching under it. When Marro held out the waterskin she looked at it a moment before she took it.
+
+"Gods' teeth. Manners." She drank, wiped her mouth on the back of her wrist, and drank again. "That's river water."
+
+"Boiled."
+
+"Boiled river water." She handed it back. "Olyvar would've blessed it first. Much good it did him."
+
+They sat. A dog barked somewhere in the camp, and someone told it to shut up, and it didn't. Hesse turned her head all the way toward him to look at him, which she'd started doing since the eye. It made every look feel like a question.
+
+"Ash is off her feed," she said. "Farrier wants to cut her throat and be done. I told him I'd cut his first." She snorted. "No spare horses. If we go over that wall, I go on foot like a bloody Unsullied."
+
+The coals ticked. Marro's hand ached in its splint, a dull, steady pulse he'd almost stopped noticing, and the city lights wavered on the black water like coins at the bottom of a well. He caught himself thinking it and didn't like it. Thirty stags. Four days, three now, once this night was done.
+
+Hesse was watching his face. She had one eye and it saw plenty.
+
+"Captain sent somebody over the river at sundown," she said, careful and flat, like she was setting a thing down she didn't want to drop. "Tobbin. Took a boat from the south landing, no torch. Didn't say why." She spat into the brazier and it hissed. "Tobbin's been asking around, you know. About his sister. Whether anyone's seen her since the alleys."
+
+The wind turned. It brought the smell of the river up the slope, mud and rot and something sweeter underneath.
+
+"You did right," Hesse said, quieter, "swearing off the dice. I know I'm a hard bitch about it." She shifted the spear on her knees. "But you've got a look tonight, lad. Same look you had before the dice-house. So I'm asking. Are you in trouble I ought to know about?"
+
+Out past the stakes, something moved along the riverbank. Probably a fox. Hesse didn't look at it. She was looking at him.
+
+*Stress 0/5*
+
+## Turn 2
+
+**Player:** A slave caravan passes on the road below, chained in a line. I go quiet and watch it.
+
+**GM:**
+
+It wasn't a fox.
+
+Torches came first, two of them, bobbing along the river road below the ditch. Then the sound. Marro knew the sound before he knew what he was looking at, and that was the worst of it. Iron on iron, a dragging rhythm, link against link, never quite in step.
+
+They came out of the dark in a line. Grown men and women, a long neck-chain running from collar to collar, wrists bound in front. Barefoot on the stones. A few had the tattoos on their cheeks, too far off to read, and Marro found he didn't need to read them. Four guards on horseback rode alongside, one with a whip coiled at his saddle that he didn't bother to use. Nobody in the line was giving him a reason.
+
+Volantene traders, bound east around the siege lines, where the Triarch's tolls didn't reach. Somebody would sell them on in Selhorys and make a decent profit, and nobody along the road would think twice.
+
+Something in Marro's chest went small and hard. There was a smell in it, damp stone and old straw, and the weight of something around his own neck that wasn't there and hadn't been for years. No face came with it. No place. Just the body remembering what the mind had worked hard to forget, his shoulders drawing in, his breath gone shallow, as if keeping quiet might still make him harder to see.
+
+His good hand had closed on the cudgel at his belt. He didn't remember doing it.
+
+Hesse didn't say anything. She didn't look at the road. She looked at him once, quick, with that one eye, then turned and fed a stick to the brazier and kept her back square to the river so that anyone on the road who glanced up would see a sergeant and a squire minding their fire, nothing more.
+
+The line went past. It took a long time. Near the end a woman stumbled and the chain jerked the man ahead of her half off his feet, and he said something to her in low Valyrian, short and rough, the way you'd steady a horse. She got up. They walked on.
+
+The torches dwindled toward the east. The sound went last.
+
+Hesse let out a breath through her nose. "Bastards don't even slow down for the camp," she said, low. "Know we won't stop 'em. Company's got no quarrel with slavers. Not while the Triarch's grain's in our bellies." She poked the coals. "Captain'd say the same, if you asked. So don't ask him."
+
+She didn't press her question again. It still sat there between them, next to the brazier, with the waterskin.
+
+Down on the road, the last of the dust settled. Far off, a guard laughed at something.
+
+## Turn 3
+
+**Player:** Rickard comes up the slope to check on us. I ask Hesse to keep talking about anything else.
+
+**GM:**
+
+Hesse caught it the first time. She didn't even nod. By the time Rickard's boots were loud on the slope she was halfway into a story, pitched to carry.
+
+"...so the farrier says to me, a horse that won't eat is a horse that's decided, and I says to him, she's not a bloody septa, she don't get to decide anything. And he looks at me like I'm the one that's lame in the head." She jabbed the coals. "Evening, Captain."
+
+Rickard came into the light with his left arm still strapped across his chest and a cloak thrown over the bad shoulder, the clasp done one-handed and crooked. He looked tired the way stone looks tired. The burn scar along his jaw caught the brazier glow.
+
+"Sergeant. Squire." He looked at the road, then the dark past it. "Slavers?"
+
+"Gone east," Hesse said. "Eight or nine in the chain. Didn't stop."
+
+"They never do." He said it like a man reading a price. He stood with his weight back on his heels and his good hand hooked in his belt, and Marro could see what the arm cost him: the shoulder hitched high, the breath he took before he moved.
+
+Hesse went back to it without a beat. "Ash, Captain. You've got the ear of the paymaster. If there's a horse anywhere in this camp that isn't spoken for, I'll take a mule. I'll take a big dog."
+
+"There isn't. Lysono's counted every hoof twice." Rickard's mouth twitched. "He counts everything twice. He counted me twice tonight." He let that sit long enough to be a joke and not quite long enough to be only one. Hesse laughed, short, and looked at the fire.
+
+Then Rickard's grey eyes came to Marro, and stayed.
+
+"You didn't come back up the rise at sundown."
+
+Not an accusation, the way he said it. Not quite not one, either. Marro's mouth had gone dry, the whetstone a small hard weight in his pouch against his hip.
+
+"I sent Tobbin over instead," Rickard went on. "He's got a cousin on a fishing boat. He'll come back with something or he won't come back." A pause. "He was in a mood. Kept asking whether you'd been in the alleys the night his sister went missing. I told him you were with me." He looked at the city lights a moment. "Were you?"
+
+Hesse had stopped poking the coals. She was very carefully not looking at either of them.
+
+## Turn 4
+
+**Player:** (OOC) Let's end the scene here.
+
+**GM:**
+
+(OOC) Done, the night watch ends here. One loose end before I cut: Rickard just asked whether Marro was in the alleys the night Dagna went missing, and I won't answer that for you. Pick one and I'll close on it: give me Marro's answer in a line; or Marro says nothing, and Rickard lets it go, for now, and walks back down the slope. Either way, the next scene picks up the following morning, three days before the new moon. If you'd like to do anything in the hours between, say so.
