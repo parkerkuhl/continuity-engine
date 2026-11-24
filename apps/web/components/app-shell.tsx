@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app } from "@/lib/server";
+import { app, isRemote } from "@/lib/server";
 import { LockIcon } from "./icons";
 import { HeaderSearch, NavLink } from "./nav-link";
 
@@ -128,6 +128,11 @@ async function Sidebar({ scope }: { scope?: Scope }) {
             All worlds
           </Link>
         </div>
+      )}
+      {isRemote() && (
+        <form action="/auth/signout" method="post" className={scope ? "flex flex-col" : "mt-auto flex flex-col border-t border-nav-line pt-4"}>
+          <button className="px-3 py-2 text-left text-nav-muted hover:text-white">Sign out</button>
+        </form>
       )}
     </nav>
   );
