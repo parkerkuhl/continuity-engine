@@ -25,8 +25,17 @@ export async function AppShell({ scope, children }: { scope?: Scope; children: R
   );
 }
 
-function Badge({ n }: { n: number }) {
-  return n > 0 ? <span className="rounded-full bg-pending px-2 py-px text-xs font-bold text-[#1c1e21]">{n}</span> : null;
+/** The review count. Red when a conflict is waiting, since that is the one item that needs a decision. */
+function Badge({ n, conflict }: { n: number; conflict?: boolean }) {
+  if (n <= 0) return null;
+  return (
+    <span
+      className={`rounded-full px-2 py-px text-xs font-bold ${conflict ? "bg-danger-line text-white" : "bg-pending text-[#1c1e21]"}`}
+      {...(conflict && { title: "Includes a conflict" })}
+    >
+      {n}
+    </span>
+  );
 }
 
 async function Sidebar({ scope }: { scope?: Scope }) {
@@ -44,7 +53,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
         </NavLink>
         <NavLink href={`${base}/review`}>
           Review queue
-          <Badge n={waiting} />
+          <Badge n={waiting} conflict={queue.items.some((i) => !!i.update.conflictsWith)} />
         </NavLink>
         <NavLink href={`${base}#threads`}>
           Threads <span className="text-xs text-nav-muted">{d!.openThreads.length} open</span>

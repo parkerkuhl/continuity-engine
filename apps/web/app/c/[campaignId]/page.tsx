@@ -46,7 +46,7 @@ function Card({ title, id, action, children, className = "" }: { title: string; 
 }
 
 /** One "What's next" tile: a count and what it counts, or a quiet all-clear line when the count is zero. */
-function NextTile({ href, n, label, done, hot, prefix }: { href: string; n: number; label: string; done?: string; hot?: boolean; prefix?: string }) {
+function NextTile({ href, n, label, done, hot, prefix, sub }: { href: string; n: number; label: string; done?: string; hot?: boolean; prefix?: string; sub?: string }) {
   const clear = n === 0 && done;
   return (
     <Link
@@ -62,6 +62,7 @@ function NextTile({ href, n, label, done, hot, prefix }: { href: string; n: numb
             {n}
           </span>
           <span className="text-[13px] text-muted">{label}</span>
+          {sub && <span className="text-xs text-faint">{sub}</span>}
         </>
       )}
     </Link>
@@ -72,6 +73,11 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
   const { campaignId } = await params;
   const scope = await campaignScope(campaignId);
   const d = (await (await app()).views.dashboard(scope))!;
+  const [{ items: queued }, draftPages] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope)]);
+  const reviewSplit = [
+    queued.length > 0 && `${queued.length} update${queued.length === 1 ? "" : "s"}`,
+    draftPages.length > 0 && `${draftPages.length} new page${draftPages.length === 1 ? "" : "s"}`,
+  ].filter(Boolean).join(" · ");
   const c = d.campaign;
   const path = `/c/${campaignId}`;
   const s = c.settings;
@@ -96,7 +102,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
       </div>
 
       <nav aria-label="What's next" className="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-        <NextTile href={`${path}/review`} n={d.reviewCount} label={d.reviewCount === 1 ? "update to review" : "updates to review"} done="Review queue is clear" hot />
+        <NextTile href={`${path}/review`} n={d.reviewCount} label="to review" sub={reviewSplit} done="Review queue is clear" hot />
         <NextTile href={`${path}#threads`} n={d.openThreads.length} label={d.openThreads.length === 1 ? "open thread" : "open threads"} done="No open threads" />
         {scope.pc && (
           <NextTile

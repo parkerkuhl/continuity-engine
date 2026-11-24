@@ -42,16 +42,18 @@ export default async function Review({ params, searchParams }: { params: Promise
           <p className="mt-1.5 text-muted">
             {n === 0 && pages.length === 0
               ? "Nothing waiting."
-              : [n > 0 && `${n} update${n === 1 ? "" : "s"} the GM proposed`, pages.length > 0 && `${pages.length} new page${pages.length === 1 ? "" : "s"}`].filter(Boolean).join(" and ") + "."}{" "}
+              : `${n + pages.length} waiting: ` +
+                [conflicts.length > 0 && `${conflicts.length} conflict${conflicts.length === 1 ? "" : "s"}`, rest.length > 0 && `${rest.length} update${rest.length === 1 ? "" : "s"}`, pages.length > 0 && `${pages.length} new page${pages.length === 1 ? "" : "s"}`]
+                  .filter(Boolean)
+                  .join(", ") +
+                "."}{" "}
             Mode: <b className="text-ink">{modeName}</b>. {modeNote}
           </p>
         </div>
         <ActionForm action={approveAllMinor}>
           <input type="hidden" name="campaignId" value={campaignId} />
           <input type="hidden" name="path" value={path} />
-          <button className="btn-primary" disabled={minor === 0}>
-            Approve all minor ({minor})
-          </button>
+          {minor > 0 && <button className="btn-primary">Approve all minor ({minor})</button>}
         </ActionForm>
       </div>
 
@@ -67,8 +69,6 @@ export default async function Review({ params, searchParams }: { params: Promise
           );
         })}
       </div>
-
-      {showPages && <PageQueue scope={scope} path={path} />}
 
       {conflicts.filter(keep).map((v) => (
         <section key={v.update.id} aria-label={`Conflict #${v.update.seq}`} className="flex flex-col gap-3.5 rounded-xl border-2 border-danger-line bg-surface px-6 py-5">
@@ -132,6 +132,8 @@ export default async function Review({ params, searchParams }: { params: Promise
           </ul>
         </section>
       )}
+
+      {showPages && <PageQueue scope={scope} path={path} collapse={f === "all" && pages.length > 5} />}
 
       {items.length === 0 && pages.length === 0 ? (
         <p className="text-muted">Nothing to review.</p>
