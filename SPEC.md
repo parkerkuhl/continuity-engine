@@ -368,7 +368,23 @@ The continuity test in Evaluation, run and written up.
 
 **Milestone 8 (after the MVP): Remote**
 
-Postgres (Supabase), user accounts with OAuth, a remote MCP endpoint usable as a Claude custom connector, deployment, and per-user permissions put to real use.
+Postgres (Supabase), user accounts with OAuth, a remote MCP endpoint usable as a Claude custom connector, deployment, and per-user permissions put to real use. Hosting: Supabase (Postgres and sign-in) and Vercel (web app and MCP endpoint), free tiers. Each account sees only the worlds and campaigns it has a `permissions` row for; in this milestone that is only `owner`, and sharing waits for the plan below.
+
+- [ ] The core test suite passes on both SQLite and Postgres
+- [ ] Claude on claude.ai adds the server as a custom connector, signs in, and can open a campaign, get context and log a scene
+- [ ] A second account can't see or change the first account's worlds, through the connector or the web app
+- [ ] The hosted web app needs sign-in
+- [ ] The local setup (Claude Desktop plus SQLite) still works unchanged
+
+**Later: sharing and invites (planned, not built)**
+
+The `permissions` table already holds the roles. When sharing is built:
+
+- **Invite:** the owner invites by email from a Share screen on a world or campaign, picking a role. The invite is a pending row (email, subject, role, expiry) that becomes a `permissions` row when that email signs in and accepts. The owner can change a role or remove access at any time.
+- **Roles:** `owner` does everything, including sharing and changing the approval mode. `editor` edits pages, reviews updates and plays (runs Claude against the campaign). `player` sees only the player view (spoilers off, no `gm/` notes), even if the toggle is on, and cannot edit. `viewer` reads the player view of a world's public canon only.
+- **Scope:** a world role covers that world's canon pages; a campaign role covers one playthrough and implies reading the world it is built on, at the same role or lower.
+- **Spoilers per person:** the spoiler toggle moves from the campaign to each member, so a player's view can't be switched by the owner's toggle.
+- **Changes and the change feed:** every edit still writes a `versions` row; the row records which user made it, and the change feed names them.
 
 ## Evaluation
 

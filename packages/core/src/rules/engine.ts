@@ -386,7 +386,8 @@ export class RulesEngine {
     const all = dedupe([...(place ? [place] : []), ...present.value]);
     await this.storage.recordReads(input.sessionId, all.map((e) => e.id));
     const entities = [];
-    for (const e of all) entities.push(await assembleEntityContext(this.storage, campaign, e));
+    const pcId = (await this.pcEntity(campaign))?.id ?? null;
+    for (const e of all) entities.push(await assembleEntityContext(this.storage, campaign, e, pcId));
     return ok({ scene, entities, rulings: await this.storage.listRulings(campaign.worldId, campaign.id), warnings });
   }
 
@@ -399,7 +400,7 @@ export class RulesEngine {
     await this.storage.recordReads(input.sessionId, [r.value.id]);
     return ok({
       page: (await this.storage.getPage(r.value.id, { campaignId: campaign.id }))!,
-      context: await assembleEntityContext(this.storage, campaign, r.value),
+      context: await assembleEntityContext(this.storage, campaign, r.value, (await this.pcEntity(campaign))?.id ?? null),
     });
   }
 
