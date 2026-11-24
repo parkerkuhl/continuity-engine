@@ -12,3 +12,4 @@ export * from "./rules/result";
 export * from "./rules/precedence";
 export * from "./rules/engine";
 export * from "./rules/views";
+export { RemoteStore, openRemote, validRedirectUri, ACCESS_TOKEN_SECONDS, REFRESH_TOKEN_SECONDS, type OAuthClient, type OAuthError, type TokenSet } from "./remote/store";
