@@ -27,7 +27,7 @@ export function HeaderSearch({ action, wikiPaths }: { action: string; wikiPaths:
     <form
       action={action}
       role="search"
-      className="flex h-10 min-w-0 max-w-[520px] flex-[1_1_160px] sm:flex-[1_1_280px] items-center gap-2 rounded-lg border border-line-strong bg-surface px-3"
+      className="flex h-10 min-w-0 max-w-[520px] flex-[1_1_160px] sm:flex-[1_1_280px] items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent"
     >
       <SearchGlyph />
       <input
@@ -37,6 +37,9 @@ export function HeaderSearch({ action, wikiPaths }: { action: string; wikiPaths:
         aria-label="Search the wiki"
         className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint"
       />
+      <kbd className="hidden shrink-0 rounded border border-line-strong px-1.5 font-sans text-xs text-faint sm:inline" title="Press / or Ctrl+K to search">
+        /
+      </kbd>
     </form>
   );
 }

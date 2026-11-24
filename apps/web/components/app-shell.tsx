@@ -7,6 +7,7 @@ import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
 import { HeaderSearch, NavLink } from "./nav-link";
+import { SearchShortcut } from "./search-shortcut";
 
 /**
  * Every screen sits in this shell: the dark sidebar (where you are, and where you can go) and,
@@ -15,11 +16,15 @@ import { HeaderSearch, NavLink } from "./nav-link";
 export async function AppShell({ scope, children }: { scope?: Scope; children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-wrap">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2.5 focus:font-semibold focus:text-ink focus:shadow-lg">
+        Skip to content
+      </a>
       <AutoRefresh everyMs={Number(process.env.CONTINUITY_REFRESH_MS) || 10_000} />
+      <SearchShortcut />
       <Sidebar scope={scope} />
       <div className="flex min-w-0 flex-[999_1_560px] flex-col">
         {scope && <TopBar scope={scope} />}
-        <main className="mx-auto box-border flex w-full max-w-[1200px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto outline-none box-border flex w-full max-w-[1200px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8">{children}</main>
       </div>
     </div>
   );

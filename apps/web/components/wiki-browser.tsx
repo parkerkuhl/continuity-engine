@@ -74,7 +74,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
 
   return (
     <>
-      <form role="search" action={wiki} className="flex h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3">
+      <form role="search" action={wiki} className="flex h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
         <SearchGlyph />
         <input
           type="search"
