@@ -10,6 +10,7 @@ import type {
   ApprovalMode,
   Author,
   CampaignSettings,
+  PageStatus,
   ConflictRef,
   RulingOrigin,
   Severity,
@@ -42,6 +43,8 @@ export interface World {
   pitch: string;
   depth: Depth;
   defaultApprovalMode: ApprovalMode;
+  /** The in-story moment the world's pages describe; campaigns start from it. */
+  asOfStoryTime: string | null;
 }
 
 export interface Campaign {
@@ -80,6 +83,8 @@ export interface Entity {
   aliases: string[];
   source: Source;
   summary: string;
+  /** A page Claude drafts is proposed until the user approves it (approval mode). Rejected pages drop out of lookups. */
+  status: PageStatus;
 }
 
 /** An entity with its sections (world sections, plus the campaign's own when asked for a campaign). */
@@ -105,6 +110,7 @@ export interface NewWorld {
   pitch?: string;
   depth: Depth;
   defaultApprovalMode: ApprovalMode;
+  asOfStoryTime?: string | null;
 }
 
 export interface NewCampaign {
@@ -134,12 +140,13 @@ export interface NewEntity {
   aliases?: string[];
   source: Source;
   summary?: string;
+  status?: PageStatus; // defaults to confirmed
   sections?: NewSection[];
 }
 
-export type EntityPatch = Partial<Pick<Entity, "type" | "name" | "aliases" | "source" | "summary">>;
+export type EntityPatch = Partial<Pick<Entity, "type" | "slug" | "name" | "aliases" | "source" | "summary" | "status">>;
 export type SectionPatch = Partial<Pick<Section, "heading" | "bodyMd" | "visibility" | "order" | "lockedByUser">>;
-export type WorldPatch = Partial<Pick<World, "name" | "pitch" | "depth" | "defaultApprovalMode">>;
+export type WorldPatch = Partial<Pick<World, "name" | "pitch" | "depth" | "defaultApprovalMode" | "asOfStoryTime">>;
 
 export type CampaignPatch = Partial<
   Pick<Campaign, "name" | "settings" | "approvalMode" | "severityPolicy" | "asOfStoryTime" | "currentChapter" | "spoilersOn">
@@ -296,8 +303,8 @@ export interface Storage {
   getEntityBySlug(worldId: string, slug: string): Promise<Entity | null>;
   /** World sections, with same-key campaign sections overriding them when `campaignId` is given. */
   getPage(entityId: string, opts?: { campaignId?: string | null }): Promise<EntityPage | null>;
-  /** World canon only by default; pass `campaignId` to include that campaign's own entities too. */
-  listEntities(worldId: string, opts?: { campaignId?: string | null; type?: EntityType }): Promise<Entity[]>;
+  /** World canon only by default; pass `campaignId` to include that campaign's own entities too. Rejected pages are left out. */
+  listEntities(worldId: string, opts?: { campaignId?: string | null; type?: EntityType; status?: PageStatus[] }): Promise<Entity[]>;
 
   // updates, knowledge, rulings, scenes
   createUpdate(input: NewUpdate, meta: WriteMeta): Promise<Update>;
@@ -306,6 +313,8 @@ export interface Storage {
   getUpdateBySeq(campaignId: string, seq: number): Promise<Update | null>;
   /** In seq order. `entityId` keeps updates that touch that entity. */
   listUpdates(campaignId: string, filter?: { entityId?: string; status?: UpdateStatus[] }): Promise<Update[]>;
+  /** Records that these entities know a section (a secret learned in play). Returns everyone who now knows it. */
+  addSectionKnowers(sectionId: string, holderIds: string[], meta: WriteMeta): Promise<string[]>;
   /** Entity ids of everyone who knows the given update or section. */
   listKnowers(targetType: "update" | "section", targetId: string): Promise<string[]>;
   createRuling(input: { worldId: string; campaignId?: string | null; text: string; origin: RulingOrigin }, meta: WriteMeta): Promise<Ruling>;

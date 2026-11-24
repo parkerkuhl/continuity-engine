@@ -1,4 +1,4 @@
-// Milestone 5 acceptance, end to end: Claude (the real MCP server over stdio) and the web app
+// Milestone 5 and 6 acceptance, end to end: Claude (the real MCP server over stdio) and the web app
 // (next start) share one database file, and a browser drives the screens.
 //
 //   pnpm --filter @continuity/mcp build && pnpm --filter @continuity/web build && pnpm --filter @continuity/web e2e
@@ -41,7 +41,7 @@ async function claude() {
 
 async function seed() {
   const c = await claude();
-  const world = await c.call("create_world", { name: "The Free Cities", pitch: "Sellswords and old debts on the Rhoyne.", depth: "compact", approval_mode: "review" });
+  const world = await c.call("create_world", { name: "The Free Cities", pitch: "Sellswords and old debts on the Rhoyne.", depth: "compact", approval_mode: "autopilot" });
   const worldId = world.status.world_id;
   await c.call("create_entity", {
     world_id: worldId, type: "character", name: "Rickard Snow", aliases: ["Snow", "the bastard sellsword"], source: "invention",
@@ -56,7 +56,7 @@ async function seed() {
   await c.call("create_entity", { world_id: worldId, type: "place", name: "Volantis", aliases: ["Old Volantis"], source: "canon", summary: "The oldest of the Free Cities, split by the Black Wall." });
   await c.call("create_entity", { world_id: worldId, type: "faction", name: "Golden Company", aliases: ["the Company"], source: "canon", summary: "The largest sellsword company in Essos." });
   await c.call("create_entity", { world_id: worldId, type: "concept", name: "Glossary", source: "invention", summary: "Oaths and forms of address.", sections: [{ heading: "Oaths", body: "- *By the Black Wall*: a Volantene oath." }] });
-  const campaign = await c.call("create_campaign", { world_id: worldId, name: "Run 1", settings: { genre: "low fantasy", tone: "grim", difficulty: "balanced", lines: ["harm to children"] } });
+  const campaign = await c.call("create_campaign", { world_id: worldId, name: "Run 1", approval_mode: "review", settings: { genre: "low fantasy", tone: "grim", difficulty: "balanced", lines: ["harm to children"] } });
   const campaignId = campaign.status.campaign_id;
   await c.call("open_campaign", { campaign_id: campaignId });
   await c.call("update_campaign", { campaign_id: campaignId, as_of: "Spring, year 300", pc_sheet: { name: "Marro", stats: { might: 0, finesse: 2, wits: 2, presence: 1, resolve: 1 }, health: 6, stress: 1, inventory: ["dagger", "a borrowed cloak"] } });
@@ -76,8 +76,20 @@ async function seed() {
   await c.call("gm_write", { campaign_id: campaignId, kind: "twist", key: "the-sale", body: "Rickard is the traitor; the limp is from the meeting at the Long Bridge." });
   await c.call("gm_write", { campaign_id: campaignId, kind: "clock", key: "triarch-assault", body: "The Triarch moves on the camp.", data: { step: 2, steps: 6, advances_on: "each night the plans go unrecovered" } });
   await c.call("record_ruling", { campaign_id: campaignId, text: "Marro can read; his mother taught him." });
+  // Milestone 6: a world built by interview in review mode, so Claude's pages wait for approval.
+  const salt = await c.call("create_world", { name: "Saltmarch", pitch: "Drowned towns and toll-lords.", depth: "compact", approval_mode: "review" });
+  const saltId = salt.status.world_id;
+  for (const p of [
+    { type: "concept", name: "Overview", summary: "Drowned towns ruled by toll-lords.", sections: [{ heading: "Pillars", body: "Debt, water, family." }] },
+    { type: "place", name: "Gullhaven", summary: "The last dry harbor, on stilts.", sections: [{ heading: "Districts", body: "Stilts and the Dry Ward." }] },
+    { type: "character", name: "Old Ivo", summary: "A ferryman who drowned twice.", sections: [] },
+  ]) {
+    const r = await c.call("create_entity", { world_id: saltId, source: "invention", ...p });
+    if (r.status.status !== "proposed") throw new Error(`Saltmarch page not proposed:\n${r.text}`);
+  }
+  await c.call("update_world", { world_id: saltId, as_of: "First week of the dry season" });
   await c.close();
-  return { worldId, campaignId };
+  return { worldId, campaignId, saltId };
 }
 
 // ---------- the web app ----------
@@ -112,7 +124,7 @@ const expect = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
-const { campaignId, worldId } = await seed();
+const { campaignId, worldId, saltId } = await seed();
 const server = await startWeb();
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
@@ -223,6 +235,41 @@ try {
     await shot("07-entity-history");
   });
 
+  await check("M6: pages Claude drafts wait in the review queue; approving makes them canon, rejecting drops them", async () => {
+    const W = `${BASE}/w/${saltId}`;
+    await page.goto(W);
+    expect((await text()).includes("First week of the dry season"), "world as-of moment not shown");
+    const badge = await page.locator("nav a", { hasText: "Review queue" }).innerText();
+    expect(badge.includes("3"), `review badge should count 3 drafts, got "${badge}"`);
+    expect((await page.locator("main a", { hasText: "Gullhaven" }).innerText()).includes("Draft"), "draft pill missing on the wiki card");
+    await page.goto(`${W}/review`);
+    expect((await text()).includes("3 pages the GM drafted"), "world review queue doesn't list the drafts");
+    await shot("11-world-review");
+    for (const name of ["Overview", "Gullhaven"]) {
+      await page.getByRole("button", { name: `Approve ${name}` }).click();
+      await page.locator("section[aria-label='New pages'] li", { hasText: name }).waitFor({ state: "detached" });
+    }
+    await page.goto(`${W}/e/old-ivo`);
+    expect((await text()).includes("Draft: the GM wrote this page"), "draft banner missing on the entity page");
+    await shot("12-entity-draft");
+    await page.getByRole("button", { name: "Reject page" }).click();
+    await page.waitForURL(W);
+    const wiki = await text();
+    expect(!wiki.includes("Old Ivo") && wiki.includes("Gullhaven"), "rejected page still listed, or approved page missing");
+    await page.goto(`${W}/e/gullhaven`);
+    expect(!(await text()).includes("Draft: the GM wrote"), "approved page still shows the draft banner");
+
+    const c = await claude();
+    const camp = await c.call("create_campaign", { world_id: saltId, name: "Salt run" });
+    const opened = await c.call("open_campaign", { campaign_id: camp.status.campaign_id });
+    const ctx = await c.call("read_entity", { campaign_id: camp.status.campaign_id, entity: "Gullhaven" });
+    const ivo = await c.call("read_entity", { campaign_id: camp.status.campaign_id, entity: "Old Ivo" });
+    await c.close();
+    expect(/as of: First week of the dry season/.test(opened.text), "campaign doesn't start at the world's as-of moment");
+    expect(!/PROPOSED/.test(ctx.text), "Claude still sees the approved page as proposed");
+    expect(ivo.isError, "Claude can still read the rejected page");
+  });
+
   await page.goto(`${C}/wiki`);
   await shot("08-wiki-browser");
   await page.goto(`${BASE}/w/${worldId}`);
@@ -242,4 +289,4 @@ try {
 if (process.env.E2E_LOG) console.log(server.log());
 for (const [name, ok, why] of results) console.log(`${ok ? "PASS" : "FAIL"}  ${name}${why ? `\n      ${why}` : ""}`);
 console.log(`Screenshots: ${out}`);
-process.exit(results.every(([, ok]) => ok) && results.length === 4 ? 0 : 1);
+process.exit(results.every(([, ok]) => ok) && results.length === 5 ? 0 : 1);

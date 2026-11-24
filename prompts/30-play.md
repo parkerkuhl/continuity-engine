@@ -218,6 +218,7 @@ When a scene ends, `log_scene` is the record (see the protocol). What goes in it
 - **updates:** one per change. Pick the `type` that fits: `new-fact` (an invention or a newly established detail), `status-change` (wounded, captured, promoted), `relationship`, `location` (someone moved), `item` (gained, lost, broken), `knowledge` (a secret spread), `death`, `faction-shift`, `world-rule` (how the world works: a physical edge, a gear effect, a law of magic). Set `severity` (`major` if it changes what the story can do; the server forces `major` for deaths, spreading secrets, faction shifts and world rules). List everyone who knows it in `knows`, including the PC only if the PC knows. Tag the chapter as `ch-NN`.
 - **thread_changes:** open a thread for each new open question, unresolved promise, planted detail the PC noticed, rumor or debt, with a note on where it could go. Resolve threads when they close.
 - **pc_changes:** every change to Health, Stress, inventory, Bonds, trackers and flaw notes.
+- **secrets_learned:** when someone discovers what a secret section on a page says (the PC reads the letter, a companion overhears the confession), list the page, the section's key and who learned it in `by`. This is what lets the player view show the PC a secret they have uncovered. Log the discovery itself as a `knowledge` update too.
 
 Move clocks with `gm_write` when their advance condition happens, and at least once per chapter.
 

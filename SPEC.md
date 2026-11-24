@@ -64,9 +64,9 @@ Two layers: **world** rows hold shared canon; **campaign** rows hold one playthr
 | --- | --- | --- |
 | `users` | id, name | One row for now |
 | `permissions` | subject\_type (world, campaign), subject\_id, user\_id, role (owner, editor, player, viewer) | Only `owner` is used in the MVP |
-| `worlds` | id, owner\_id, name, pitch, depth (compact, full), default\_approval\_mode |  |
+| `worlds` | id, owner\_id, name, pitch, depth (compact, full), default\_approval\_mode, as\_of\_story\_time | `as_of_story_time` is the moment the world's pages describe; new campaigns start from it |
 | `campaigns` | id, world\_id, owner\_id, name, settings (JSON: genre, tone, difficulty, length, pacing, dice, turn length, content lines and veils), approval\_mode, severity\_policy, as\_of\_story\_time, current\_chapter, spoilers\_on, last\_session\_at | Settings mirror the GM prompt's intake answers |
-| `entities` | id, world\_id, campaign\_id (null = world canon), type, slug, name, aliases\[\], source (canon, ruling, invention, unverified), summary | `type`: character, place, faction, item, event, concept, rule. `summary` = the short current-state block the AI reads first |
+| `entities` | id, world\_id, campaign\_id (null = world canon), type, slug, name, aliases\[\], source (canon, ruling, invention, unverified), summary, status (proposed, confirmed, rejected) | `type`: character, place, faction, item, event, concept, rule. `summary` = the short current-state block the AI reads first. `status`: a page the AI drafts follows the approval mode (see Approval modes); rejected pages stay as records but drop out of lookups, search and context |
 | `sections` | id, entity\_id, campaign\_id (null = world), key, heading, body\_md, visibility (public, secret), order, locked\_by\_user | A campaign section with the same `key` overrides the world section in that campaign |
 | `updates` | id, campaign\_id, seq, entity\_ids\[\], tags\[\], type, severity (minor, major), status (proposed, confirmed, rejected, retconned, superseded), story\_time, chapter, scene\_id, body\_md, supersedes\_id, author (ai, user) | The tagged log entries written after scenes |
 | `knowledge` | holder\_entity\_id, target\_type (update, section), target\_id | Who knows what. Drives the player-view filter |
@@ -161,9 +161,10 @@ Few, chunky tools, so a turn costs one or two calls. Every tool returns compact 
 | Tool | Inputs | Returns | Rules |
 | --- | --- | --- | --- |
 | `list_worlds` | none | Worlds and their campaigns |  |
-| `create_world` | name, pitch, depth, approval\_mode | World id, empty load guide | Asks nothing itself; the prompt runs the interview |
-| `create_entity` | world\_id, campaign\_id?, type, name, aliases, source, sections\[\] | The stored page | Rejects if the name or an alias matches an existing entity; returns the match instead |
-| `edit_entity` | entity\_id, section edits, summary? | The stored page | Refused on sections locked by the user. Requires a read this session |
+| `create_world` | name, pitch, depth, approval\_mode, as\_of? | World id, empty load guide | Asks nothing itself; the prompt runs the interview |
+| `update_world` | world\_id, name?, pitch?, approval\_mode?, as\_of? | The stored world | Merges into what is stored. For the as-of moment (interview step 9) and later changes to the world's own fields |
+| `create_entity` | world\_id, campaign\_id?, type, name, aliases, source, sections\[\] | The stored page and its status | Rejects if the name or an alias matches an existing entity; returns the match instead. The page is `proposed` unless its layer's approval mode is autopilot |
+| `edit_entity` | entity\_id, campaign\_id or world\_id, section edits, summary?, source? | The stored page | Refused on sections locked by the user. During play, requires a read this session; while building a world (world\_id, no campaign open) it edits the world page, and a changed confirmed page goes back to `proposed` unless the mode is autopilot. `source` may be canon, invention or unverified (for instance, canon once the user confirms an unverified page), never ruling |
 | `import_document` | world\_id, title, proposed entities\[\] (Claude's split of the file) | Import id, likely duplicates, disagreements with existing pages | Nothing is written until `confirm_import` |
 | `confirm_import` | import\_id, accepted items | Created entity ids |  |
 | `create_campaign` | world\_id, name, settings, approval\_mode, severity\_policy | Campaign id |  |
@@ -177,7 +178,7 @@ Few, chunky tools, so a turn costs one or two calls. Every tool returns compact 
 | `get_context` | campaign\_id, present\[\], place?, threads\[\]? | Summaries for each present entity and the place, latest confirmed and proposed updates for them, what each present character knows, related rulings | Logs each returned entity as read. Resolves aliases |
 | `read_entity` | entity\_id or name | Full page (secret sections only if spoilers on, or always for the GM's own use, see Spoiler model) | Logs a read |
 | `search_wiki` | query, type? | Matching entities with one-line summaries | Full-text over names, aliases, summaries, sections |
-| `log_scene` | campaign\_id, summary, present\[\], place, updates\[\], thread\_changes\[\], pc\_changes? | Stored scene, each update with its resulting status, any refusals | Main write path. Partial success allowed: each update is accepted or refused on its own |
+| `log_scene` | campaign\_id, summary, present\[\], place, updates\[\], thread\_changes\[\], pc\_changes?, secrets\_learned\[\]? | Stored scene, each update with its resulting status, any refusals, who now knows each learned secret | Main write path. Partial success allowed: each update is accepted or refused on its own. `secrets_learned` items (entity, section key, by\[\]) write `knowledge` rows for secret sections; the entity must have been read this session |
 | `close_chapter` | campaign\_id, title, summary | A checklist: entities whose summaries need refreshing, clocks to advance, voice audit due | Claude then calls `edit_entity` and `gm_write` to work through it |
 | `record_ruling` | campaign\_id, text, kind (canon, voice, character\_inner\_life) | Stored ruling | Verbatim text. Top precedence |
 | `update_campaign` | campaign\_id, settings?, as\_of?, pc\_sheet? | Stored settings and PC sheet | Merges into what is stored. For the PC sheet at character creation, the as-of moment, and `(OOC) settings` changes; sheet changes during a scene go in `log_scene` |
@@ -194,7 +195,7 @@ These live in one rules module that every write passes through. They're what mak
 
 **Alias resolution.** Every entity reference (tags, `present`, `knows`) is resolved to a canonical slug through names and aliases. An unknown reference is refused with the closest matches, never auto-created.
 
-**Precedence.** When the server assembles context, sources rank: user edits and rulings, then campaign sections and confirmed updates, then world sections, then proposed updates, then `unverified` pages. A lower source never hides a higher one. Proposed and unverified material is always labeled as such in what Claude reads.
+**Precedence.** When the server assembles context, sources rank: user edits and rulings, then campaign sections and confirmed updates, then world sections, then proposed updates and proposed pages, then `unverified` pages. A lower source never hides a higher one. Proposed and unverified material is always labeled as such in what Claude reads.
 
 **Approval modes** (chosen per world and per campaign, changeable anytime):
 
@@ -204,6 +205,8 @@ These live in one rules module that every write passes through. They're what mak
 | Batch review | Stored as `proposed`, usable in play right away, labeled as soft; user approves in batches |
 | Autopilot | Stored as `confirmed` |
 | Mixed (by severity) | `minor` follows one mode, `major` another. Default: minor on autopilot, major in batch review |
+
+A page the AI creates follows the same modes: it is stored with status `proposed` (labeled in context, ranked with proposed updates) unless the mode is autopilot, and the user approves or rejects it in the review queue. A campaign page follows the campaign's mode, counting as `major` under mixed; a world page follows the world's default mode, where mixed counts as review. Pages the user accepts in `confirm_import` are confirmed.
 
 The AI sets severity on each update. The server forces `major` for these types: death, knowledge (a secret spreading), faction-shift, world-rule.
 
@@ -233,11 +236,13 @@ Worldbuilding happens in the Claude chat, driven by the worldbuilding prompt mod
 6. Magic or technology: what it does, costs, limits → `setting/magic-or-tech`
 7. Culture: slang, oaths, forms of address, customs → `glossary`
 8. Key figures → `characters/*`
-9. The as-of moment → stored on the world as the default starting point
+9. The as-of moment → stored on the world (`update_world`) as the default starting point
 
 **B. Import.** The user drops files into the Claude chat. Claude reads each one, splits it into proposed entities (names, aliases, sections), and calls `import_document` with that split. The server never calls a model itself in the MVP: it checks the split against the wiki and returns likely duplicates and fields where the file disagrees with existing pages. Claude adds the gaps it noticed, shows the user the summary, and `confirm_import` writes only what they accept. Imported material gets `source: canon`.
 
 **C. Established universe.** For a published setting, Claude may draft skeleton pages from its own knowledge, but each is stored with `source: unverified`. Unverified pages are usable in play and always labeled in context. The user upgrades them to canon as they check them, or Claude does so after the user confirms a fact.
+
+Pages the AI drafts in paths A and C are `proposed` until the user approves them in the web app's review queue (unless the world runs on autopilot); a page the AI changes while building goes back to proposed.
 
 Phase 0 ends when the user says the world is ready. The load guide is regenerated automatically after every write, so it is never stale.
 
@@ -299,7 +304,7 @@ A local Next.js app reading the same SQLite file as the MCP server, through the 
 | Wiki browser | Entities grouped by type, full-text search, filter by source (canon, ruling, invention, unverified) |
 | Entity page | Sections with inline editing, lock icons on user-edited sections, public/secret toggle per section, aliases, the updates that touch this entity, version history with restore |
 | Edit confirm | On saving a fact change: "Retcon (always true)" or "Change from now on" |
-| Review queue | Proposed updates, conflicts pinned on top; approve, edit, reject each; bulk-approve all minor updates |
+| Review queue | Proposed updates, conflicts pinned on top; approve, edit, reject each; bulk-approve all minor updates. Pages the AI drafted, approve or reject each (a world has its own queue for Phase 0) |
 | Campaign dashboard | Settings, approval mode and severity policy, spoiler toggle, PC sheet, open threads, chapter summaries, rulings |
 | GM notes | Story design, clocks and twists, visible only with spoilers on |
 

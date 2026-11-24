@@ -120,7 +120,11 @@ function itemText(i: ContextItem): string {
 /** One entity's context. Secret items are returned separately for the GM ONLY block. */
 function entityBlock(ctx: EntityContext): { open: string; secret: string[] } {
   const e = ctx.entity;
-  const open = [`## ${e.name} (${e.type}, ${e.slug})${e.aliases.length ? ` aka ${e.aliases.join(", ")}` : ""}`];
+  const open = [
+    `## ${e.name} (${e.type}, ${e.slug})${e.aliases.length ? ` aka ${e.aliases.join(", ")}` : ""}${
+      e.source === "unverified" ? " — UNVERIFIED page: drafted from an established setting, not yet checked; don't treat it as settled canon" : ""
+    }${e.status === "proposed" ? " — PROPOSED page: drafted by the GM, not yet approved by the user" : ""}`,
+  ];
   const secret: string[] = [];
   const updates: string[] = [];
   for (const i of ctx.items) {
@@ -151,7 +155,7 @@ export function renderEntity(page: EntityPage, ctx: EntityContext, view: "gm" | 
   if (view === "player") {
     const lines = [`# ${page.name} (${page.type})`];
     if (page.summary) lines.push(page.summary);
-    for (const s of page.sections.filter((s) => s.visibility === "public")) lines.push("", `## ${s.heading}`, s.bodyMd);
+    for (const s of page.sections.filter((s) => s.visibility === "public" || pcKnows.has(s.id))) lines.push("", `## ${s.heading}`, s.bodyMd);
     const known = ctx.items.filter((i): i is Extract<ContextItem, { kind: "update" }> => i.kind === "update" && pcKnows.has(i.update.id));
     if (known.length) lines.push("", "## What the character knows", ...known.map((i) => updateLine(i.update, i.label)));
     lines.push("", "_Player view: secrets and things the character doesn't know are left out._");
@@ -162,7 +166,7 @@ export function renderEntity(page: EntityPage, ctx: EntityContext, view: "gm" | 
 }
 
 export function renderStoredPage(p: EntityPage, note: string): string {
-  const lines = [`${note}`, `# ${p.name} (${p.type}, ${p.slug}, source: ${p.source})`];
+  const lines = [`${note}`, `# ${p.name} (${p.type}, ${p.slug}, source: ${p.source}${p.status === "proposed" ? ", proposed" : ""})`];
   if (p.aliases.length) lines.push(`Aliases: ${p.aliases.join(", ")}`);
   if (p.summary) lines.push("", p.summary);
   const secret: string[] = [];
@@ -191,6 +195,9 @@ export function renderLogged(r: SceneLogged): string {
   if (refused.length) lines.push("", "Fix the refused updates and log them again with log_scene; the stored ones are kept.");
   if (stored.some((x) => x.ok && x.status === "proposed")) lines.push("Proposed updates are soft canon until the user approves them.");
   if (r.threads.length) lines.push("", "Threads:", ...r.threads.map((t) => `- ${t.title} [${t.state}]`));
+  if (r.secretsLearned.length) {
+    lines.push("", "Secrets learned:", ...r.secretsLearned.map((x) => `- "${x.section.heading}" of ${x.entity.name}: now known by ${x.knowers.map((k) => k.name).join(", ")}`));
+  }
   return lines.join("\n");
 }
 
@@ -201,13 +208,24 @@ export function renderWorlds(rows: { world: World; campaigns: Campaign[] }[]): s
       [
         `## ${world.name} (world_id: ${world.id})`,
         world.pitch,
-        `Depth: ${world.depth}. Default approval: ${world.defaultApprovalMode}.`,
+        `Depth: ${world.depth}. Default approval: ${world.defaultApprovalMode}.${world.asOfStoryTime ? ` As of: ${world.asOfStoryTime}.` : ""}`,
         ...(campaigns.length ? campaigns.map((c) => `- Campaign "${c.name}" (campaign_id: ${c.id}), chapter ${c.currentChapter}`) : ["- No campaigns."]),
       ]
         .filter(Boolean)
         .join("\n"),
     )
     .join("\n\n");
+}
+
+export function renderWorldUpdated(w: World): string {
+  return [
+    `World "${w.name}" updated (world_id: ${w.id}).`,
+    w.pitch && `Pitch: ${w.pitch}`,
+    `Default approval: ${w.defaultApprovalMode}.`,
+    `As of: ${w.asOfStoryTime ?? "not set"}. New campaigns start here.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function renderSearch(hits: { entity: Entity; line: string }[], query: string): string {
@@ -220,6 +238,12 @@ export function renderImport(r: ImportReport): string {
   for (const i of r.items) {
     lines.push(`- [${i.index}] ${i.name} (${i.type})${i.duplicateOf ? ` — likely duplicate of **${i.duplicateOf}**` : " — new"}`);
     for (const d of i.disagreements) lines.push(`  - disagrees on ${d.field}: wiki says "${d.existing}", file says "${d.incoming}"`);
+    if (i.newAliases.length) lines.push(`  - adds aliases the wiki lacks: ${i.newAliases.join(", ")}`);
+    for (const o of i.alsoIn) {
+      const where = o.importId === r.importId ? `item [${o.index}] of this file` : `item [${o.index}] of pending import "${o.title}" (${o.importId})`;
+      lines.push(`  - also in ${where} as ${o.name}; confirm only one of them`);
+      for (const d of o.disagreements) lines.push(`    - the files disagree on ${d.field}: "${d.existing}" vs "${d.incoming}"`);
+    }
   }
   return lines.join("\n");
 }

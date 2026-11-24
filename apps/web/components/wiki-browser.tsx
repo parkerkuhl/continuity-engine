@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Entity, Scope } from "@continuity/core";
 import { app, basePath } from "@/lib/server";
+import { setWorldAsOf } from "@/app/actions";
+import { ActionForm } from "./action-form";
 import { SearchGlyph } from "./nav-link";
 
 export const TYPE_LABEL: Record<Entity["type"], string> = {
@@ -125,7 +127,9 @@ export async function WikiBrowser({ scope, query, source, type }: { scope: Scope
                 >
                   <div className="flex justify-between gap-2 text-xs">
                     <span className="text-muted">{TYPE_LABEL[e.type]}</span>
-                    {p?.conflict ? (
+                    {e.status === "proposed" ? (
+                      <span className="rounded-full bg-pending px-2 font-bold text-[#1c1e21]">Draft</span>
+                    ) : p?.conflict ? (
                       <span className="rounded-full bg-danger-soft px-2 font-bold text-danger">Conflict</span>
                     ) : p ? (
                       <span className="rounded-full bg-pending px-2 font-bold text-[#1c1e21]">{p.proposed} proposed</span>
@@ -159,13 +163,28 @@ function Tab({ href, on, children }: { href: string; on: boolean; children: Reac
 /** Header for a wiki screen: title, page count, and the world's export. */
 export async function WikiHeader({ scope, title }: { scope: Scope; title: string }) {
   const n = (await app().views.wiki(scope)).reduce((sum, g) => sum + g.entities.length, 0);
+  const w = scope.world;
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="page-title">{title}</h1>
         <p className="mt-1.5 text-muted">
-          {n} page{n === 1 ? "" : "s"} · {scope.campaign ? "world canon plus this campaign's changes" : scope.world.pitch || "world canon"}
+          {n} page{n === 1 ? "" : "s"} · {scope.campaign ? "world canon plus this campaign's changes" : w.pitch || "world canon"}
         </p>
+        {!scope.campaign && (
+          <details className="mt-1 text-[13px] text-muted">
+            <summary className="cursor-pointer">
+              As of: <span className="text-ink">{w.asOfStoryTime ?? "not set"}</span> <span className="link">Change</span>
+            </summary>
+            <ActionForm action={setWorldAsOf} className="mt-2 flex flex-wrap gap-2">
+              <input type="hidden" name="worldId" value={w.id} />
+              <input type="hidden" name="path" value={`/w/${w.id}`} />
+              <input name="asOf" defaultValue={w.asOfStoryTime ?? ""} className="input max-w-md" placeholder="When the story starts" aria-label="As-of moment" />
+              <button className="btn btn-sm">Save as-of moment</button>
+            </ActionForm>
+            <p className="mt-1">New campaigns start at this moment.</p>
+          </details>
+        )}
       </div>
       <a href={`/w/${scope.world.id}/export`} className="btn">
         Export as Markdown

@@ -273,6 +273,16 @@ export class WebViews {
     return { items: await Promise.all(v.shown.map((u) => this.updateView(u))), hidden: v.hidden };
   }
 
+  /** Pages Claude drafted that wait for approval: the world's own, plus this campaign's. Oldest layer first. */
+  async pageQueue(scope: Scope): Promise<{ entity: Entity; line: string; sections: number }[]> {
+    const out = [];
+    for (const entity of await this.engine.proposedPages(scope.world.id, scope.campaign?.id ?? null)) {
+      const page = await this.storage.getPage(entity.id, { campaignId: scope.campaign?.id ?? null });
+      out.push({ entity, line: entity.summary.split("\n")[0]?.trim() ?? "", sections: page?.sections.length ?? 0 });
+    }
+    return out;
+  }
+
   /** Bulk-approve the minor updates this view shows (never a parked conflict). */
   async approveVisibleMinor(scope: Scope): Promise<Update[]> {
     const { items } = await this.reviewQueue(scope);
@@ -305,7 +315,7 @@ export class WebViews {
       resolvedThreads: threads.filter((t) => t.state === "resolved"),
       chapters: await this.storage.listChapters(c.id),
       rulings: await this.storage.listRulings(c.worldId, c.id),
-      reviewCount: (await this.reviewQueue(scope)).items.length,
+      reviewCount: (await this.reviewQueue(scope)).items.length + (await this.pageQueue(scope)).length,
       hidden,
     };
   }

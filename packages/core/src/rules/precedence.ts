@@ -1,5 +1,5 @@
 /**
- * Precedence for context assembly (SPEC "Server-enforced rules", Precedence):
+ * Precedence for context assembly (SPEC "Server-enforced rules", Precedence). Proposed pages rank with proposed updates:
  *   1 user edits and rulings
  *   2 campaign sections and confirmed updates
  *   3 world sections
@@ -38,10 +38,18 @@ export function labelFor(rank: Rank, extra?: string): string | null {
   return null;
 }
 
+export const PROPOSED_PAGE = "PROPOSED PAGE (drafted by the GM, not yet approved)";
+
 function sectionRank(section: Section, layer: "world" | "campaign", entity: Entity): Rank {
   if (section.lockedByUser) return 1;
   if (entity.source === "unverified") return 5;
+  if (entity.status === "proposed") return 4;
   return layer === "campaign" ? 2 : 3;
+}
+
+/** A proposed page's rank-4 items carry the page label rather than the update one. */
+function pageLabel(rank: Rank, entity: Entity): string | null {
+  return rank === 4 && entity.status === "proposed" ? PROPOSED_PAGE : labelFor(rank);
 }
 
 function updateRank(u: Update): Rank {
@@ -55,8 +63,8 @@ export async function assembleEntityContext(storage: Storage, campaign: Campaign
   const items: ContextItem[] = [];
 
   const summaryRank: Rank =
-    entity.source === "ruling" ? 1 : entity.source === "unverified" ? 5 : entity.campaignId ? 2 : 3;
-  if (entity.summary) items.push({ kind: "summary", rank: summaryRank, label: labelFor(summaryRank), text: entity.summary, secret: false });
+    entity.source === "ruling" ? 1 : entity.source === "unverified" ? 5 : entity.status === "proposed" ? 4 : entity.campaignId ? 2 : 3;
+  if (entity.summary) items.push({ kind: "summary", rank: summaryRank, label: pageLabel(summaryRank, entity), text: entity.summary, secret: false });
 
   // World and campaign layers, side by side. A campaign section replaces the world section with the same
   // key only when it ranks at least as high; otherwise both are kept so the higher one is never hidden.
@@ -66,12 +74,12 @@ export async function assembleEntityContext(storage: Storage, campaign: Campaign
   for (const s of merged?.sections ?? []) {
     const layer = s.campaignId ? "campaign" : "world";
     const rank = sectionRank(s, layer, entity);
-    items.push({ kind: "section", rank, label: labelFor(rank), section: s, layer, secret: s.visibility === "secret" });
+    items.push({ kind: "section", rank, label: pageLabel(rank, entity), section: s, layer, secret: s.visibility === "secret" });
     const under = layer === "campaign" ? world.get(s.key) : undefined;
     if (under) {
       const underRank = sectionRank(under, "world", entity);
       if (underRank < rank) {
-        items.push({ kind: "section", rank: underRank, label: labelFor(underRank), section: under, layer: "world", secret: under.visibility === "secret" });
+        items.push({ kind: "section", rank: underRank, label: pageLabel(underRank, entity), section: under, layer: "world", secret: under.visibility === "secret" });
       }
     }
   }

@@ -17,6 +17,7 @@ import {
   Kebab,
   PcSheetData,
   SeverityPolicy,
+  PageStatus,
   Source,
   Visibility,
   type ObjectType,
@@ -163,6 +164,7 @@ export class SqliteStorage implements Storage {
       pitch: input.pitch ?? "",
       depth: check(Depth, input.depth, "depth"),
       defaultApprovalMode: check(ApprovalMode, input.defaultApprovalMode, "approval mode"),
+      asOfStoryTime: input.asOfStoryTime?.trim() || null,
     };
     return this.write("world", meta, (tx) => {
       tx.insert(s.worlds).values(world).run();
@@ -289,6 +291,30 @@ export class SqliteStorage implements Storage {
           .run();
       }
       return { result: update, objectId: update.id, before: null, after: { ...update, knows } };
+    });
+  }
+
+  async addSectionKnowers(sectionId: string, holderIds: string[], meta: WriteMeta): Promise<string[]> {
+    return this.write("section", meta, (tx) => {
+      const section = tx.select().from(s.sections).where(eq(s.sections.id, sectionId)).get();
+      if (!section) throw new StorageError("not_found", `section ${sectionId} not found`);
+      for (const eid of holderIds) this.requireEntity(tx, eid);
+      const known = (k: Tx) =>
+        k
+          .select({ id: s.knowledge.holderEntityId })
+          .from(s.knowledge)
+          .where(and(eq(s.knowledge.targetType, "section"), eq(s.knowledge.targetId, sectionId)))
+          .all()
+          .map((r) => r.id);
+      const before = known(tx);
+      const fresh = [...new Set(holderIds)].filter((id) => !before.includes(id));
+      if (fresh.length) {
+        tx.insert(s.knowledge)
+          .values(fresh.map((holderEntityId) => ({ holderEntityId, targetType: "section" as const, targetId: sectionId })))
+          .run();
+      }
+      const after = [...before, ...fresh];
+      return { result: after, objectId: sectionId, before: { ...section, knows: before }, after: { ...section, knows: after } };
     });
   }
 
@@ -593,6 +619,7 @@ export class SqliteStorage implements Storage {
       aliases: check(Aliases, input.aliases ?? [], "aliases"),
       source: check(Source, input.source, "source"),
       summary: (input.summary ?? "").replace(/\s+$/, ""),
+      status: check(PageStatus, input.status ?? "confirmed", "status"),
     };
     if (!entity.name) throw new StorageError("invalid", "name is required");
     const sectionRows = (input.sections ?? []).map((sec, i) => this.newSectionRow(entity.id, entity.campaignId, sec, i));
@@ -621,9 +648,16 @@ export class SqliteStorage implements Storage {
       const after: Entity = { ...before, ...patch };
       check(EntityType, after.type, "type");
       check(Source, after.source, "source");
+      check(PageStatus, after.status, "status");
       after.aliases = check(Aliases, after.aliases, "aliases");
       after.summary = after.summary.replace(/\s+$/, "");
-      const { id: _id, worldId: _w, campaignId: _c, slug: _s, ...set } = after;
+      if (after.slug !== before.slug) {
+        check(Kebab, after.slug, "slug");
+        if (tx.select().from(s.entities).where(and(eq(s.entities.worldId, before.worldId), eq(s.entities.slug, after.slug))).get()) {
+          throw new StorageError("duplicate", `an entity with slug "${after.slug}" already exists in this world`);
+        }
+      }
+      const { id: _id, worldId: _w, campaignId: _c, ...set } = after;
       tx.update(s.entities).set(set).where(eq(s.entities.id, id)).run();
       this.refreshFts(tx, id);
       return { result: after, objectId: id, before, after };
@@ -686,9 +720,13 @@ export class SqliteStorage implements Storage {
     return { ...entity, sections: merged };
   }
 
-  async listEntities(worldId: string, opts: { campaignId?: string | null; type?: EntityType } = {}): Promise<Entity[]> {
+  async listEntities(
+    worldId: string,
+    opts: { campaignId?: string | null; type?: EntityType; status?: PageStatus[] } = {},
+  ): Promise<Entity[]> {
     const conds: SQL[] = [eq(s.entities.worldId, worldId), this.scope(opts.campaignId)];
     if (opts.type) conds.push(eq(s.entities.type, opts.type));
+    conds.push(inArray(s.entities.status, opts.status ?? ["proposed", "confirmed"]));
     return this.db
       .select()
       .from(s.entities)
