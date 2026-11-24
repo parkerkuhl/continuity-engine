@@ -118,7 +118,7 @@ async function seed() {
     secrets_learned: [{ entity: "Mirela Oduya", section: "what-the-choir-knows", by: ["Isolde Varre", "Marta Gorse"] }],
   });
   // The GM corrects Wren's page directly during play (AI page edits apply at once and show in history).
-  await c.call("edit_entity", { entity: "Wren Tallow", campaign_id: campaignId, sections: [{ key: "debts", body: "Owes the Tidewater Free Company 80 crowns (60 for the new sail on the Gull's Mercy, plus interest). Sabin Roake holds the note and wants it paid by midwinter." }] });
+  await c.call("edit_entity", { entity: "Wren Tallow", campaign_id: campaignId, sections: [{ key: "debts", body: "Owes the Tidewater Free Company 80 crowns (60 for the new sail on the Gull's Mercy, plus interest). Sabin Roake holds the note and wants it paid by midwinter." }], knows: ["Wren Tallow", "Marta Gorse"] });
   // Chapter 1, scene 3
   await c.call("get_context", { campaign_id: campaignId, present: ["Isolde Varre", "Wren Tallow", "The Fogwright", "Tidewater Free Company"], place: "Hollow Isle" });
   await c.call("log_scene", {

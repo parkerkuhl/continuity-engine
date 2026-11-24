@@ -202,7 +202,7 @@ export function createServer(engine: RulesEngine, opts: ServerOptions = {}): Mcp
     {
       title: "Edit entity",
       description:
-        "Edits a page's summary, sections or source. During play, read the entity this session first (get_context or read_entity). While building a world (no campaign open), pass world_id instead. Sections the user edited are locked: log an update with proposes_section instead.",
+        "Edits a page's summary, sections or source. During play, read the entity this session first (get_context or read_entity), and pass knows when the PC doesn't know the new text: a public section's change is then stored as a secret section (key <key>-secret) known to those characters, until log_scene secrets_learned names the PC. While building a world (no campaign open), pass world_id instead. Sections the user edited are locked: log an update with proposes_section instead.",
       inputSchema: {
         entity: z.string().describe("entity id, slug, name or alias"),
         campaign_id: z.string().optional(),
@@ -210,6 +210,10 @@ export function createServer(engine: RulesEngine, opts: ServerOptions = {}): Mcp
         summary: z.string().optional(),
         source: z.enum(["canon", "invention", "unverified"]).optional().describe("e.g. canon once the user confirms an unverified page"),
         sections: z.array(z.object({ key: kebab, heading: z.string().optional(), body: z.string().optional(), visibility: Visibility.optional() })).default([]),
+        knows: z
+          .array(z.string())
+          .optional()
+          .describe("during play: characters who know the new text. Without the PC, a public section's change becomes a secret section; leave out when everyone could know it"),
       },
     },
     (a) =>
@@ -227,6 +231,7 @@ export function createServer(engine: RulesEngine, opts: ServerOptions = {}): Mcp
           ...(a.summary !== undefined && { summary: a.summary }),
           ...(a.source && { source: a.source }),
           sections: a.sections,
+          ...(a.knows && { knows: a.knows }),
         });
         if (!r.ok) return refused(r.refusal);
         const note =

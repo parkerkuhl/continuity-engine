@@ -496,6 +496,12 @@ export class RulesEngine {
     summary?: string;
     source?: Entity["source"];
     sections?: SectionEdit[];
+    /**
+     * During play: who in the story knows the new text (UX review #1). When the PC isn't among them, a change to a
+     * public section is written to a secret companion section (key `<key>-secret`) known to these characters, so
+     * the player view keeps the old text until log_scene secrets_learned names the PC. Left out, everyone knows.
+     */
+    knows?: string[];
   }): Promise<Result<EntityPage>> {
     let campaign: Campaign | null = null;
     let world: World | null = null;
@@ -525,6 +531,22 @@ export class RulesEngine {
     }
     const where = campaign ? `in campaign "${campaign.name}"` : `while building world "${world!.name}"`;
 
+    // Who knows the new text. Only during play; the PC knowing it (or no list) means a normal edit.
+    let knowers: Entity[] | null = null;
+    if (input.knows !== undefined) {
+      if (!campaign) return refuse("invalid", "knows is for edits during play (campaign_id); while building the world everything is GM knowledge.");
+      const r = await this.resolveAll(campaign, input.knows);
+      if (!r.ok) return r;
+      const pc = await this.pcEntity(campaign);
+      if (!pc || !r.value.some((e) => e.id === pc.id)) knowers = r.value;
+      if (knowers && input.summary !== undefined) {
+        return refuse(
+          "invalid",
+          `The summary is public and the PC doesn't know this. Leave the summary as the PC would see it, and put the new fact in a section (with knows), or log it with log_scene as an update with knows.`,
+        );
+      }
+    }
+
     const edits = [];
     for (const raw of input.sections ?? []) {
       const p = SectionEdit.safeParse(raw);
@@ -546,7 +568,20 @@ export class RulesEngine {
       if (!overlay && !base && !edit.heading && edit.key !== TO_PC_KEY) {
         return refuse("invalid", `${entity.slug} has no section "${edit.key}". Give a heading to add it.`);
       }
-      edits.push({ edit, base, overlay });
+      const current = overlay ?? base;
+      const visibility = edit.visibility ?? current?.visibility ?? "public";
+      if (knowers && visibility === "public" && edit.body !== undefined && edit.key !== TO_PC_KEY) {
+        // The PC doesn't know this yet: keep the public text and write the new text as a secret beside it.
+        const key = `${edit.key}-secret`;
+        const heading = `${edit.heading ?? current?.heading ?? edit.key} (secret)`;
+        const existing = await this.findSection(entity.id, key, campaign!.id);
+        if (existing?.lockedByUser) {
+          return refuse("locked_by_user", `Section "${key}" of ${entity.slug} is locked because the user edited it. Log an update with proposes_section instead.`, { ref: entity.slug });
+        }
+        edits.push({ edit: { key, heading, body: edit.body, visibility: "secret" as const }, base: null, overlay: existing, secretFor: knowers });
+        continue;
+      }
+      edits.push({ edit, base, overlay, secretFor: knowers && visibility === "secret" ? knowers : null });
     }
 
     // In worldbuilding, a changed page goes back through the approval mode.
@@ -560,22 +595,29 @@ export class RulesEngine {
     if (Object.keys(entityPatch).length) {
       await this.storage.updateEntity(entity.id, entityPatch, AI(`edit_entity ${where}`));
     }
-    for (const { edit, base, overlay } of edits) {
-      const perCampaign = !!campaign && edit.key === TO_PC_KEY;
+    for (const { edit, base, overlay, secretFor } of edits) {
+      // A secret companion (knows without the PC) lives in this campaign only, like any fact from play.
+      const perCampaign = !!campaign && (edit.key === TO_PC_KEY || (!!secretFor && edit.key.endsWith("-secret") && !base));
       const target = perCampaign ? overlay : (overlay ?? base);
+      let sectionId: string;
       if (target) {
-        await this.storage.updateSection(
-          target.id,
-          { ...(edit.heading && { heading: edit.heading }), ...(edit.body !== undefined && { bodyMd: edit.body }), ...(edit.visibility && { visibility: edit.visibility }) },
-          AI(`edit_entity ${where}`),
-        );
+        sectionId = (
+          await this.storage.updateSection(
+            target.id,
+            { ...(edit.heading && { heading: edit.heading }), ...(edit.body !== undefined && { bodyMd: edit.body }), ...(edit.visibility && { visibility: edit.visibility }) },
+            AI(`edit_entity ${where}`),
+          )
+        ).id;
       } else {
-        await this.storage.addSection(
-          entity.id,
-          { campaignId: perCampaign ? campaign!.id : entity.campaignId, key: edit.key, heading: edit.heading ?? TO_PC_HEADING, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
-          AI(`edit_entity ${where}`),
-        );
+        sectionId = (
+          await this.storage.addSection(
+            entity.id,
+            { campaignId: perCampaign ? campaign!.id : entity.campaignId, key: edit.key, heading: edit.heading ?? TO_PC_HEADING, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
+            AI(`edit_entity ${where}`),
+          )
+        ).id;
       }
+      if (secretFor?.length) await this.storage.addSectionKnowers(sectionId, secretFor.map((e) => e.id), AI(`edit_entity ${where}: who knows`));
     }
     return ok((await this.storage.getPage(entity.id, { campaignId: campaign?.id ?? null }))!);
   }
