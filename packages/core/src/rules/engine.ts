@@ -151,6 +151,10 @@ export interface CampaignOpened {
   pcSheet: PcSheet | null;
   openThreads: Thread[];
   chapters: Chapter[];
+  /** Logged scenes of the current chapter, oldest first, for a recap after a new chat. */
+  chapterScenes: Scene[];
+  /** Every ruling for this campaign and its world, oldest first. */
+  rulings: Ruling[];
   /** User-authored changes since the last session, grouped by entity. Overrides chat memory. */
   changes: ChangeGroup[];
   unloggedScene: Scene | null;
@@ -211,6 +215,8 @@ export class RulesEngine {
       pcSheet: await this.storage.getPcSheet(campaignId),
       openThreads: await this.storage.listThreads(campaignId, "open"),
       chapters: await this.storage.listChapters(campaignId),
+      chapterScenes: (await this.storage.listScenes(campaignId)).filter((sc) => sc.chapter === campaign.currentChapter && sc.loggedAt),
+      rulings: await this.storage.listRulings(campaign.worldId, campaignId),
       changes,
       unloggedScene,
       warnings: unloggedScene ? [unloggedWarning(unloggedScene)] : [],
@@ -629,6 +635,45 @@ export class RulesEngine {
   }
 
   /** A ruling made in play, stored verbatim. Top precedence. */
+  /**
+   * Changes campaign settings, the story's as-of moment, or the PC sheet outside a scene
+   * (intake, or an (OOC) settings request). Settings and sheet fields are merged into what is stored.
+   */
+  async updateCampaign(input: {
+    sessionId: string;
+    settings?: CampaignSettings;
+    asOf?: string;
+    pcSheet?: Record<string, unknown>;
+  }): Promise<Result<{ campaign: Campaign; pcSheet: PcSheet | null }>> {
+    const open = await this.openSession(input.sessionId);
+    if (!open.ok) return open;
+    const { campaign } = open.value;
+    if (!input.settings && input.asOf === undefined && !input.pcSheet) return refuse("invalid", "Nothing to change: pass settings, as_of or pc_sheet.");
+    let settings: CampaignSettings | null = null;
+    if (input.settings) {
+      const p = CampaignSettings.safeParse({ ...campaign.settings, ...input.settings });
+      if (!p.success) return refuse("invalid", `settings: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+      settings = p.data;
+    }
+    let pcData: Record<string, unknown> | null = null;
+    if (input.pcSheet) {
+      const merged = { ...((await this.storage.getPcSheet(campaign.id))?.data ?? {}), ...input.pcSheet };
+      const p = PcSheetData.passthrough().safeParse(merged);
+      if (!p.success) return refuse("invalid", `PC sheet: ${p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+      pcData = merged;
+    }
+    let updated = campaign;
+    if (settings || input.asOf !== undefined) {
+      updated = await this.storage.updateCampaign(
+        campaign.id,
+        { ...(settings && { settings }), ...(input.asOf !== undefined && { asOfStoryTime: input.asOf }) },
+        AI("update_campaign"),
+      );
+    }
+    const pcSheet = pcData ? await this.storage.setPcSheet({ campaignId: campaign.id, data: pcData }, AI("update_campaign")) : await this.storage.getPcSheet(campaign.id);
+    return ok({ campaign: updated, pcSheet });
+  }
+
   async recordRuling(input: { sessionId: string; text: string; kind?: "canon" | "voice" | "character_inner_life" }): Promise<Result<Ruling>> {
     const open = await this.openSession(input.sessionId);
     if (!open.ok) return open;

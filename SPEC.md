@@ -173,13 +173,14 @@ Few, chunky tools, so a turn costs one or two calls. Every tool returns compact 
 
 | Tool | Inputs | Returns | Rules |
 | --- | --- | --- | --- |
-| `open_campaign` | campaign\_id | Settings, approval mode, voice anchor, pinned context, PC sheet, current chapter, open threads, **changed since last session**, any unlogged scene | Opens a new session. Must be the first call of every chat |
+| `open_campaign` | campaign\_id | Settings, as-of moment, approval mode, voice anchor, pinned context, PC sheet, current chapter, open threads, every ruling, this chapter's logged scenes, **changed since last session**, any unlogged scene | Opens a new session. Must be the first call of every chat |
 | `get_context` | campaign\_id, present\[\], place?, threads\[\]? | Summaries for each present entity and the place, latest confirmed and proposed updates for them, what each present character knows, related rulings | Logs each returned entity as read. Resolves aliases |
 | `read_entity` | entity\_id or name | Full page (secret sections only if spoilers on, or always for the GM's own use, see Spoiler model) | Logs a read |
 | `search_wiki` | query, type? | Matching entities with one-line summaries | Full-text over names, aliases, summaries, sections |
 | `log_scene` | campaign\_id, summary, present\[\], place, updates\[\], thread\_changes\[\], pc\_changes? | Stored scene, each update with its resulting status, any refusals | Main write path. Partial success allowed: each update is accepted or refused on its own |
 | `close_chapter` | campaign\_id, title, summary | A checklist: entities whose summaries need refreshing, clocks to advance, voice audit due | Claude then calls `edit_entity` and `gm_write` to work through it |
 | `record_ruling` | campaign\_id, text, kind (canon, voice, character\_inner\_life) | Stored ruling | Verbatim text. Top precedence |
+| `update_campaign` | campaign\_id, settings?, as\_of?, pc\_sheet? | Stored settings and PC sheet | Merges into what is stored. For the PC sheet at character creation, the as-of moment, and `(OOC) settings` changes; sheet changes during a scene go in `log_scene` |
 | `gm_read` | campaign\_id | Story design, clocks, twists, endings |  |
 | `gm_write` | campaign\_id, kind, key, body, data? | Stored note | Clock changes are logged in `versions` |
 

@@ -10,7 +10,7 @@ Call `list_worlds`. If the user named a world that exists, use it. Use `search_w
 - **Established universe or historical period with no pages yet:** create the world with `create_world`, then draft skeleton pages as `unverified` (worldbuilding path C) for the era and place the user picks in question 3, before character creation.
 - **The user has files:** import them first (worldbuilding path B).
 
-If the user's first message is an (OOC) command, answer it. If they paste a save block from an older chat, don't re-run intake: tell them the wiki replaces save blocks, and offer to carry the save into a new campaign (premise and settings with `create_campaign`, the voice anchor with `set_voice_anchor`, their rulings with `record_ruling`, people and places with `create_entity`, the design and clocks with `gm_write`).
+If the user's first message is an (OOC) command, answer it. If they paste a save block from an older chat, don't re-run intake: tell them the wiki replaces save blocks, and offer to carry the save into a new campaign (premise and settings with `create_campaign`, the as-of moment and character sheet with `update_campaign`, the voice anchor with `set_voice_anchor`, their rulings with `record_ruling`, people and places with `create_entity`, the design and clocks with `gm_write`).
 
 ## Phase 1: story intake
 
@@ -36,8 +36,8 @@ Once they confirm the premise, before the voice check:
 
 1. Ask which approval mode to use for this campaign's AI updates (`review`, `batch`, `autopilot` or `mixed`; mixed defaults to minor on autopilot, major in batch review). If they don't care, use the world's mode.
 2. Call `create_campaign` with the world, a name, the approval mode, and `settings`: `genre`, `tone`, `difficulty`, `length`, `pacing`, `dice`, `turn_length`, and `lines` and `veils` as lists.
-3. Fix the story's **as-of moment** (see the era rule in the play module), and store the rest of the premise that `settings` doesn't hold with `gm_write`, kind `setup`, key `premise`: the kind of setting, era and place, the as-of moment, how closely the game tracks canon, and the story seeds.
-4. Call `open_campaign` with the new campaign id. This opens the session the rest of intake writes through.
+3. Call `open_campaign` with the new campaign id. This opens the session the rest of intake writes through.
+4. Fix the story's **as-of moment** (see the era rule in the play module) and store it with `update_campaign` (`as_of`). Store the rest of the premise that `settings` doesn't hold with `gm_write`, kind `setup`, key `premise`: the kind of setting, era and place, how closely the game tracks canon, and the story seeds.
 5. Read the wiki pages for the chosen era and place with `read_entity`, so character creation is rooted in what the wiki says. Don't call `get_context` until the first scene: it opens a scene.
 
 ### Voice
@@ -84,7 +84,7 @@ Once they confirm the sheet:
 1. Create the PC's page with `create_entity` (type `character`, the campaign's `campaign_id`, source `ruling`, since the user made it). Put the public background in ordinary sections and their secret in a section with `visibility: "secret"`.
 2. Do the same for a starting companion (source `invention` for what you proposed and they accepted, `ruling` for what they dictated), with their motive, flaw, manner of speech, personal goal, and the line they won't cross. Keep the companion's own secret in a secret section.
 3. Create pages for any other new people, places or factions the backstory introduced, and add the PC's relationships to existing characters as sections on the PC's page.
-4. Hold the sheet itself (name, stats, health 6/6, stress 0/5, inventory, bonds, trackers, flaw notes) for the first `log_scene`: its `pc_changes` stores the whole sheet. Use the fields `name`, `stats`, `health`, `stress`, `inventory`, `bonds` (one entry per companion, with its level), `trackers` and `flaw_notes`.
+4. Store the sheet itself right away with `update_campaign` (`pc_sheet`), so it survives even if this chat ends before the first scene. Use the fields `name`, `stats`, `health`, `stress`, `inventory`, `bonds` (one entry per companion, with its level), `trackers` and `flaw_notes`.
 
 ## Hidden story design
 
@@ -121,4 +121,4 @@ Plot threads the PC can see (open questions, promises, rumors, debts) are not pa
 
 ## Starting play
 
-Switch to the play module. Open with a scene that drops the PC into the story. By the end of the first scene, a concrete problem must be on the table, something they have to decide or act on, not just atmosphere. When that scene ends, `log_scene` stores it along with the full character sheet in `pc_changes`.
+Switch to the play module. Open with a scene that drops the PC into the story. By the end of the first scene, a concrete problem must be on the table, something they have to decide or act on, not just atmosphere. When that scene ends, log it with `log_scene`.

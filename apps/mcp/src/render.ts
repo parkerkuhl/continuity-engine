@@ -20,6 +20,7 @@ import type {
   Version,
   World,
   Campaign,
+  PcSheet,
 } from "@continuity/core";
 
 export const GM_ONLY = "## GM ONLY (secrets: don't show the player unless spoilers are on and they ask)";
@@ -88,6 +89,7 @@ export function renderOpened(o: CampaignOpened, guide: string): string {
   if (o.warnings.length) lines.push("", ...o.warnings.map((w) => `> ⚠ ${w}`));
   lines.push("", "## Changed since last session", ...changeFeed(o.changes));
   const settings = Object.entries(c.settings).map(([k, v]) => `- ${k}: ${Array.isArray(v) ? v.join("; ") : v}`);
+  if (c.asOfStoryTime) settings.unshift(`- as of: ${c.asOfStoryTime}`);
   if (settings.length) lines.push("", "## Settings", ...settings);
   if (o.voiceAnchor) {
     const a = o.voiceAnchor;
@@ -98,6 +100,9 @@ export function renderOpened(o: CampaignOpened, guide: string): string {
   if (o.pcSheet) lines.push("", "## PC sheet", "```json", JSON.stringify(o.pcSheet.data, null, 2), "```");
   lines.push("", "## Open threads", ...(o.openThreads.length ? o.openThreads.map((t) => `- ${t.title}${t.bodyMd ? `: ${t.bodyMd}` : ""}`) : ["None."]));
   if (o.chapters.length) lines.push("", "## Chapters", ...o.chapters.map((ch) => `- ch-${String(ch.number).padStart(2, "0")} ${ch.title}: ${ch.summaryMd}`));
+  if (o.chapterScenes.length)
+    lines.push("", `## This chapter so far (ch-${String(c.currentChapter).padStart(2, "0")})`, ...o.chapterScenes.map((sc) => `- Scene ${sc.number}: ${sc.summaryMd}`));
+  lines.push("", "## Rulings", ...(o.rulings.length ? o.rulings.map((r) => `- "${r.text}"${r.origin === "user_edit" ? " (from a page edit)" : ""}`) : ["None yet."]));
   lines.push("", "## Pinned: load guide", guide.replace(/^(#+) /gm, "#$1 "));
   return lines.join("\n");
 }
@@ -247,4 +252,13 @@ export function renderGmNotes(notes: GmNote[]): string {
 
 export function renderRuling(r: Ruling): string {
   return `Ruling stored verbatim (top precedence):\n> ${r.text}`;
+}
+
+export function renderCampaignUpdated(c: Campaign, pcSheet: PcSheet | null): string {
+  const lines = [`Campaign "${c.name}" updated (confirmed).`];
+  const settings = Object.entries(c.settings).map(([k, v]) => `- ${k}: ${Array.isArray(v) ? v.join("; ") : v}`);
+  if (c.asOfStoryTime) settings.unshift(`- as of: ${c.asOfStoryTime}`);
+  if (settings.length) lines.push("", "## Settings", ...settings);
+  if (pcSheet) lines.push("", "## PC sheet", "```json", JSON.stringify(pcSheet.data, null, 2), "```");
+  return lines.join("\n");
 }
