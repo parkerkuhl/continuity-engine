@@ -106,3 +106,16 @@ export async function entityName(scope: Scope, slug: string): Promise<string | n
   const r = await (await app()).engine.storage.resolveEntity(scope.world.id, slug, { campaignId: scope.campaign?.id ?? null });
   return r.status === "resolved" ? r.entity.name : null;
 }
+
+/** UX review #4: the GM's page edits in play the user hasn't reviewed. Two browser cookies per campaign hold
+ *  "reviewed up to" (Keep all) and the version ids kept one by one since then. */
+export const reviewedCookie = (campaignId: string) => `ce-reviewed-${campaignId}`;
+export const keptCookie = (campaignId: string) => `ce-kept-${campaignId}`;
+
+export async function pageChanges(scope: Scope) {
+  if (!scope.campaign) return [];
+  const jar = await cookies();
+  const since = jar.get(reviewedCookie(scope.campaign.id))?.value ?? null;
+  const kept = (jar.get(keptCookie(scope.campaign.id))?.value ?? "").split(",").filter(Boolean);
+  return (await app()).views.pageChanges(scope, { since, kept });
+}

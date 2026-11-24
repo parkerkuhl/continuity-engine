@@ -2,15 +2,16 @@ import Link from "next/link";
 import { approveAllMinor } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps, extraTags } from "@/components/update-card";
+import { PageChanges } from "@/components/page-changes";
 import { PageQueue } from "@/components/page-queue";
 import { UpdateItem } from "@/components/update-item";
-import { app, campaignScope, scopeTitle } from "@/lib/server";
+import { app, campaignScope, pageChanges, scopeTitle } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
   const scope = await campaignScope((await params).campaignId);
-  const n = (await (await app()).views.dashboard(scope))?.reviewCount ?? 0;
+  const n = ((await (await app()).views.dashboard(scope))?.reviewCount ?? 0) + (await pageChanges(scope)).length;
   return scopeTitle(scope, n ? `Review (${n})` : "Review");
 }
 
@@ -20,25 +21,25 @@ const MODE: Record<string, [string, string]> = {
   autopilot: ["Autopilot", "Only conflicts wait here; everything else went straight to canon."],
   mixed: ["Mixed by severity", "Each update follows the rule for its severity."],
 };
-const FILTERS = ["all", "conflicts", "major", "minor", "pages"] as const;
+const FILTERS = ["all", "conflicts", "major", "minor", "changes", "pages"] as const;
 
 export default async function Review({ params, searchParams }: { params: Promise<{ campaignId: string }>; searchParams: Promise<{ filter?: string }> }) {
   const { campaignId } = await params;
   const f = (FILTERS as readonly string[]).includes((await searchParams).filter ?? "") ? (await searchParams).filter! : "all";
   const scope = await campaignScope(campaignId);
-  const [{ items }, pages] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope)]);
+  const [{ items }, pages, changes] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope), pageChanges(scope)]);
   const base = `/c/${campaignId}`;
   const path = `${base}/review`;
   const c = scope.campaign!;
   const conflicts = items.filter((i) => i.update.conflictsWith);
   const rest = items.filter((i) => !i.update.conflictsWith);
   const minor = rest.filter((i) => i.update.severity === "minor").length;
-  const counts = { all: items.length + pages.length, pages: pages.length, conflicts: conflicts.length, major: items.filter((i) => i.update.severity === "major").length, minor: items.filter((i) => i.update.severity === "minor").length };
+  const counts = { all: items.length + changes.length + pages.length, pages: pages.length, changes: changes.length, conflicts: conflicts.length, major: items.filter((i) => i.update.severity === "major").length, minor: items.filter((i) => i.update.severity === "minor").length };
   const keep = (i: (typeof items)[number]) => f === "all" || (f === "conflicts" ? !!i.update.conflictsWith : i.update.severity === f);
   const showPages = f === "all" || f === "pages";
-  const showUpdates = f !== "pages";
+  const showChanges = f === "all" || f === "changes";
   const [modeName, modeNote] = MODE[c.approvalMode] ?? ["", ""];
-  const n = items.length;
+  const n = items.length + changes.length;
 
   return (
     <>
@@ -49,7 +50,7 @@ export default async function Review({ params, searchParams }: { params: Promise
             {n === 0 && pages.length === 0
               ? "Nothing waiting."
               : `${n + pages.length} waiting: ` +
-                [conflicts.length > 0 && `${conflicts.length} conflict${conflicts.length === 1 ? "" : "s"}`, rest.length > 0 && `${rest.length} update${rest.length === 1 ? "" : "s"}`, pages.length > 0 && `${pages.length} new page${pages.length === 1 ? "" : "s"}`]
+                [conflicts.length > 0 && `${conflicts.length} conflict${conflicts.length === 1 ? "" : "s"}`, rest.length > 0 && `${rest.length} update${rest.length === 1 ? "" : "s"}`, changes.length > 0 && `${changes.length} page change${changes.length === 1 ? "" : "s"}`, pages.length > 0 && `${pages.length} new page${pages.length === 1 ? "" : "s"}`]
                   .filter(Boolean)
                   .join(", ") +
                 "."}{" "}
@@ -65,7 +66,7 @@ export default async function Review({ params, searchParams }: { params: Promise
 
       <div role="group" aria-label="Filter" className="-mt-1 flex flex-wrap gap-2">
         {FILTERS.map((k) => {
-          const label = { all: "All", conflicts: "Conflicts", major: "Major updates", minor: "Minor updates", pages: "New pages" }[k];
+          const label = { all: "All", conflicts: "Conflicts", major: "Major updates", minor: "Minor updates", changes: "Page changes", pages: "New pages" }[k];
           const on = f === k;
           const cls = on ? "chip-on" : k === "conflicts" && counts.conflicts ? "chip border-danger-border font-semibold text-danger" : "chip";
           return (
@@ -139,9 +140,11 @@ export default async function Review({ params, searchParams }: { params: Promise
         </section>
       )}
 
+      {showChanges && <PageChanges changes={changes} base={base} path={path} campaignId={campaignId} />}
+
       {showPages && <PageQueue scope={scope} path={path} collapse={f === "all" && pages.length > 5} />}
 
-      {items.length === 0 && pages.length === 0 ? (
+      {n === 0 && pages.length === 0 ? (
         <p className="text-muted">Nothing to review.</p>
       ) : (
         f !== "all" && counts[f as keyof typeof counts] === 0 && <p className="text-muted">Nothing here. <Link href={path} className="link">Show all</Link></p>

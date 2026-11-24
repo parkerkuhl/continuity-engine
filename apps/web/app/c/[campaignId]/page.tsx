@@ -3,7 +3,7 @@ import { editVoiceAnchor, setApprovalMode, setCampaignSpoilers } from "@/app/act
 import { ActionForm } from "@/components/action-form";
 import { PcSheetBody, cap, text } from "@/components/pc-sheet";
 import { chapterTag } from "@/components/update-card";
-import { app, campaignScope, scopeTitle } from "@/lib/server";
+import { app, campaignScope, scopeTitle, pageChanges } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +77,10 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
   const { campaignId } = await params;
   const scope = await campaignScope(campaignId);
   const d = (await (await app()).views.dashboard(scope))!;
-  const [{ items: queued }, draftPages] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope)]);
+  const [{ items: queued }, draftPages, changes] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope), pageChanges(scope)]);
   const reviewSplit = [
     queued.length > 0 && `${queued.length} update${queued.length === 1 ? "" : "s"}`,
+    changes.length > 0 && `${changes.length} page change${changes.length === 1 ? "" : "s"}`,
     draftPages.length > 0 && `${draftPages.length} new page${draftPages.length === 1 ? "" : "s"}`,
   ].filter(Boolean).join(" · ");
   const c = d.campaign;
@@ -106,7 +107,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
       </div>
 
       <nav aria-label="What's next" className="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-        <NextTile href={`${path}/review`} n={d.reviewCount} label="to review" sub={reviewSplit} done="Review queue is clear" hot />
+        <NextTile href={`${path}/review`} n={queued.length + changes.length + draftPages.length} label="to review" sub={reviewSplit} done="Review queue is clear" hot />
         <NextTile href={`${path}#threads`} n={d.openThreads.length} label={d.openThreads.length === 1 ? "open thread" : "open threads"} done="No open threads" />
         {scope.pc && (
           <NextTile

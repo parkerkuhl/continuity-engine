@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app, isRemote } from "@/lib/server";
+import { app, isRemote, pageChanges } from "@/lib/server";
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
@@ -49,8 +49,8 @@ async function Sidebar({ scope }: { scope?: Scope }) {
   let nav: ReactNode;
   if (c) {
     const views = (await app()).views;
-    const [d, queue, pages] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!)]);
-    const waiting = queue.items.length + pages.length;
+    const [d, queue, pages, changes] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!), pageChanges(scope!)]);
+    const waiting = queue.items.length + changes.length + pages.length;
     nav = (
       <>
         <NavLink href={`${base}/wiki`} also={`${base}/e/`}>

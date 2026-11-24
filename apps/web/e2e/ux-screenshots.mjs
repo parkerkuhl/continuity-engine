@@ -4,7 +4,7 @@
 //
 //   pnpm --filter @continuity/mcp build && pnpm --filter @continuity/web build
 //   node apps/web/e2e/ux-screenshots.mjs              # everything
-//   ONLY=entity node apps/web/e2e/ux-screenshots.mjs   # only shots whose name contains "entity"
+//   ONLY=entity,review node apps/web/e2e/ux-screenshots.mjs   # only shots whose name contains "entity" or "review"
 //
 // Also writes ux-screenshots/_notes.json (page titles, timings of the search task, console errors).
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -207,7 +207,7 @@ const contexts = await Promise.all(
     return { ...v, ctx, page };
   }),
 );
-const want = (name) => !ONLY || name.includes(ONLY);
+const want = (name) => !ONLY || ONLY.split(",").some((o) => name.includes(o));
 
 /** Visit a URL in every variant (or only `which`), run `prep`, save `<name>_<variant>.png`. */
 async function shot(name, url, prep, which = VARIANTS.map((v) => v.tag)) {
@@ -247,7 +247,7 @@ try {
   await first.getByRole("button", { name: "Save", exact: true }).click();
   await first.getByRole("radio", { name: "Change from now on" }).check();
   await first.getByRole("button", { name: "Save edit" }).click();
-  await first.getByText("Edited by you · locked").waitFor();
+  await first.getByTitle("You edited this section, so GM writes to it are refused.").first().waitFor();
   await seedConflict(campaignId);
 
   // Home and worlds

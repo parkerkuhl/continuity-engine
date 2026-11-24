@@ -66,14 +66,41 @@ export interface EntityProfile {
   pcSheet: PcSheet | null;
 }
 
+/** Who last wrote something, when, and in which scene (UX review #3). Read from `versions`. */
+export interface Provenance {
+  versionId: string;
+  author: Version["author"];
+  at: string;
+  /** The scene in play when the GM made the change (the last one started at or before it), in a campaign. */
+  scene: { chapter: number; number: number } | null;
+}
+
+/** An AI page edit made during play that the user hasn't reviewed yet (UX review #4). */
+export interface PageChange {
+  /** Every unreviewed AI version of this section or summary, oldest first. Keep marks them all reviewed. */
+  versionIds: string[];
+  /** The first of them: Undo restores the text from before it. */
+  undoVersionId: string;
+  entity: Pick<Entity, "id" | "slug" | "name">;
+  /** The section's id, or null for the page's Current state. */
+  sectionId: string | null;
+  heading: string;
+  before: string;
+  after: string;
+  at: string;
+  scene: { chapter: number; number: number } | null;
+}
+
 export interface EntityView {
-  page: Entity & { sections: (Section & { knownByPc: boolean })[] };
+  page: Entity & { sections: (Section & { knownByPc: boolean; latest: Provenance | null })[] };
+  /** The last change to the Current state (summary). */
+  summaryLatest: Provenance | null;
   /** How many sections the player view left out. */
   hiddenSections: number;
   updates: UpdateView[];
   hiddenUpdates: number;
   /** Newest first: the entity's own versions and its sections'. */
-  history: (Version & { label: string; restorable: boolean })[];
+  history: (Version & { label: string; restorable: boolean; scene: { chapter: number; number: number } | null })[];
   profile: EntityProfile;
 }
 
@@ -89,6 +116,9 @@ export interface Dashboard {
   /** What the player view leaves out right now (all zero with spoilers on). */
   hidden: { gmNotes: number; secretSections: number; updates: number };
 }
+
+const summaryOf = (v: unknown): string => (v && typeof v === "object" && typeof (v as { summary?: unknown }).summary === "string" ? (v as { summary: string }).summary : "");
+const bodyOf = (v: unknown): string => (v && typeof v === "object" && typeof (v as { bodyMd?: unknown }).bodyMd === "string" ? (v as { bodyMd: string }).bodyMd : "");
 
 export const TYPE_ORDER: Entity["type"][] = ["character", "place", "faction", "item", "event", "concept", "rule"];
 
@@ -197,12 +227,21 @@ export class WebViews {
     if (!e) return null;
     if (e.campaignId && e.campaignId !== scope.campaign?.id) return null;
     const page = (await this.storage.getPage(e.id, { campaignId: scope.campaign?.id ?? null }))!;
+    const sceneAt = await this.sceneFinder(scope);
+    const prov = (v: Version | undefined): Provenance | null => (v ? { versionId: v.id, author: v.author, at: v.createdAt, scene: v.author === "ai" ? sceneAt(v.createdAt) : null } : null);
+    const newest = (vs: Version[]) => vs.reduce<Version | undefined>((m, v) => (!m || v.createdAt >= m.createdAt ? v : m), undefined);
     const sections = [];
     let hiddenSections = 0;
+    const history: EntityView["history"] = [];
     for (const s of page.sections) {
       const knownByPc = s.visibility === "secret" && (await this.pcKnows(scope, "section", s.id));
-      if (!scope.spoilers && s.visibility === "secret" && !knownByPc) hiddenSections++;
-      else sections.push({ ...s, knownByPc });
+      if (!scope.spoilers && s.visibility === "secret" && !knownByPc) {
+        hiddenSections++;
+        continue;
+      }
+      const vs = await this.storage.listVersions({ objectType: "section", objectId: s.id });
+      sections.push({ ...s, knownByPc, latest: prov(newest(vs)) });
+      for (const v of vs) history.push({ ...v, label: `Section "${s.heading}"`, restorable: v.after !== null, scene: v.author === "ai" ? sceneAt(v.createdAt) : null });
     }
     let updates: UpdateView[] = [];
     let hiddenUpdates = 0;
@@ -212,15 +251,88 @@ export class WebViews {
       updates = await Promise.all(v.shown.map((u) => this.updateView(u)));
       hiddenUpdates = v.hidden;
     }
-    const history: EntityView["history"] = [];
-    for (const v of await this.storage.listVersions({ objectType: "entity", objectId: e.id })) history.push({ ...v, label: "Page", restorable: v.after !== null });
-    for (const s of page.sections) {
-      if (!scope.spoilers && s.visibility === "secret" && !sections.some((x) => x.id === s.id)) continue;
-      for (const v of await this.storage.listVersions({ objectType: "section", objectId: s.id })) history.push({ ...v, label: `Section "${s.heading}"`, restorable: v.after !== null });
-    }
+    const pageVersions = await this.storage.listVersions({ objectType: "entity", objectId: e.id });
+    for (const v of pageVersions) history.push({ ...v, label: "Page", restorable: v.after !== null, scene: v.author === "ai" ? sceneAt(v.createdAt) : null });
     history.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+    const summaryLatest = prov(newest(pageVersions.filter((v) => summaryOf(v.before) !== summaryOf(v.after))));
     const profile = await this.profile(scope, e, page.sections, sections);
-    return { page: { ...page, sections }, hiddenSections, updates, hiddenUpdates, history, profile };
+    return { page: { ...page, sections }, summaryLatest, hiddenSections, updates, hiddenUpdates, history, profile };
+  }
+
+  /** Finds the scene in play at a moment: the campaign's last scene started at or before it. */
+  private async sceneFinder(scope: Scope): Promise<(at: string) => { chapter: number; number: number } | null> {
+    if (!scope.campaign) return () => null;
+    const scenes = (await this.storage.listScenes(scope.campaign.id)).sort((a, b) => (a.startedAt < b.startedAt ? -1 : 1));
+    return (at) => {
+      let hit: Scene | undefined;
+      for (const sc of scenes) if (sc.startedAt <= at) hit = sc;
+      return hit ? { chapter: hit.chapter, number: hit.number } : null;
+    };
+  }
+
+  /**
+   * Page edits the GM made during play in this campaign that the user hasn't reviewed (UX review #4): AI versions
+   * newer than `since` and not in `kept`, on sections and summaries the view shows, whose newest version is still
+   * the GM's (an Undo or a later edit by the user takes it off the list). One row per section, newest first.
+   */
+  async pageChanges(scope: Scope, opts: { since?: string | null; kept?: string[] } = {}): Promise<PageChange[]> {
+    if (!scope.campaign) return [];
+    const kept = new Set(opts.kept ?? []);
+    const prefix = `edit_entity in campaign "${scope.campaign.name}"`;
+    const fresh = (await this.storage.listVersions({ author: "ai", ...(opts.since && { since: opts.since }) })).filter(
+      (v) => (v.objectType === "section" || v.objectType === "entity") && v.reason?.startsWith(prefix) && !kept.has(v.id) && (!opts.since || v.createdAt > opts.since),
+    );
+    const byObject = new Map<string, Version[]>();
+    for (const v of fresh) {
+      if (v.objectType === "entity" && summaryOf(v.before) === summaryOf(v.after)) continue;
+      byObject.set(v.objectId, [...(byObject.get(v.objectId) ?? []), v]);
+    }
+    const sceneAt = await this.sceneFinder(scope);
+    const out: PageChange[] = [];
+    for (const [objectId, list] of byObject) {
+      list.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+      const first = list[0]!;
+      const last = list[list.length - 1]!;
+      const all = await this.storage.listVersions({ objectType: first.objectType, objectId });
+      const newest = all.reduce((m, v) => (v.createdAt >= m.createdAt ? v : m), all[0]!);
+      if (newest.author !== "ai") continue;
+      let entity: Entity | null;
+      let sectionId: string | null = null;
+      let heading = "Current state";
+      let before: string;
+      let after: string;
+      if (first.objectType === "section") {
+        const sec = (last.after ?? last.before) as Section;
+        entity = await this.storage.getEntity(sec.entityId);
+        if (!entity) continue;
+        // "To the PC" labels are short bookkeeping the GM backfills; they show on every card and aren't page prose.
+        if (sec.key === TO_PC_KEY) continue;
+        if (sec.visibility === "secret" && !scope.spoilers && !(await this.pcKnows(scope, "section", objectId))) continue;
+        sectionId = objectId;
+        heading = sec.heading;
+        before = bodyOf(first.before);
+        after = bodyOf(last.after);
+      } else {
+        entity = await this.storage.getEntity(objectId);
+        if (!entity) continue;
+        before = summaryOf(first.before);
+        after = summaryOf(last.after);
+      }
+      if (entity.status === "rejected" || (entity.campaignId && entity.campaignId !== scope.campaign.id) || entity.worldId !== scope.world.id) continue;
+      if (before === after) continue;
+      out.push({
+        versionIds: list.map((v) => v.id),
+        undoVersionId: first.id,
+        entity: { id: entity.id, slug: entity.slug, name: entity.name },
+        sectionId,
+        heading,
+        before,
+        after,
+        at: last.createdAt,
+        scene: sceneAt(last.createdAt),
+      });
+    }
+    return out.sort((a, b) => (a.at < b.at ? 1 : -1));
   }
 
   private async profile(scope: Scope, e: Entity, all: Section[], shown: Section[]): Promise<EntityProfile> {

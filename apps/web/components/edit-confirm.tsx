@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { WordDiff } from "./word-diff";
 
 /**
  * SPEC "Edit confirm": saving a change to what the wiki says asks whether it is a retcon (it was
@@ -41,10 +42,7 @@ export function EditConfirm({
           {note && <p className="mt-1.5 text-[13px] text-muted">{note}</p>}
         </div>
         {(before !== undefined || after !== undefined) && (
-          <div className="max-h-56 overflow-y-auto rounded-[10px] bg-canvas px-3.5 py-3 font-serif text-base whitespace-pre-wrap">
-            {before && <span className="block text-faint line-through">{before}</span>}
-            {after && <span className="block">{after}</span>}
-          </div>
+          <WordDiff before={before ?? ""} after={after ?? ""} className="max-h-56 overflow-y-auto rounded-[10px] bg-canvas px-3.5 py-3 font-serif text-base" />
         )}
         <fieldset className="flex flex-col gap-2.5">
           <legend className="sr-only">Edit kind</legend>

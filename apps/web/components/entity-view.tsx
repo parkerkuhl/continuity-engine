@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { TO_PC_KEY, cleanLabel, type Scope, type Version } from "@continuity/core";
+import { TO_PC_KEY, cleanLabel, type Provenance, type Scope, type Version } from "@continuity/core";
 import { notFound } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion } from "@/app/actions";
-import { app, basePath } from "@/lib/server";
+import { ago, sceneLabel } from "@/lib/format";
+import { app, basePath, pageChanges } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
 import { Markdown } from "./markdown";
@@ -14,6 +15,7 @@ import { PcSheetBody, text } from "./pc-sheet";
 import { UpdateItem } from "./update-item";
 import { VisibilityButton } from "./visibility-button";
 import { SourcePill, TYPE_LABEL, TYPE_PLURAL } from "./wiki-browser";
+import { WordDiff } from "./word-diff";
 
 function stateText(v: unknown): string {
   if (!v || typeof v !== "object") return "";
@@ -25,14 +27,33 @@ function stateText(v: unknown): string {
     .trim();
 }
 
-const ago = (iso: string) => {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  const d = Math.round(s / 86400);
-  return d < 14 ? `${d} day${d === 1 ? "" : "s"} ago` : new Date(iso).toLocaleDateString("en-US", { dateStyle: "medium" });
-};
+/**
+ * UX review #3: who last wrote a section, in which scene, and when, linked to that row in History. A GM edit
+ * from play that waits in the review queue's Page changes shows a dot and the accent color until it's kept.
+ */
+function ProvenanceLine({ p, locked, unreviewed, history }: { p: Provenance | null; locked?: boolean; unreviewed?: boolean; history: string }) {
+  if (!p && !locked) return null;
+  const who = p?.author === "user" ? "You" : "GM";
+  return (
+    <span className={`flex items-center gap-1.5 text-xs ${unreviewed ? "font-semibold text-accent-ink" : "text-muted"}`}>
+      {unreviewed && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />}
+      {p && (
+        <a href={`${history}#v-${p.versionId}`} className="hover:underline" title={unreviewed ? "The GM changed this during play. It waits in the review queue under Page changes." : "Open this change in History"}>
+          {unreviewed && <span className="sr-only">Not reviewed yet: </span>}
+          {who}
+          {sceneLabel(p.scene) && <> · {sceneLabel(p.scene)}</>} · <time dateTime={p.at}>{ago(p.at)}</time>
+        </a>
+      )}
+      {locked && (
+        <span className="flex items-center gap-1" title="You edited this section, so GM writes to it are refused.">
+          {p && <span aria-hidden>·</span>}
+          <LockIcon className="h-[13px] w-[13px]" />
+          locked
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** "edited the Wants section", "created the page", "restored an earlier version of the Wants section". */
 function historyLine(v: Version & { label: string }) {
@@ -58,6 +79,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   const view = await (await app()).views.entity(scope, slug);
   if (!view) notFound();
   const { page } = view;
+  const unreviewed = (await pageChanges(scope)).filter((c) => c.entity.id === page.id);
+  const unreviewedSections = new Set(unreviewed.map((c) => c.sectionId));
   const base = basePath(scope);
   const wiki = scope.campaign ? `${base}/wiki` : base;
   const path = `${base}/e/${page.slug}`;
@@ -153,12 +176,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
         }
         meta={
           <>
-            {s.lockedByUser && (
-              <span className="flex items-center gap-1.5 text-xs text-muted" title="You edited this section, so GM writes to it are refused.">
-                <LockIcon className="h-[13px] w-[13px]" />
-                Edited by you · locked
-              </span>
-            )}
+            <ProvenanceLine p={s.latest} locked={s.lockedByUser} unreviewed={unreviewedSections.has(s.id)} history={`${path}?tab=history`} />
             {s.campaignId && <span className="pill bg-sunken text-body">This campaign</span>}
             {secret && (
               <span className="flex items-center gap-1 text-xs font-semibold text-secret">
@@ -394,7 +412,13 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                     Current state
                   </h2>
                 }
-                meta={<span className="text-xs text-faint">What the GM reads first</span>}
+                meta={
+                  view.summaryLatest ? (
+                    <ProvenanceLine p={view.summaryLatest} unreviewed={unreviewedSections.has(null)} history={`${path}?tab=history`} />
+                  ) : (
+                    <span className="text-xs text-faint">What the GM reads first</span>
+                  )
+                }
               >
                 <Markdown>{page.summary}</Markdown>
               </InlineEditor>
@@ -555,7 +579,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                 const restorable = v.before !== null && v.after !== null;
                 const name = v.label === "Page" ? `${page.name} · page` : `${page.name} · ${v.label.replace(/^Section "(.*)"$/, "$1")}`;
                 return (
-                  <li key={v.id}>
+                  <li key={v.id} id={`v-${v.id}`} className="scroll-mt-24 rounded-lg target:bg-accent-tint target:ring-4 target:ring-accent-tint">
                     <div>
                       <b>{v.author === "user" ? "You" : "GM"}</b> {historyLine(v)}{" "}
                       {v.editKind && (
@@ -563,11 +587,16 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                       )}
                     </div>
                     <div className="text-faint">
+                      {sceneLabel(v.scene) && <>{sceneLabel(v.scene)} · </>}
                       <time dateTime={v.createdAt} title={new Date(v.createdAt).toLocaleString("en-US")}>
                         {ago(v.createdAt)}
                       </time>
                     </div>
-                    {stateText(v.after) && <p className="mt-1 line-clamp-2 font-serif text-sm text-muted">{stateText(v.after)}</p>}
+                    {restorable && stateText(v.before) !== stateText(v.after) ? (
+                      <WordDiff before={stateText(v.before)} after={stateText(v.after)} className="mt-1 line-clamp-4 font-serif text-sm text-muted" />
+                    ) : (
+                      stateText(v.after) && <p className="mt-1 line-clamp-2 font-serif text-sm text-muted">{stateText(v.after)}</p>
+                    )}
                     {restorable && (
                       <div className="mt-1 flex flex-wrap gap-x-1">
                         <ConfirmedForm

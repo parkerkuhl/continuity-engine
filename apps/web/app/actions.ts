@@ -7,7 +7,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { app, campaignScope, WORLD_SPOILERS_COOKIE } from "@/lib/server";
+import { app, campaignScope, keptCookie, reviewedCookie, WORLD_SPOILERS_COOKIE } from "@/lib/server";
 import type { ActionState } from "@/components/action-form";
 
 const str = (f: FormData, k: string) => {
@@ -195,6 +195,28 @@ export async function restoreVersion(_: ActionState, f: FormData): Promise<Actio
 }
 
 // ---------------- review queue ----------------
+
+const YEAR = 60 * 60 * 24 * 365;
+
+/** Keep one GM page edit (UX review #4): its version ids join the campaign's kept list in a browser cookie. */
+export async function keepPageChange(_: ActionState, f: FormData): Promise<ActionState> {
+  const campaignId = req(f, "campaignId");
+  const jar = await cookies();
+  const cur = (jar.get(keptCookie(campaignId))?.value ?? "").split(",").filter(Boolean);
+  // A cookie holds about 4 KB, so the list keeps the newest 90 ids; Keep all clears it.
+  const next = [...new Set([...cur, ...req(f, "versionIds").split(",").filter(Boolean)])].slice(-90);
+  jar.set(keptCookie(campaignId), next.join(","), { path: "/", maxAge: YEAR, sameSite: "lax" });
+  return done(f, "Kept.");
+}
+
+/** Keep every GM page edit shown: "reviewed up to now", and the kept list starts over. */
+export async function keepAllPageChanges(_: ActionState, f: FormData): Promise<ActionState> {
+  const campaignId = req(f, "campaignId");
+  const jar = await cookies();
+  jar.set(reviewedCookie(campaignId), new Date().toISOString(), { path: "/", maxAge: YEAR, sameSite: "lax" });
+  jar.delete(keptCookie(campaignId));
+  return done(f, "All kept.");
+}
 
 export async function approveUpdate(_: ActionState, f: FormData): Promise<ActionState> {
   const r = await (await app()).engine.approveUpdate(req(f, "updateId"));
