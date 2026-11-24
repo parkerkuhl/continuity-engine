@@ -107,6 +107,13 @@ export function renderOpened(o: CampaignOpened, guide: string): string {
   if (o.chapters.length) lines.push("", "## Chapters", ...o.chapters.map((ch) => `- ch-${String(ch.number).padStart(2, "0")} ${ch.title}: ${ch.summaryMd}`));
   if (o.chapterScenes.length)
     lines.push("", `## This chapter so far (ch-${String(c.currentChapter).padStart(2, "0")})`, ...o.chapterScenes.map((sc) => `- Scene ${sc.number}: ${sc.summaryMd}`));
+  if (o.missingToPc.length)
+    lines.push(
+      "",
+      `## Characters with no "To the PC" line`,
+      `Before play, give each a short line saying who they are to the PC (e.g. "Older brother"), from what their page says: \`edit_entity\` with section key \`to-the-pc\`, after reading them.`,
+      ...o.missingToPc.map((e) => `- ${e.name} (${e.slug})`),
+    );
   lines.push("", "## Rulings", ...(o.rulings.length ? o.rulings.map((r) => `- "${r.text}"${r.origin === "user_edit" ? " (from a page edit)" : ""}`) : ["None yet."]));
   lines.push("", "## Pinned: load guide", guide.replace(/^(#+) /gm, "#$1 "));
   return lines.join("\n");

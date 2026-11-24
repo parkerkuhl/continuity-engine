@@ -7,7 +7,7 @@
  */
 import type { Campaign, Chapter, Entity, GmNote, PcSheet, Ruling, Scene, Section, Thread, Update, Version, VoiceAnchor, World } from "../storage/types";
 import { slugify } from "../slug";
-import type { RulesEngine } from "./engine";
+import { TO_PC_HEADING, TO_PC_KEY, type RulesEngine } from "./engine";
 
 export interface Scope {
   world: World;
@@ -127,9 +127,20 @@ export class WebViews {
       rows = (await this.storage.listEntities(scope.world.id, { campaignId })).map((e) => ({ entity: e, line: e.summary.split("\n")[0] ?? "" }));
     }
     if (filter.source) rows = rows.filter((r) => r.entity.source === filter.source);
-    return TYPE_ORDER.map((type) => ({ type, entities: rows.filter((r) => r.entity.type === type).sort((a, b) => a.entity.name.localeCompare(b.entity.name)) })).filter(
+    const withPc = await Promise.all(rows.map(async (r) => ({ ...r, toPc: await this.toPc(scope, r.entity) })));
+    return TYPE_ORDER.map((type) => ({ type, entities: withPc.filter((r) => r.entity.type === type).sort((a, b) => a.entity.name.localeCompare(b.entity.name)) })).filter(
       (g) => g.entities.length,
     );
+  }
+
+  /** A character's "To the PC" line in this campaign, or null (no campaign, not a character, no line, or hidden in the player view). */
+  async toPc(scope: Scope, e: Entity): Promise<string | null> {
+    if (!scope.campaign || e.type !== "character" || e.id === scope.pc?.id) return null;
+    const page = await this.storage.getPage(e.id, { campaignId: scope.campaign.id });
+    const s = page?.sections.find((x) => x.key === TO_PC_KEY);
+    if (!s) return null;
+    if (!scope.spoilers && s.visibility === "secret" && !(await this.pcKnows(scope, "section", s.id))) return null;
+    return s.bodyMd.trim().split("\n")[0]?.trim() || null;
   }
 
   private async pcKnows(scope: Scope, target: "update" | "section", id: string): Promise<boolean> {
@@ -213,7 +224,9 @@ export class WebViews {
 
   private async profile(scope: Scope, e: Entity, all: Section[], shown: Section[]): Promise<EntityProfile> {
     // A secret section the view hides still fills its outline slot, so the slot isn't offered as empty.
-    const outline = OUTLINES[e.type].map((heading) => {
+    // In a campaign, a character other than the PC also has a "To the PC" slot, first, written in the campaign layer.
+    const headings = scope.campaign && e.type === "character" && e.id !== scope.pc?.id ? [TO_PC_HEADING, ...OUTLINES[e.type]] : OUTLINES[e.type];
+    const outline = headings.map((heading) => {
       const key = slugify(heading);
       const sec = all.find((s) => s.key === key);
       return { key, heading, sectionId: sec && shown.some((x) => x.id === sec.id) ? sec.id : sec ? "hidden" : null };

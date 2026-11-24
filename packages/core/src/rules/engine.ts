@@ -205,6 +205,8 @@ export interface CampaignOpened {
   changes: ChangeGroup[];
   unloggedScene: Scene | null;
   warnings: string[];
+  /** Characters (other than the PC) with no "To the PC" line in this campaign yet, so the GM can fill them in. */
+  missingToPc: Pick<Entity, "id" | "slug" | "name">[];
 }
 
 export interface SceneContext {
@@ -253,6 +255,13 @@ export const VOICE_AUDIT_EVERY = 6;
 /** log_scene flags a voice audit every this many logged scenes in a chapter (the play module audits every 3 to 5). */
 export const VOICE_AUDIT_SCENES = 4;
 
+/**
+ * The section that says who a character is to the PC, such as "Older brother". It belongs to one playthrough,
+ * so during play it is always written in the campaign layer, even on a world character.
+ */
+export const TO_PC_KEY = "to-the-pc";
+export const TO_PC_HEADING = "To the PC";
+
 const AI = (reason?: string): WriteMeta => ({ author: "ai", reason: reason ?? null });
 
 export class RulesEngine {
@@ -287,7 +296,20 @@ export class RulesEngine {
       changes,
       unloggedScene,
       warnings: unloggedScene ? [unloggedWarning(unloggedScene)] : [],
+      missingToPc: await this.missingToPc(campaign),
     });
+  }
+
+  /** Characters other than the PC whose page has no "To the PC" section in this campaign. */
+  private async missingToPc(campaign: Campaign): Promise<Pick<Entity, "id" | "slug" | "name">[]> {
+    const pc = await this.pcEntity(campaign);
+    const out = [];
+    for (const e of await this.storage.listEntities(campaign.worldId, { campaignId: campaign.id, type: "character" })) {
+      if (e.id === pc?.id) continue;
+      const page = await this.storage.getPage(e.id, { campaignId: campaign.id });
+      if (!page?.sections.some((x) => x.key === TO_PC_KEY && x.bodyMd.trim())) out.push({ id: e.id, slug: e.slug, name: e.name });
+    }
+    return out;
   }
 
   async closeSession(sessionId: string): Promise<Result<Session>> {
@@ -521,7 +543,7 @@ export class RulesEngine {
           { ref: entity.slug },
         );
       }
-      if (!overlay && !base && !edit.heading) {
+      if (!overlay && !base && !edit.heading && edit.key !== TO_PC_KEY) {
         return refuse("invalid", `${entity.slug} has no section "${edit.key}". Give a heading to add it.`);
       }
       edits.push({ edit, base, overlay });
@@ -539,7 +561,8 @@ export class RulesEngine {
       await this.storage.updateEntity(entity.id, entityPatch, AI(`edit_entity ${where}`));
     }
     for (const { edit, base, overlay } of edits) {
-      const target = overlay ?? base;
+      const perCampaign = !!campaign && edit.key === TO_PC_KEY;
+      const target = perCampaign ? overlay : (overlay ?? base);
       if (target) {
         await this.storage.updateSection(
           target.id,
@@ -549,7 +572,7 @@ export class RulesEngine {
       } else {
         await this.storage.addSection(
           entity.id,
-          { campaignId: entity.campaignId, key: edit.key, heading: edit.heading!, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
+          { campaignId: perCampaign ? campaign!.id : entity.campaignId, key: edit.key, heading: edit.heading ?? TO_PC_HEADING, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
           AI(`edit_entity ${where}`),
         );
       }

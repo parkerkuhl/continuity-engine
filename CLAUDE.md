@@ -125,6 +125,8 @@ Scope and checks: SPEC "Milestone 8". Setup and layout: `docs/remote.md`.
 
 - **Voice sample (added after the M8 build with Parker's OK, SPEC updated):** the campaign dashboard ("Campaign settings") has a Voice card where the user reads and edits the voice anchor (`RulesEngine.editVoiceAnchor`, allowed at any time, keeps voice rulings and the audit count). `get_context` returns the anchor so Claude writes every scene against the sample; `log_scene` sets `voiceAuditDue` every `VOICE_AUDIT_SCENES` (4) scenes; a user edit shows in the changelog and the `open_campaign` change feed (the audit-count bookkeeping alone does not).
 
+- **To the PC label (added after the M8 build with Parker's OK, SPEC updated):** each character other than the PC has a campaign section `to-the-pc` (`TO_PC_KEY` in `engine.ts`), such as "Older brother". `edit_entity` always writes it in the campaign layer, even on a world character. `WebViews.wiki` rows carry `toPc` (player view applies); wiki cards show it as a chip and the character page under the name, with a "To the PC" outline slot first. `open_campaign` returns `missingToPc` so the GM backfills labels (`prompts/30-play.md`).
+
 Acceptance checks:
 
 - [x] The core test suite passes on both SQLite and Postgres

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Scope, Version } from "@continuity/core";
+import { TO_PC_KEY, type Scope, type Version } from "@continuity/core";
 import { notFound } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion, setSectionVisibility } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
@@ -60,6 +60,9 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
   const hidden = { entityId: page.id, campaignId, path };
   const { profile } = view;
   const outlineKeys = new Set(profile.outline.map((o) => o.key));
+  // Who this character is to the PC, from the campaign's "To the PC" section (already filtered by the view).
+  const toPcSection = scope.campaign && page.type === "character" ? page.sections.find((x) => x.key === TO_PC_KEY) : undefined;
+  const toPc = toPcSection?.bodyMd.trim().split("\n")[0]?.trim() || null;
 
   /** What play recorded for an outline slot, shown under its prose. */
   const recorded = (key: string): ReactNode => {
@@ -184,6 +187,11 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
           <h1 className="font-serif text-[40px] leading-[1.1] font-semibold">{page.name}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <span className="pill bg-accent-soft py-[3px] text-accent-ink">{TYPE_LABEL[page.type]}</span>
+            {toPc && (
+              <a href={`#s-${toPcSection?.id}`} className="pill bg-surface py-[3px] text-ink ring-1 ring-line-strong" aria-label={`To the PC: ${toPc}`}>
+                To the PC: <b className="ml-1">{toPc}</b>
+              </a>
+            )}
             <SourcePill source={page.source} prefix />
             {page.campaignId && <span className="pill bg-sunken py-[3px] text-body">This campaign only</span>}
             <details className="group text-[13px] text-muted">
