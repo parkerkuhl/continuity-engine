@@ -245,6 +245,7 @@ try {
   await first.getByRole("button", { name: "Edit section Wants" }).click();
   await first.getByRole("textbox", { name: "section Wants" }).fill("To hand the Spire to Isolde, and to die before anyone learns what he did on the Night of No Lights.");
   await first.getByRole("button", { name: "Save", exact: true }).click();
+  await first.getByRole("radio", { name: "Change from now on" }).check();
   await first.getByRole("button", { name: "Save edit" }).click();
   await first.getByText("Edited by you · locked").waitFor();
   await seedConflict(campaignId);

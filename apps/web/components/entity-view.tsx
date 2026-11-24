@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { TO_PC_KEY, cleanLabel, type Scope, type Version } from "@continuity/core";
 import { notFound } from "next/navigation";
-import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion, setSectionVisibility } from "@/app/actions";
+import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
@@ -12,6 +12,7 @@ import { EmptySlots, type Slot } from "./empty-slots";
 import { ApproveButton, Knows, RejectButton, Severity, StatusPill, TagChips, chapterTag, editProps, extraTags } from "./update-card";
 import { PcSheetBody, text } from "./pc-sheet";
 import { UpdateItem } from "./update-item";
+import { VisibilityButton } from "./visibility-button";
 import { SourcePill, TYPE_LABEL, TYPE_PLURAL } from "./wiki-browser";
 
 function stateText(v: unknown): string {
@@ -165,14 +166,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                 {s.knownByPc ? "Secret · the PC knows it" : "Secret section"}
               </span>
             )}
-            <form action={setSectionVisibility}>
-              <input type="hidden" name="entityId" value={page.id} />
-              <input type="hidden" name="key" value={s.key} />
-              <input type="hidden" name="campaignId" value={s.campaignId ?? ""} />
-              <input type="hidden" name="path" value={path} />
-              <input type="hidden" name="visibility" value={secret ? "public" : "secret"} />
-              <button className="btn-ghost text-muted">Make {secret ? "public" : "secret"}</button>
-            </form>
+            <VisibilityButton hidden={{ entityId: page.id, key: s.key, campaignId: s.campaignId ?? "", path }} secret={secret} heading={s.heading} />
           </>
         }
       >

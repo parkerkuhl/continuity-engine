@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * SPEC "Edit confirm": saving a change to what the wiki says asks whether it is a retcon (it was
@@ -12,7 +12,7 @@ export function EditConfirm({
   before,
   after,
   submit = "Save edit",
-  note = "Either way, this section is locked against GM edits and the GM sees the change at the start of the next session.",
+  note = "After saving, the GM can't change this section; it can only propose changes for you to review. The GM sees your edit at the start of the next session.",
 }: {
   onCancel: () => void;
   context?: string;
@@ -22,8 +22,10 @@ export function EditConfirm({
   note?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Nothing is preselected: the user decides whether the story changed or was always this way.
+  const [kind, setKind] = useState<string | null>(null);
   useEffect(() => {
-    ref.current?.querySelector<HTMLInputElement>("input:checked")?.focus();
+    ref.current?.querySelector<HTMLInputElement>("input[type=radio]")?.focus();
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
@@ -36,6 +38,7 @@ export function EditConfirm({
             How should the GM treat this change?
           </h2>
           {context && <p className="mt-1.5 text-muted">{context}</p>}
+          {note && <p className="mt-1.5 text-[13px] text-muted">{note}</p>}
         </div>
         {(before !== undefined || after !== undefined) && (
           <div className="max-h-56 overflow-y-auto rounded-[10px] bg-canvas px-3.5 py-3 font-serif text-base whitespace-pre-wrap">
@@ -45,19 +48,18 @@ export function EditConfirm({
         )}
         <fieldset className="flex flex-col gap-2.5">
           <legend className="sr-only">Edit kind</legend>
-          <Choice value="retcon" title="Retcon: it was always this way" checked>
+          <Choice value="retcon" title="Retcon: it was always this way" onPick={setKind}>
             The GM uses the new version from now on and never explains the difference in the story.
           </Choice>
-          <Choice value="forward" title="Change from now on">
+          <Choice value="forward" title="Change from now on" onPick={setKind}>
             Something happened in the story. The GM may account for it in the fiction if it matters.
           </Choice>
         </fieldset>
-        {note && <p className="text-[13px] text-muted">{note}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="btn">
             Cancel
           </button>
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary" disabled={!kind} title={kind ? undefined : "Choose how the GM should treat this change"}>
             {submit}
           </button>
         </div>
@@ -66,10 +68,10 @@ export function EditConfirm({
   );
 }
 
-function Choice({ value, title, checked, children }: { value: string; title: string; checked?: boolean; children: React.ReactNode }) {
+function Choice({ value, title, onPick, children }: { value: string; title: string; onPick: (v: string) => void; children: React.ReactNode }) {
   return (
     <label className="flex cursor-pointer gap-3 rounded-[10px] border border-line-strong px-4 py-3.5 has-[input:checked]:border-accent has-[input:checked]:bg-accent-tint has-[input:checked]:ring-1 has-[input:checked]:ring-accent">
-      <input type="radio" name="editKind" value={value} defaultChecked={checked} className="mt-[3px] accent-accent" aria-label={title} />
+      <input type="radio" name="editKind" value={value} required onChange={() => onPick(value)} className="mt-[3px] accent-accent" aria-label={title} />
       <span>
         <b>{title}</b>
         <br />
