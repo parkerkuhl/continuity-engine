@@ -86,7 +86,7 @@ pnpm --filter @continuity/mcp build          # bundle the MCP server for Claude 
 
 Scope: the four GM prompt modules in `prompts/` (SPEC "GM prompt refactor"): `00-protocol.md` (when to call each tool, always loaded), `10-worldbuilding.md` (Phase 0 paths A, B, C), `20-intake.md` (Phases 1 and 2, hidden story design), `30-play.md` (priority order, narration, interior voice, voice audit, companions, mechanics, OOC commands). The storytelling rules come from the existing GM prompt; its storage duties (ledger, chapter-end restatement, file-read tracking, load-guide lookup, save blocks) are removed because the server does them. `(OOC) save` confirms the last scene is logged; `ledger`, `recap`, `rulings`, `sheet` and `canon` call the tools (player view where answers are limited to what the character knows).
 
-Every tool name and argument a module mentions must match `apps/mcp/src/server.ts`; `apps/mcp/test/m4-prompts.test.ts` checks this.
+`close_chapter` restarts the voice-audit scene count, since the play module audits at every chapter opening. Every tool name, argument and enum value a module mentions in a code span must match `apps/mcp/src/server.ts`; `apps/mcp/test/m4-prompts.test.ts` checks this.
 
 Acceptance checks (Parker plays one short chapter by hand):
 

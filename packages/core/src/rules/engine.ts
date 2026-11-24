@@ -855,6 +855,8 @@ export class RulesEngine {
       AI("close_chapter"),
     );
     await this.storage.updateCampaign(campaign.id, { currentChapter: number + 1 }, AI("close_chapter"));
+    // The prompt audits the voice at every chapter opening, so the count restarts with each chapter.
+    if (anchor && anchor.scenesSinceAudit > 0) await this.storage.setVoiceAnchor({ ...anchor, scenesSinceAudit: 0 }, AI("close_chapter"));
     return ok({
       chapter,
       refreshSummaries: refresh,

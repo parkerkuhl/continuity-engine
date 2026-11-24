@@ -11,6 +11,7 @@ import {
   Depth,
   EntityType,
   GmNoteKind,
+  PcSheetData,
   RulesEngine,
   SeverityPolicy,
   Severity,
@@ -363,7 +364,7 @@ export function createServer(engine: RulesEngine): McpServer {
         thread_changes: z
           .array(z.object({ thread: z.string().optional().describe("id or title of an existing thread; omit to open one"), title: z.string().optional(), body: z.string().optional(), state: z.enum(["open", "resolved"]).optional(), tags: z.array(kebab).optional() }))
           .default([]),
-        pc_changes: z.record(z.string(), z.unknown()).optional().describe("fields to merge into the PC sheet"),
+        pc_changes: PcSheetData.passthrough().optional().describe("fields to merge into the PC sheet: name, stats, health, stress, inventory, bonds, trackers, flaw_notes"),
       },
     },
     (a) =>
