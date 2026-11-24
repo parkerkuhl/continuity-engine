@@ -31,6 +31,7 @@ const SPEC_TOOLS = [
   "log_scene",
   "close_chapter",
   "record_ruling",
+  "update_campaign",
   "gm_read",
   "gm_write",
 ];
@@ -77,7 +78,7 @@ async function playthrough() {
 }
 
 describe("M3: the server exposes every tool in the spec", () => {
-  it("lists all 17 tools, each with a description and a JSON schema generated from Zod", async () => {
+  it("lists all 18 tools (the 17 in the spec plus update_campaign), each with a description and a JSON schema generated from Zod", async () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([...SPEC_TOOLS].sort());

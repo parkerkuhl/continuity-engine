@@ -11,6 +11,7 @@ import {
   Depth,
   EntityType,
   GmNoteKind,
+  PcSheetData,
   RulesEngine,
   SeverityPolicy,
   Severity,
@@ -253,7 +254,7 @@ export function createServer(engine: RulesEngine): McpServer {
     "open_campaign",
     {
       title: "Open campaign",
-      description: "Must be the first call of every chat. Opens a session and returns settings, voice anchor, PC sheet, threads, and what the user changed since last session, which overrides your memory of the chat.",
+      description: "Must be the first call of every chat. Opens a session and returns settings, voice anchor, PC sheet, threads, rulings, this chapter's scenes, and what the user changed since last session, which overrides your memory of the chat.",
       inputSchema: { campaign_id: campaignId },
     },
     (a) =>
@@ -363,7 +364,7 @@ export function createServer(engine: RulesEngine): McpServer {
         thread_changes: z
           .array(z.object({ thread: z.string().optional().describe("id or title of an existing thread; omit to open one"), title: z.string().optional(), body: z.string().optional(), state: z.enum(["open", "resolved"]).optional(), tags: z.array(kebab).optional() }))
           .default([]),
-        pc_changes: z.record(z.string(), z.unknown()).optional().describe("fields to merge into the PC sheet"),
+        pc_changes: PcSheetData.passthrough().optional().describe("fields to merge into the PC sheet: name, stats, health, stress, inventory, bonds, trackers, flaw_notes"),
       },
     },
     (a) =>
@@ -401,6 +402,33 @@ export function createServer(engine: RulesEngine): McpServer {
         const r = await engine.closeChapter({ sessionId: s.value, title: a.title, summary: a.summary });
         if (!r.ok) return refused(r.refusal);
         return reply(md.renderChapterClosed(r.value), { chapter: r.value.chapter.number, status: "confirmed", voice_audit_due: r.value.voiceAuditDue });
+      })(),
+  );
+
+  server.registerTool(
+    "update_campaign",
+    {
+      title: "Update campaign",
+      description: "Stores the PC sheet at character creation, the story's as-of moment, or a settings change the user asks for with (OOC) settings. Fields are merged into what is stored. Changes during a scene go in log_scene's pc_changes instead.",
+      inputSchema: {
+        campaign_id: campaignId,
+        settings: CampaignSettings.optional().describe("settings fields to change: genre, tone, difficulty, length, pacing, dice, turn_length, lines, veils"),
+        as_of: z.string().optional().describe("the story's current moment, for the era rule"),
+        pc_sheet: PcSheetData.passthrough().optional().describe("PC sheet fields to set: name, stats, health, stress, inventory, bonds, trackers, flaw_notes"),
+      },
+    },
+    (a) =>
+      guard(async () => {
+        const s = session(a.campaign_id);
+        if (!s.ok) return refused(s.refusal);
+        const r = await engine.updateCampaign({
+          sessionId: s.value,
+          ...(a.settings && { settings: a.settings }),
+          ...(a.as_of !== undefined && { asOf: a.as_of }),
+          ...(a.pc_sheet && { pcSheet: a.pc_sheet }),
+        });
+        if (!r.ok) return refused(r.refusal);
+        return reply(md.renderCampaignUpdated(r.value.campaign, r.value.pcSheet), { campaign_id: r.value.campaign.id, status: "confirmed" });
       })(),
   );
 
