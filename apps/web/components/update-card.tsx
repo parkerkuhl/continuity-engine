@@ -44,32 +44,49 @@ export function TagChips({ tags }: { tags: UpdateView["tagTypes"] }) {
 }
 
 export const chapterTag = (n: number | null) => (n === null ? null : `ch-${String(n).padStart(2, "0")}`);
+/** An update's tags minus its own chapter tag, which the meta line already shows. */
+export const extraTags = (v: UpdateView) => v.tagTypes.filter((t) => !(t.type === "time" && t.tag === chapterTag(v.update.chapter)));
 const typeText = (t: string) => t.replace(/-/g, " ");
 
-/** The line over an update: number, status, severity, type and chapter, and the pages it touches. */
+/** The lines over an update: number, status, severity, type and chapter, then the pages it touches as quiet links. */
 export function UpdateMeta({ v, base, status = true }: { v: UpdateView; base: string; status?: boolean }) {
   const u = v.update;
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-      <b className="text-sm">#{u.seq}</b>
-      {status && <StatusPill status={u.status} />}
-      <Severity severity={u.severity} />
-      <span className="text-faint">
-        {typeText(u.type)}
-        {u.chapter !== null && <> · {chapterTag(u.chapter)}</>}
-      </span>
-      {v.entities.map((e) => (
-        <Link key={e.id} href={`${base}/e/${e.slug}`} className="rounded-full bg-accent-soft px-2 py-px text-accent-ink hover:text-accent">
-          {e.name}
-        </Link>
-      ))}
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-faint">
+        <b className="text-sm text-ink">#{u.seq}</b>
+        {status && <StatusPill status={u.status} />}
+        <Severity severity={u.severity} />
+        <span aria-hidden>·</span>
+        <span>{typeText(u.type)}</span>
+        {u.chapter !== null && (
+          <>
+            <span aria-hidden>·</span>
+            <span>{chapterTag(u.chapter)}</span>
+          </>
+        )}
+      </div>
+      {v.entities.length > 0 && (
+        <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[12.5px]">
+          {v.entities.map((e) => (
+            <Link key={e.id} href={`${base}/e/${e.slug}`} className="text-accent-ink underline decoration-accent/30 underline-offset-2 hover:text-accent hover:decoration-accent">
+              {e.name}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 export function Knows({ v }: { v: UpdateView }) {
   if (!v.knows.length) return null;
-  return <div className="text-xs text-muted">Knows: {v.knows.map((e) => e.name).join(", ")}</div>;
+  const names = v.knows.map((e) => e.name).join(", ");
+  return (
+    <div className="line-clamp-1 text-xs text-faint" title={`Known to: ${names}`}>
+      Known to {v.knows.length === 1 ? names : `${v.knows.length}: ${names}`}
+    </div>
+  );
 }
 
 /** Approve and Reject buttons for a proposed update, as server-action forms. */

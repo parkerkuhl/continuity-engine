@@ -216,3 +216,9 @@ body {
     @apply text-accent hover:text-accent-hover;
   }
 }
+
+/* Anchor targets (section menu, sidebar links) stop a little below the top edge. */
+h2[id],
+section[id] {
+  scroll-margin-top: 1.5rem;
+}

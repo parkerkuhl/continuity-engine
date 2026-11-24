@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { TO_PC_KEY, type Scope, type Version } from "@continuity/core";
+import { TO_PC_KEY, cleanLabel, type Scope, type Version } from "@continuity/core";
 import { notFound } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion, setSectionVisibility } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
@@ -8,7 +8,7 @@ import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
 import { Markdown } from "./markdown";
 import { ConfirmedForm, InlineEditor } from "./section-editor";
-import { ApproveButton, Knows, RejectButton, StatusPill, TagChips, UpdateMeta, chapterTag, editProps } from "./update-card";
+import { ApproveButton, Knows, RejectButton, StatusPill, TagChips, UpdateMeta, chapterTag, editProps, extraTags } from "./update-card";
 import { PcSheetBody, text } from "./pc-sheet";
 import { UpdateItem } from "./update-item";
 import { SourcePill, TYPE_LABEL, TYPE_PLURAL } from "./wiki-browser";
@@ -17,7 +17,10 @@ function stateText(v: unknown): string {
   if (!v || typeof v !== "object") return "";
   const o = v as Record<string, unknown>;
   const md = typeof o.bodyMd === "string" ? o.bodyMd : typeof o.summary === "string" ? o.summary : "";
-  return md.replace(/^#+\s*/gm, "").replace(/\s+/g, " ").trim();
+  return md
+    .replace(/^#+\s*/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const ago = (iso: string) => {
@@ -62,7 +65,7 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
   const outlineKeys = new Set(profile.outline.map((o) => o.key));
   // Who this character is to the PC, from the campaign's "To the PC" section (already filtered by the view).
   const toPcSection = scope.campaign && page.type === "character" ? page.sections.find((x) => x.key === TO_PC_KEY) : undefined;
-  const toPc = toPcSection?.bodyMd.trim().split("\n")[0]?.trim() || null;
+  const toPc = cleanLabel(toPcSection?.bodyMd.trim().split("\n")[0] ?? "") || null;
 
   /** What play recorded for an outline slot, shown under its prose. */
   const recorded = (key: string): ReactNode => {
@@ -113,7 +116,11 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
             <ul className="flex flex-col gap-1">
               {profile.items.map((u) => (
                 <li key={u.id}>
-                  {u.bodyMd} <span className="text-xs text-faint">#{u.seq}{u.chapter !== null && <> · {chapterTag(u.chapter)}</>}</span>{" "}
+                  {u.bodyMd}{" "}
+                  <span className="text-xs text-faint">
+                    #{u.seq}
+                    {u.chapter !== null && <> · {chapterTag(u.chapter)}</>}
+                  </span>{" "}
                   {u.status === "proposed" && <StatusPill status="proposed" />}
                 </li>
               ))}
@@ -166,6 +173,54 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
         <Markdown>{s.bodyMd}</Markdown>
         {extra}
       </InlineEditor>
+    );
+  };
+
+  const menu: [string, string][] = [["Current state", "summary-h"]];
+  if (profile.pcSheet) menu.push(["Character sheet", "sheet-h"]);
+  for (const o of profile.outline) {
+    if (o.sectionId === "hidden") continue;
+    const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+    menu.push([sec?.heading ?? o.heading, sec ? `s-${sec.id}` : `slot-${o.key}`]);
+  }
+  for (const x of page.sections.filter((x) => !outlineKeys.has(x.key))) menu.push([x.heading, `s-${x.id}`]);
+  if (scope.campaign && (page.type === "character" || profile.knows.length > 0)) menu.push([`What ${page.name.split(" ")[0]} knows`, "knows-h"]);
+  if (scope.campaign) menu.push([`Updates${view.updates.length ? ` (${view.updates.length})` : ""}`, "updates-h"]);
+  const SHOWN = 5;
+  const keep = (i: number) => i < SHOWN;
+  const shownUpdates = view.updates.filter((_, i) => keep(i));
+  const olderUpdates = view.updates.filter((_, i) => !keep(i));
+
+  const updateItem = (v: (typeof view.updates)[number]) => {
+    const u = v.update;
+    const proposed = u.status === "proposed";
+    const gone = u.status === "superseded" || u.status === "rejected" || u.status === "retconned";
+    return (
+      <li key={u.id} className={`rounded-[10px] border p-3 ${proposed ? "border-warn-line bg-warn-tint" : "border-line"} ${gone ? "text-faint" : ""}`}>
+        {proposed ? (
+          <UpdateItem
+            layout="stack"
+            head={<UpdateMeta v={v} base={base} />}
+            body={u.bodyMd}
+            foot={
+              <>
+                <Knows v={v} />
+                <TagChips tags={extraTags(v)} />
+              </>
+            }
+            approve={<ApproveButton v={v} path={path} />}
+            reject={<RejectButton v={v} path={path} />}
+            edit={editProps(v, path)}
+          />
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <UpdateMeta v={v} base={base} />
+            <p className={gone ? "line-through" : ""}>{u.bodyMd}</p>
+            <Knows v={v} />
+            <TagChips tags={extraTags(v)} />
+          </div>
+        )}
+      </li>
     );
   };
 
@@ -245,6 +300,20 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
         </ActionForm>
       )}
 
+      {menu.length > 3 && (
+        <nav
+          aria-label="On this page"
+          className="-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal"
+        >
+          <span className="mr-1 shrink-0 text-faint">On this page</span>
+          {menu.map(([label, id]) => (
+            <a key={id} href={`#${id}`} className="shrink-0 rounded-md px-2 py-1 text-muted hover:bg-sunken hover:text-ink">
+              {label}
+            </a>
+          ))}
+        </nav>
+      )}
+
       <div className="flex flex-wrap items-start gap-6">
         <article className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
           <InlineEditor
@@ -313,8 +382,8 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
                 <span className="text-xs font-semibold text-secret">Secret</span>
               </div>
               <p className="mt-2.5 text-muted">
-                {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show{" "}
-                {view.hiddenSections === 1 ? "it" : "them"} here.
+                {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads{" "}
+                {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show {view.hiddenSections === 1 ? "it" : "them"} here.
               </p>
             </div>
           )}
@@ -371,42 +440,22 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
         <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
           {scope.campaign && (
             <section className="card-sm flex flex-col gap-3">
-              <h2 className="text-[15px] font-semibold">Updates to this page</h2>
+              <h2 id="updates-h" className="text-[15px] font-semibold">
+                Updates to this page
+              </h2>
               {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
-              <ul className="flex flex-col gap-3">
-                {view.updates.map((v) => {
-                  const u = v.update;
-                  const proposed = u.status === "proposed";
-                  const gone = u.status === "superseded" || u.status === "rejected" || u.status === "retconned";
-                  return (
-                    <li key={u.id} className={`rounded-[10px] border p-3 ${proposed ? "border-warn-line bg-warn-tint" : "border-line"} ${gone ? "text-faint" : ""}`}>
-                      {proposed ? (
-                        <UpdateItem
-                          layout="stack"
-                          head={<UpdateMeta v={v} base={base} />}
-                          body={u.bodyMd}
-                          foot={
-                            <>
-                              <Knows v={v} />
-                              <TagChips tags={v.tagTypes} />
-                            </>
-                          }
-                          approve={<ApproveButton v={v} path={path} />}
-                          reject={<RejectButton v={v} path={path} />}
-                          edit={editProps(v, path)}
-                        />
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          <UpdateMeta v={v} base={base} />
-                          <p className={gone ? "line-through" : ""}>{u.bodyMd}</p>
-                          <Knows v={v} />
-                          <TagChips tags={v.tagTypes} />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+              <ul className="flex flex-col gap-3">{shownUpdates.map((v) => updateItem(v))}</ul>
+              {olderUpdates.length > 0 && (
+                <details className="group">
+                  <summary className="cursor-pointer list-none text-[13px] font-medium text-accent hover:text-accent-hover">
+                    <span className="group-open:hidden">
+                      Show {olderUpdates.length} older update{olderUpdates.length === 1 ? "" : "s"}
+                    </span>
+                    <span className="hidden group-open:inline">Hide older updates</span>
+                  </summary>
+                  <ul className="mt-3 flex flex-col gap-3">{olderUpdates.map((v) => updateItem(v))}</ul>
+                </details>
+              )}
               {view.hiddenUpdates > 0 && (
                 <p className="text-xs text-muted">
                   {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
@@ -469,7 +518,9 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
                   <li key={v.id}>
                     <div>
                       <b>{v.author === "user" ? "You" : "GM"}</b> {historyLine(v)}{" "}
-                      {v.editKind && <span className="pill bg-accent-soft px-2 py-px font-normal text-accent-ink">{v.editKind === "retcon" ? "Retcon" : "Change from now on"}</span>}
+                      {v.editKind && (
+                        <span className="pill bg-accent-soft px-2 py-px font-normal text-accent-ink">{v.editKind === "retcon" ? "Retcon" : "Change from now on"}</span>
+                      )}
                     </div>
                     <div className="text-faint">
                       <time dateTime={v.createdAt} title={new Date(v.createdAt).toLocaleString("en-US")}>
@@ -512,4 +563,3 @@ export async function EntityView({ scope, slug }: { scope: Scope; slug: string }
     </>
   );
 }
-

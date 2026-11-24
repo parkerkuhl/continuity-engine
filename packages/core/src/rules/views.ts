@@ -127,6 +127,7 @@ export class WebViews {
       rows = (await this.storage.listEntities(scope.world.id, { campaignId })).map((e) => ({ entity: e, line: e.summary.split("\n")[0] ?? "" }));
     }
     if (filter.source) rows = rows.filter((r) => r.entity.source === filter.source);
+    rows = rows.map((r) => ({ ...r, line: unescapeQuotes(r.line) }));
     const withPc = await Promise.all(rows.map(async (r) => ({ ...r, toPc: await this.toPc(scope, r.entity) })));
     return TYPE_ORDER.map((type) => ({ type, entities: withPc.filter((r) => r.entity.type === type).sort((a, b) => a.entity.name.localeCompare(b.entity.name)) })).filter(
       (g) => g.entities.length,
@@ -140,7 +141,7 @@ export class WebViews {
     const s = page?.sections.find((x) => x.key === TO_PC_KEY);
     if (!s) return null;
     if (!scope.spoilers && s.visibility === "secret" && !(await this.pcKnows(scope, "section", s.id))) return null;
-    return s.bodyMd.trim().split("\n")[0]?.trim() || null;
+    return cleanLabel(s.bodyMd.trim().split("\n")[0] ?? "") || null;
   }
 
   private async pcKnows(scope: Scope, target: "update" | "section", id: string): Promise<boolean> {
@@ -338,4 +339,14 @@ export class WebViews {
     if (!scope.campaign || !scope.spoilers) return null;
     return this.storage.listGmNotes(scope.campaign.id);
   }
+}
+
+/** A one-line label for display: no trailing comma, semicolon, colon, dash or full stop. */
+export function cleanLabel(s: string): string {
+  return s.trim().replace(/[\s,;:.\-\u2013\u2014]+$/u, "").trim();
+}
+
+/** Undo JSON-style escaped quotes (\\" becomes ") that sometimes reach stored text. */
+export function unescapeQuotes(s: string): string {
+  return s.replace(/\\(["'])/g, "$1");
 }

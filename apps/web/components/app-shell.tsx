@@ -18,7 +18,7 @@ export async function AppShell({ scope, children }: { scope?: Scope; children: R
       <Sidebar scope={scope} />
       <div className="flex min-w-0 flex-[999_1_560px] flex-col">
         {scope && <TopBar scope={scope} />}
-        <main className="box-border flex w-full max-w-[1200px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8">{children}</main>
+        <main className="mx-auto box-border flex w-full max-w-[1200px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8">{children}</main>
       </div>
     </div>
   );
