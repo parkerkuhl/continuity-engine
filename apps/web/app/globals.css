@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens from the Continuity Engine UI design: warm paper canvas, white cards, a dark
+ * sidebar, teal for actions, amber for pending, red for conflicts, violet for secrets.
+ * Dark mode redefines the same tokens, so components never name a raw color.
+ */
+@theme {
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4 Variable", "Source Serif 4", Georgia, serif;
+
+  --color-canvas: #f6f5f2;
+  --color-surface: #ffffff;
+  --color-subtle: #faf9f6;
+  --color-sunken: #efede8;
+  --color-ink: #1c1e21;
+  --color-body: #3d4146;
+  --color-muted: #55595f;
+  --color-faint: #6b6f75;
+  --color-line: #e2e0da;
+  --color-line-soft: #eceae5;
+  --color-line-strong: #d6d3cc;
+
+  --color-accent: #0f6e6a;
+  --color-accent-hover: #0a4f4c;
+  --color-accent-ink: #0a4f4c;
+  --color-accent-soft: #e4efee;
+  --color-accent-tint: #f2f8f7;
+  --color-canon-tint: #eef5f4;
+
+  --color-pending: #f2b54a;
+  --color-warn: #8a4b00;
+  --color-warn-soft: #fff3dc;
+  --color-warn-tint: #fff8ea;
+  --color-warn-line: #f0d49a;
+  --color-warn-dash: #b07a1f;
+
+  --color-danger: #a3261e;
+  --color-danger-soft: #fbe3e0;
+  --color-danger-line: #c9473d;
+  --color-danger-border: #e8b3ae;
+
+  --color-secret: #4a3389;
+  --color-secret-soft: #efeaf7;
+  --color-secret-tint: #fbf9fe;
+  --color-secret-line: #b9a8de;
+
+  --color-ok: #1f6b3a;
+  --color-ok-soft: #ddefe3;
+
+  --color-nav: #16181b;
+  --color-nav-line: #2e3237;
+  --color-nav-active: #2a2e33;
+  --color-nav-text: #d5d3ce;
+  --color-nav-muted: #a3a8ae;
+  --color-nav-strong: #e8e6e1;
+
+  --color-tag-character: #1b4a85;
+  --color-tag-character-soft: #dce8f8;
+  --color-tag-place: #1d5c34;
+  --color-tag-place-soft: #ddf0e2;
+  --color-tag-faction: #842050;
+  --color-tag-faction-soft: #f6e0ec;
+  --color-tag-thing: #7a5a1e;
+  --color-tag-thing-soft: #f3ead8;
+  --color-tag-chapter-line: #c9c5bc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #121416;
+    --color-surface: #1b1e21;
+    --color-subtle: #202327;
+    --color-sunken: #25292d;
+    --color-ink: #e8e6e1;
+    --color-body: #cfccc6;
+    --color-muted: #a3a8ae;
+    --color-faint: #8a8e94;
+    --color-line: #2e3237;
+    --color-line-soft: #272b2f;
+    --color-line-strong: #3a3f45;
+
+    --color-accent: #1d8c86;
+    --color-accent-hover: #26a69f;
+    --color-accent-ink: #7fd0c9;
+    --color-accent-soft: #163533;
+    --color-accent-tint: #142826;
+    --color-canon-tint: #152a28;
+
+    --color-pending: #f2b54a;
+    --color-warn: #f2c46b;
+    --color-warn-soft: #3a2c12;
+    --color-warn-tint: #2a2213;
+    --color-warn-line: #6b5320;
+    --color-warn-dash: #b07a1f;
+
+    --color-danger: #f0958b;
+    --color-danger-soft: #3a1a17;
+    --color-danger-line: #b7443a;
+    --color-danger-border: #6e2b25;
+
+    --color-secret: #c1b1f2;
+    --color-secret-soft: #2a2340;
+    --color-secret-tint: #1d1a29;
+    --color-secret-line: #5e4e8f;
+
+    --color-ok: #8bd8a5;
+    --color-ok-soft: #173322;
+
+    --color-nav: #0d0f11;
+    --color-nav-line: #262a2f;
+    --color-nav-active: #22262b;
+
+    --color-tag-character: #9cc2f2;
+    --color-tag-character-soft: #1a2a40;
+    --color-tag-place: #94d4a8;
+    --color-tag-place-soft: #16301f;
+    --color-tag-faction: #eda3c6;
+    --color-tag-faction-soft: #3a1a2a;
+    --color-tag-thing: #e0c48e;
+    --color-tag-thing-soft: #33291a;
+    --color-tag-chapter-line: #4a4f55;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+body {
+  @apply bg-canvas text-ink font-sans text-sm leading-normal antialiased;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-4 font-medium text-ink hover:bg-subtle disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-accent px-4 font-semibold text-white hover:bg-accent-hover disabled:opacity-40 disabled:hover:bg-accent;
+  }
+  .btn-danger {
+    @apply inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-4 font-medium text-danger hover:bg-danger-soft disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply h-9 px-3;
+  }
+  .btn-xs {
+    @apply h-8 rounded-md px-2.5 text-[13px];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-1 text-[13px] font-medium text-accent hover:bg-accent-tint hover:text-accent-hover;
+  }
+  .input {
+    @apply h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-ink placeholder:text-faint;
+  }
+  textarea.input {
+    @apply h-auto py-2;
+  }
+  .card {
+    @apply rounded-xl border border-line bg-surface px-6 py-5;
+  }
+  .card-sm {
+    @apply rounded-xl border border-line bg-surface px-5 py-[18px];
+  }
+  .label {
+    @apply text-[13px] font-semibold tracking-[0.8px] text-muted uppercase;
+  }
+  .page-title {
+    @apply font-serif text-4xl leading-tight font-semibold;
+  }
+  .card-title {
+    @apply text-base font-semibold;
+  }
+  .section-title {
+    @apply font-serif text-[22px] font-semibold;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
+  }
+  .chip {
+    @apply inline-flex h-9 items-center rounded-full border border-line-strong bg-surface px-3.5 text-ink;
+  }
+  .chip-on {
+    @apply inline-flex h-9 items-center rounded-full bg-ink px-3.5 font-semibold text-canvas;
+  }
+  .link {
+    @apply text-accent hover:text-accent-hover;
+  }
+  .prose-page {
+    @apply font-serif text-[17px] leading-[1.6];
+  }
+  .prose-page p,
+  .prose-page ul,
+  .prose-page ol,
+  .prose-page blockquote {
+    @apply my-2.5 first:mt-0 last:mb-0;
+  }
+  .prose-page ul {
+    @apply list-disc pl-5 leading-[1.7];
+  }
+  .prose-page ol {
+    @apply list-decimal pl-5 leading-[1.7];
+  }
+  .prose-page h3 {
+    @apply mt-4 mb-1 font-sans text-[13px] font-semibold tracking-[0.6px] text-muted uppercase;
+  }
+  .prose-page h4 {
+    @apply mt-3 mb-1 font-sans text-sm font-semibold;
+  }
+  .prose-page blockquote {
+    @apply border-l-2 border-line-strong pl-3 italic;
+  }
+  .prose-page code {
+    @apply rounded bg-sunken px-1 font-mono text-sm;
+  }
+  .prose-page a {
+    @apply text-accent hover:text-accent-hover;
+  }
+}
