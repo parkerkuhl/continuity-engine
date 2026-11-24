@@ -24,7 +24,7 @@ export const isRemote = () => !!process.env.CONTINUITY_DATABASE_URL;
 /** The remote database (one pool per server instance). Migrations run on first open. */
 export function remoteDb(): Promise<Remote> {
   if (!g.__continuityRemote) {
-    process.env.CONTINUITY_PG_MIGRATIONS ||= resolve(process.cwd(), process.env.VERCEL ? "drizzle-pg" : "../../packages/core/drizzle-pg");
+    process.env.CONTINUITY_PG_MIGRATIONS ||= resolve(process.cwd(), "../../packages/core/drizzle-pg");
     g.__continuityRemote = openRemote(process.env.CONTINUITY_DATABASE_URL!).catch((e) => {
       g.__continuityRemote = undefined;
       throw e;
