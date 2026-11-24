@@ -134,7 +134,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
     return null;
   };
 
-  const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode) => {
+  const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode, compact = false) => {
     const secret = s.visibility === "secret";
     return (
       <InlineEditor
@@ -145,9 +145,9 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
         label={`section ${s.heading}`}
         context={`${page.name} · ${s.heading}`}
         labelledBy={`s-${s.id}`}
-        className={secret ? "rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5" : "card"}
+        className={secret ? "rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5" : compact ? "card-sm" : "card"}
         title={
-          <h2 id={`s-${s.id}`} className={TITLE}>
+          <h2 id={`s-${s.id}`} className={compact ? "text-[15px] font-semibold" : TITLE}>
             {s.heading}
           </h2>
         }
@@ -182,6 +182,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   for (const o of profile.outline) {
     if (o.sectionId === "hidden") continue;
     const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+    if (sec && sec === toPcSection && toPc) continue; // shown as the pill under the name and a small card in the side column
     if (sec) menu.push([sec.heading, `s-${sec.id}`]);
     else if (recorded(o.key)) menu.push([o.heading, `slot-${o.key}`]);
     else emptySlots.push({ key: o.key, heading: o.heading, hidden: { ...hidden, heading: o.heading }, context: `${page.name} · ${o.heading}` });
@@ -191,7 +192,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   const tabs: [string, string, number?, boolean?][] = [["page", "Page"]];
   if (scope.campaign) {
     tabs.push(["updates", "Updates", proposedCount || view.updates.length, proposedCount > 0]);
-    tabs.push(["knows", `What ${page.name.split(" ")[0]} knows`, profile.knows.length]);
+    const first = page.name.split(" ")[0] ?? page.name;
+    tabs.push(["knows", `What ${/^(the|a|an)$/i.test(first) ? page.name : first} knows`, profile.knows.length]);
   }
   tabs.push(["history", "History", view.history.length]);
   const tab = tabs.some(([k]) => k === tabParam) ? tabParam! : "page";
@@ -413,6 +415,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                 if (o.sectionId === "hidden") return null;
                 const extra = recorded(o.key);
                 const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+                if (sec && sec === toPcSection && toPc) return null;
                 if (sec) return sectionCard(sec, extra);
                 if (!extra) return null;
                 return (
@@ -467,6 +470,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             </article>
 
             <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+              {toPcSection && toPc && sectionCard(toPcSection, null, true)}
               {scope.campaign && (
                 <section className="card-sm flex flex-col gap-2.5">
                   <h2 className="text-[15px] font-semibold">Appearances</h2>

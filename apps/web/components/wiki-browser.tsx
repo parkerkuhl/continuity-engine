@@ -316,7 +316,7 @@ export async function WikiHeader({ scope, title }: { scope: Scope; title: string
           </details>
         )}
       </div>
-      <a href={`/w/${scope.world.id}/export`} className="btn">
+      <a href={`/w/${scope.world.id}/export`} className="btn hidden sm:inline-flex">
         Export as Markdown
       </a>
     </div>
