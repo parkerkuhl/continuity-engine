@@ -1,0 +1,76 @@
+import Link from "next/link";
+import type { Entity, Scope } from "@continuity/core";
+import { createPage } from "@/app/actions";
+import { basePath } from "@/lib/server";
+import { ActionForm } from "./action-form";
+import { TYPE_LABEL } from "./wiki-browser";
+
+/** The New page form (UX review #5). After saving, the page opens with its outline slots ready to write. */
+export function NewPage({ scope, type }: { scope: Scope; type?: string }) {
+  const base = basePath(scope);
+  const wiki = scope.campaign ? `${base}/wiki` : base;
+  const preset = (Object.keys(TYPE_LABEL) as Entity["type"][]).find((t) => t === type) ?? "character";
+  return (
+    <>
+      <div className="text-[13px] text-faint">
+        <Link href={wiki} className="link">
+          Wiki
+        </Link>{" "}
+        / New page
+      </div>
+      <div>
+        <h1 className="page-title">New page</h1>
+        <p className="mt-1.5 text-muted">
+          {scope.campaign
+            ? `In ${scope.campaign.name} only. The GM sees it at the start of the next session.`
+            : `In ${scope.world.name}, for every campaign. The GM sees it at the start of the next session.`}
+        </p>
+      </div>
+      <ActionForm action={createPage} className="card grid max-w-2xl gap-4">
+        <input type="hidden" name="worldId" value={scope.world.id} />
+        <input type="hidden" name="campaignId" value={scope.campaign?.id ?? ""} />
+        <input type="hidden" name="base" value={base} />
+        <div className="flex flex-wrap gap-4">
+          <label className="grid flex-[1_1_180px] gap-1.5 text-[13px] font-semibold">
+            Kind of page
+            <select name="type" defaultValue={preset} className="input font-normal">
+              {(Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => (
+                <option key={t} value={t}>
+                  {TYPE_LABEL[t]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid flex-[1_1_180px] gap-1.5 text-[13px] font-semibold">
+            Source
+            <select name="source" defaultValue="canon" className="input font-normal">
+              <option value="canon">Canon</option>
+              <option value="invention">Invention</option>
+              <option value="unverified">Unverified (check later)</option>
+            </select>
+          </label>
+        </div>
+        <label className="grid gap-1.5 text-[13px] font-semibold">
+          Name
+          <input name="name" required autoFocus className="input font-normal" placeholder="Wren Tallow" />
+        </label>
+        <label className="grid gap-1.5 text-[13px] font-semibold">
+          Also called
+          <input name="aliases" className="input font-normal" placeholder="the Heron, Tallow" />
+          <span className="font-normal text-faint">Nicknames and titles, separated by commas. Search finds the page by any of them.</span>
+        </label>
+        <label className="grid gap-1.5 text-[13px] font-semibold">
+          Current state
+          <textarea name="summary" rows={3} className="input font-serif text-base font-normal" placeholder="Who or what this is right now, in a sentence or two." />
+          <span className="font-normal text-faint">What the GM reads first. You can add sections on the next screen.</span>
+        </label>
+        <div className="flex gap-2">
+          <button className="btn-primary">Create page</button>
+          <Link href={wiki} className="btn">
+            Cancel
+          </Link>
+        </div>
+      </ActionForm>
+    </>
+  );
+}

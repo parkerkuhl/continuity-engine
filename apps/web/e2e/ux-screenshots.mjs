@@ -306,6 +306,22 @@ try {
     if (await b.count()) await b.click();
   }, ["desktop_light", "mobile_light"]);
 
+  // New page (UX #5)
+  await shot("45-new-page-form", `${C}/new?type=character`);
+  await shot("46-new-page-created", `${C}/new?type=character`, async (p) => {
+    await p.getByLabel("Name").fill("Ottilie Brand");
+    await p.getByLabel("Also called").fill("the Lamp-widow");
+    await p.getByLabel("Current state").fill("Widow of the keeper who drowned in year 199. Sells oil to the Spire at a loss, and won't say why.");
+    await p.getByRole("button", { name: "Create page" }).click();
+    await p.waitForURL(/\/e\/ottilie-brand/);
+    await p.waitForLoadState("networkidle");
+  }, ["desktop_light"]);
+  await shot("47-new-page-duplicate", `${C}/new`, async (p) => {
+    await p.getByLabel("Name").fill("The Heron");
+    await p.getByRole("button", { name: "Create page" }).click();
+    await p.getByRole("alert").waitFor();
+  }, ["desktop_light"]);
+
   // Import and errors
   await shot("50-import-error", BASE, async (p) => {
     const bad = join(tmpdir(), "not-a-world.zip");

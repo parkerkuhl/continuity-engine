@@ -247,3 +247,29 @@ export async function setApprovalMode(_: ActionState, f: FormData): Promise<Acti
   if (!r.ok) return fail(r.refusal.message);
   return done(f, "Approval mode saved.");
 }
+
+// ---------------- new page ----------------
+
+const TYPES = ["character", "place", "faction", "item", "event", "concept", "rule"] as const;
+const SOURCES = ["canon", "invention", "unverified"] as const;
+
+/** A page the user writes by hand (UX review #5): confirmed at once, then opened so they can fill in its sections. */
+export async function createPage(_: ActionState, f: FormData): Promise<ActionState> {
+  const type = TYPES.find((t) => t === str(f, "type"));
+  if (!type) return fail("Choose what kind of page this is.");
+  const name = req(f, "name").trim();
+  if (!name) return fail("Give the page a name.");
+  const campaignId = str(f, "campaignId") || null;
+  const r = await (await app()).engine.userCreateEntity({
+    worldId: req(f, "worldId"),
+    campaignId,
+    type,
+    name,
+    aliases: (str(f, "aliases") ?? "").split(",").map((a) => a.trim()).filter(Boolean),
+    source: SOURCES.find((s) => s === str(f, "source")) ?? "canon",
+    summary: (str(f, "summary") ?? "").trim(),
+  });
+  if (!r.ok) return fail(r.refusal.message);
+  revalidatePath("/", "layout");
+  redirect(`${req(f, "base")}/e/${r.value.slug}`);
+}

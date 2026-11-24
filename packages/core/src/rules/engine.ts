@@ -951,7 +951,7 @@ export class RulesEngine {
     source: Entity["source"];
     summary?: string;
     sections?: { heading: string; body: string; key?: string; visibility?: "public" | "secret" }[];
-  }, opts: { userAccepted?: boolean } = {}): Promise<Result<EntityPage>> {
+  }, opts: { userAccepted?: boolean; byUser?: boolean } = {}): Promise<Result<EntityPage>> {
     const world = await this.storage.getWorld(input.worldId);
     if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
     const campaign = input.campaignId ? await this.storage.getCampaign(input.campaignId) : null;
@@ -981,10 +981,10 @@ export class RulesEngine {
             aliases: input.aliases ?? [],
             source: input.source,
             summary: input.summary ?? "",
-            status: opts.userAccepted ? "confirmed" : pageStatusFor(campaign ?? world),
+            status: opts.userAccepted || opts.byUser ? "confirmed" : pageStatusFor(campaign ?? world),
             sections: (input.sections ?? []).map((s) => ({ heading: s.heading, bodyMd: s.body, ...(s.key && { key: s.key }), visibility: s.visibility ?? "public" })),
           },
-          opts.userAccepted ? AI("confirm_import") : AI("create_entity"),
+          opts.byUser ? { author: "user", reason: "web app" } : opts.userAccepted ? AI("confirm_import") : AI("create_entity"),
         ),
       );
     } catch (e) {
@@ -1272,6 +1272,15 @@ export class RulesEngine {
   }
 
   // ================= user writes (web app) =================
+
+  /**
+   * A page the user creates by hand in the web app: confirmed at once (the user is the one who approves),
+   * written as the user, and refused like the GM's when a name or alias already names a page.
+   * Created from a campaign screen it lives in that campaign's layer.
+   */
+  async userCreateEntity(input: Parameters<RulesEngine["createEntity"]>[0]): Promise<Result<EntityPage>> {
+    return this.createEntity(input, { byUser: true });
+  }
 
   /**
    * A user edit to a section. Changing what a section says needs an edit kind (retcon or forward).

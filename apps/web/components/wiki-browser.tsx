@@ -153,6 +153,13 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
       {shown.length === 0 ? (
         <div className="py-6 text-muted">
           <p>{query || src || type ? `Nothing matches${query ? ` “${query}”` : ""}.` : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}</p>
+          {!query && !src && !type && (
+            <p className="mt-3">
+              <Link href={`${base}/new`} className="btn-primary">
+                Write the first page
+              </Link>
+            </p>
+          )}
           {suggestions.length > 0 && (
             <p className="mt-2">
               Did you mean{" "}
@@ -173,9 +180,14 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
         groups.map(([t, rows]) => (
           <section key={t} aria-labelledby={groups.length > 1 ? `g-${t}` : undefined} className="flex flex-col gap-3">
             {groups.length > 1 && (
-              <h2 id={`g-${t}`} className="flex items-baseline gap-2 border-b border-line pb-1.5 font-serif text-xl font-semibold">
-                {TYPE_PLURAL[t]} <span className="font-sans text-[13px] font-normal text-faint">{rows.length}</span>
-              </h2>
+              <div className="flex items-baseline justify-between gap-3 border-b border-line pb-1.5">
+                <h2 id={`g-${t}`} className="flex items-baseline gap-2 font-serif text-xl font-semibold">
+                  {TYPE_PLURAL[t]} <span className="font-sans text-[13px] font-normal text-faint">{rows.length}</span>
+                </h2>
+                <Link href={`${base}/new?type=${t}`} className="link text-[13px]" aria-label={`New ${TYPE_LABEL[t].toLowerCase()} page`}>
+                  + New {TYPE_LABEL[t].toLowerCase()}
+                </Link>
+              </div>
             )}
             {list ? (
               <ul className="divide-y divide-line-soft overflow-hidden rounded-xl border border-line bg-surface">
@@ -329,9 +341,14 @@ export async function WikiHeader({ scope, title }: { scope: Scope; title: string
           </details>
         )}
       </div>
-      <a href={`/w/${scope.world.id}/export`} className="btn hidden sm:inline-flex">
-        Export as Markdown
-      </a>
+      <div className="flex gap-2">
+        <a href={`/w/${scope.world.id}/export`} className="btn hidden sm:inline-flex">
+          Export as Markdown
+        </a>
+        <Link href={`${basePath(scope)}/new`} className="btn-primary">
+          New page
+        </Link>
+      </div>
     </div>
   );
 }
