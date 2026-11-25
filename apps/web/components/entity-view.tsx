@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { TO_PC_KEY, cleanLabel, type Scope, type Version } from "@continuity/core";
+import { findToPcSection, toPcLabel, type Scope, type Version } from "@continuity/core";
 import { notFound } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion, setSectionVisibility } from "@/app/actions";
 import { app, basePath } from "@/lib/server";
@@ -64,9 +64,11 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   const hidden = { entityId: page.id, campaignId, path };
   const { profile } = view;
   const outlineKeys = new Set(profile.outline.map((o) => o.key));
+  // Sections an outline slot already shows (a slot can hold an older key, such as "to-pc" in the To the PC slot).
+  const inOutline = (x: { id: string; key: string }) => outlineKeys.has(x.key) || profile.outline.some((o) => o.sectionId === x.id);
   // Who this character is to the PC, from the campaign's "To the PC" section (already filtered by the view).
-  const toPcSection = scope.campaign && page.type === "character" ? page.sections.find((x) => x.key === TO_PC_KEY) : undefined;
-  const toPc = cleanLabel(toPcSection?.bodyMd.trim().split("\n")[0] ?? "") || null;
+  const toPcSection = scope.campaign && page.type === "character" ? findToPcSection(page.sections) : undefined;
+  const toPc = toPcSection ? toPcLabel(toPcSection.bodyMd) : null;
 
   /** What play recorded for an outline slot, shown under its prose. */
   const recorded = (key: string): ReactNode => {
@@ -187,7 +189,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
     else if (recorded(o.key)) menu.push([o.heading, `slot-${o.key}`]);
     else emptySlots.push({ key: o.key, heading: o.heading, hidden: { ...hidden, heading: o.heading }, context: `${page.name} · ${o.heading}` });
   }
-  for (const x of page.sections.filter((x) => !outlineKeys.has(x.key))) menu.push([x.heading, `s-${x.id}`]);
+  for (const x of page.sections.filter((x) => !inOutline(x))) menu.push([x.heading, `s-${x.id}`]);
   const proposedCount = view.updates.filter((v) => v.update.status === "proposed").length;
   const tabs: [string, string, number?, boolean?][] = [["page", "Page"]];
   if (scope.campaign) {
@@ -439,7 +441,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                 );
               })}
 
-              {page.sections.filter((x) => !outlineKeys.has(x.key)).map((x) => sectionCard(x, null))}
+              {page.sections.filter((x) => !inOutline(x)).map((x) => sectionCard(x, null))}
 
               {emptySlots.length > 0 && <EmptySlots action={addSection} slots={emptySlots} />}
 
