@@ -268,6 +268,15 @@ export const TO_PC_HEADING = "To the PC";
  */
 const TO_PC_VARIANTS = new Set(["to-pc", "to-the-pc", "to-player", "to-the-player", "to-player-character", "to-the-player-character", "relation-to-pc", "relation-to-the-pc", "relationship-to-pc", "relationship-to-the-pc"]);
 
+/** A To the PC label is a few words ("Little sister"), not a sentence: longer ones crowd the wiki card. */
+export const TO_PC_MAX_WORDS = 5;
+
+function toPcTooLong(body: string): string | null {
+  const words = body.trim().split(/\s+/).filter(Boolean).length;
+  if (words <= TO_PC_MAX_WORDS && body.trim().length <= 40 && !body.trim().includes("\n")) return null;
+  return `The "To the PC" label is ${TO_PC_MAX_WORDS} words at most, from the PC's side, such as "Little sister" or "Mother-in-law". Put more detail in the Relationships section.`;
+}
+
 export function isToPcKey(key: string): boolean {
   return TO_PC_VARIANTS.has(key);
 }
@@ -549,6 +558,8 @@ export class RulesEngine {
         edit.key = TO_PC_KEY;
         if (edit.heading) edit.heading = TO_PC_HEADING;
       }
+      const long = edit.key === TO_PC_KEY && entity.type === "character" && edit.body !== undefined ? toPcTooLong(edit.body) : null;
+      if (long) return refuse("invalid", long);
       if (edit.body !== undefined && hasLevel2Heading(edit.body)) {
         return refuse("invalid", `Section "${edit.key}": use ### or deeper inside a section body, not ##.`);
       }
@@ -988,6 +999,8 @@ export class RulesEngine {
     }
     for (const sec of input.sections ?? []) {
       if (hasLevel2Heading(sec.body)) return refuse("invalid", `Section "${sec.heading}": use ### or deeper inside a section body, not ##.`);
+      const long = input.type === "character" && isToPcKey(sec.key ?? slugify(sec.heading)) ? toPcTooLong(sec.body) : null;
+      if (long) return refuse("invalid", long);
     }
     try {
       return ok(
