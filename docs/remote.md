@@ -56,10 +56,10 @@ REVOKE ALL ON SCHEMA continuity FROM anon, authenticated, public;
 Authentication, URL Configuration: set **Site URL** to the production URL and add
 `<production URL>/auth/callback` to **Redirect URLs**. Without this the sign-in email links to localhost.
 
-Authentication, Emails, **Magic Link** template: make the link
-`<a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">Sign in</a>`
-so the link works in any browser or device. (The default `{{ .ConfirmationURL }}` link uses a PKCE code,
-which only works in the browser that asked for it; `/auth/callback` still accepts it.)
+Email sign-in uses Supabase's implicit flow, so a link works in any browser or device with the default
+Magic Link template: Supabase puts the session in the URL fragment and `/auth/callback` posts it back to
+itself. (A custom template may instead link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email`;
+the callback accepts that too. Supabase only lets you edit templates once custom SMTP is set up.)
 
 ## Adding the connector in Claude
 
