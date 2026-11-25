@@ -262,6 +262,21 @@ export const VOICE_AUDIT_SCENES = 4;
 export const TO_PC_KEY = "to-the-pc";
 export const TO_PC_HEADING = "To the PC";
 
+/**
+ * Keys Claude has used for the same idea, such as "to-pc" from a "To PC" heading. A new section with one of them
+ * is written as `to-the-pc`, and a page that already has one reads it as its To the PC label.
+ */
+const TO_PC_VARIANTS = new Set(["to-pc", "to-the-pc", "to-player", "to-the-player", "to-player-character", "to-the-player-character", "relation-to-pc", "relation-to-the-pc", "relationship-to-pc", "relationship-to-the-pc"]);
+
+export function isToPcKey(key: string): boolean {
+  return TO_PC_VARIANTS.has(key);
+}
+
+/** A character's To the PC section: the canonical key first, else an older variant such as "to-pc". */
+export function findToPcSection<S extends { key: string }>(sections: S[]): S | undefined {
+  return sections.find((x) => x.key === TO_PC_KEY) ?? sections.find((x) => isToPcKey(x.key));
+}
+
 const AI = (reason?: string): WriteMeta => ({ author: "ai", reason: reason ?? null });
 
 export class RulesEngine {
@@ -307,7 +322,7 @@ export class RulesEngine {
     for (const e of await this.storage.listEntities(campaign.worldId, { campaignId: campaign.id, type: "character" })) {
       if (e.id === pc?.id) continue;
       const page = await this.storage.getPage(e.id, { campaignId: campaign.id });
-      if (!page?.sections.some((x) => x.key === TO_PC_KEY && x.bodyMd.trim())) out.push({ id: e.id, slug: e.slug, name: e.name });
+      if (!page || !findToPcSection(page.sections)?.bodyMd.trim()) out.push({ id: e.id, slug: e.slug, name: e.name });
     }
     return out;
   }
@@ -552,6 +567,10 @@ export class RulesEngine {
       const p = SectionEdit.safeParse(raw);
       if (!p.success) return refuse("invalid", `Section edit: ${p.error.issues.map((i) => i.message).join("; ")}`);
       const edit = p.data;
+      if (entity.type === "character" && isToPcKey(edit.key)) {
+        edit.key = TO_PC_KEY;
+        if (edit.heading) edit.heading = TO_PC_HEADING;
+      }
       if (edit.body !== undefined && hasLevel2Heading(edit.body)) {
         return refuse("invalid", `Section "${edit.key}": use ### or deeper inside a section body, not ##.`);
       }
@@ -1024,7 +1043,11 @@ export class RulesEngine {
             source: input.source,
             summary: input.summary ?? "",
             status: opts.userAccepted || opts.byUser ? "confirmed" : pageStatusFor(campaign ?? world),
-            sections: (input.sections ?? []).map((s) => ({ heading: s.heading, bodyMd: s.body, ...(s.key && { key: s.key }), visibility: s.visibility ?? "public" })),
+            sections: (input.sections ?? []).map((s) => {
+              // A "To PC" style section on a character becomes the canonical To the PC label.
+              const toPc = input.type === "character" && isToPcKey(s.key ?? slugify(s.heading));
+              return { heading: toPc ? TO_PC_HEADING : s.heading, bodyMd: s.body, ...(toPc ? { key: TO_PC_KEY } : s.key && { key: s.key }), visibility: s.visibility ?? "public" };
+            }),
           },
           opts.byUser ? { author: "user", reason: "web app" } : opts.userAccepted ? AI("confirm_import") : AI("create_entity"),
         ),
@@ -1555,7 +1578,10 @@ export class RulesEngine {
 
   private async findSection(entityId: string, key: string, campaignId: string | null): Promise<Section | null> {
     const page = await this.storage.getPage(entityId, { campaignId });
-    return page?.sections.find((s) => s.key === key && s.campaignId === campaignId) ?? null;
+    const own = (page?.sections ?? []).filter((s) => s.campaignId === campaignId);
+    // An older "to-pc" style section stands in for `to-the-pc`, so editing the label changes it instead of adding a second one.
+    if (key === TO_PC_KEY && page?.type === "character") return findToPcSection(own) ?? null;
+    return own.find((s) => s.key === key) ?? null;
   }
 
   private async unloggedScene(campaignId: string): Promise<Scene | null> {

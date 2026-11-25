@@ -90,4 +90,36 @@ describe("To the PC label", () => {
     const view = await g.views.entity(await g.scope(), "marro");
     expect(view!.profile.outline.some((o) => o.key === TO_PC_KEY)).toBe(false);
   });
+
+  it("a \"To PC\" section from create_entity is stored as to-the-pc", async () => {
+    const g = await game();
+    const r = await g.engine.createEntity({
+      worldId: g.world.id, campaignId: g.campaign.id, type: "character", name: "Ansel", source: "invention",
+      sections: [{ heading: "To PC", body: "Brother-in-law. Grieves for him." }],
+    });
+    if (!r.ok) throw new Error(r.refusal.message);
+    expect(r.value.sections.map((s) => [s.key, s.heading])).toEqual([[TO_PC_KEY, "To the PC"]]);
+    expect((await g.card("ansel")).toPc).toBe("Brother-in-law");
+  });
+
+  it("an older to-pc section counts as the label: card, page slot, missing list, and later edits change it in place", async () => {
+    const g = await game();
+    const made = await g.storage.createEntity(
+      { worldId: g.world.id, campaignId: g.campaign.id, type: "character", name: "Cobb", source: "invention", summary: "", status: "confirmed",
+        sections: [{ key: "to-pc", heading: "To PC", bodyMd: "Gail's older brother, nearest him in age. Doesn't know." }] },
+      { author: "ai", reason: null },
+    );
+    expect((await g.card("cobb")).toPc).toBe("Gail's older brother, nearest him in age");
+    const opened = await g.engine.openCampaign(g.campaign.id);
+    if (!opened.ok) throw new Error(opened.refusal.message);
+    expect(opened.value.missingToPc.map((e) => e.slug)).not.toContain("cobb");
+    const view = await g.views.entity(await g.scope(), "cobb");
+    expect(view!.profile.outline[0]).toMatchObject({ key: TO_PC_KEY, sectionId: made.sections[0]!.id });
+
+    await g.engine.readEntity({ sessionId: opened.value.session.id, ref: "cobb" });
+    const r = await g.engine.editEntity({ sessionId: opened.value.session.id, entity: "cobb", sections: [{ key: TO_PC_KEY, body: "Older brother" }] });
+    if (!r.ok) throw new Error(r.refusal.message);
+    expect(r.value.sections.filter((s) => s.key === TO_PC_KEY || s.key === "to-pc")).toHaveLength(1);
+    expect((await g.card("cobb")).toPc).toBe("Older brother");
+  });
 });

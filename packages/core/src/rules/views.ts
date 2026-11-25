@@ -7,7 +7,7 @@
  */
 import type { Campaign, Chapter, Entity, GmNote, PcSheet, Ruling, Scene, Section, Thread, Update, Version, VoiceAnchor, World } from "../storage/types";
 import { slugify } from "../slug";
-import { TO_PC_HEADING, TO_PC_KEY, type RulesEngine } from "./engine";
+import { TO_PC_HEADING, TO_PC_KEY, findToPcSection, isToPcKey, type RulesEngine } from "./engine";
 
 export interface Scope {
   world: World;
@@ -168,10 +168,10 @@ export class WebViews {
   async toPc(scope: Scope, e: Entity): Promise<string | null> {
     if (!scope.campaign || e.type !== "character" || e.id === scope.pc?.id) return null;
     const page = await this.storage.getPage(e.id, { campaignId: scope.campaign.id });
-    const s = page?.sections.find((x) => x.key === TO_PC_KEY);
+    const s = page && findToPcSection(page.sections);
     if (!s) return null;
     if (!scope.spoilers && s.visibility === "secret" && !(await this.pcKnows(scope, "section", s.id))) return null;
-    return cleanLabel(s.bodyMd.trim().split("\n")[0] ?? "") || null;
+    return toPcLabel(s.bodyMd);
   }
 
   private async pcKnows(scope: Scope, target: "update" | "section", id: string): Promise<boolean> {
@@ -306,7 +306,7 @@ export class WebViews {
         entity = await this.storage.getEntity(sec.entityId);
         if (!entity) continue;
         // "To the PC" labels are short bookkeeping the GM backfills; they show on every card and aren't page prose.
-        if (sec.key === TO_PC_KEY) continue;
+        if (isToPcKey(sec.key)) continue;
         if (sec.visibility === "secret" && !scope.spoilers && !(await this.pcKnows(scope, "section", objectId))) continue;
         sectionId = objectId;
         heading = sec.heading;
@@ -341,7 +341,7 @@ export class WebViews {
     const headings = scope.campaign && e.type === "character" && e.id !== scope.pc?.id ? [TO_PC_HEADING, ...OUTLINES[e.type]] : OUTLINES[e.type];
     const outline = headings.map((heading) => {
       const key = slugify(heading);
-      const sec = all.find((s) => s.key === key);
+      const sec = key === TO_PC_KEY ? findToPcSection(all) : all.find((s) => s.key === key);
       return { key, heading, sectionId: sec && shown.some((x) => x.id === sec.id) ? sec.id : sec ? "hidden" : null };
     });
     const empty: EntityProfile = { outline, relationships: [], appearsWith: [], items: [], knows: [], scenes: [], threads: [], pcSheet: null };
@@ -456,6 +456,12 @@ export class WebViews {
 }
 
 /** A one-line label for display: no trailing comma, semicolon, colon, dash or full stop. */
+/** The short label from a To the PC section: its first line, cut at the first sentence (a GM sometimes writes more). */
+export function toPcLabel(body: string): string | null {
+  const line = body.trim().split("\n")[0] ?? "";
+  return cleanLabel(line.split(/(?<=[.!?;])\s/)[0] ?? "") || null;
+}
+
 export function cleanLabel(s: string): string {
   return s.trim().replace(/[\s,;:.\-\u2013\u2014]+$/u, "").trim();
 }

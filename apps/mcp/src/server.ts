@@ -164,7 +164,7 @@ export function createServer(engine: RulesEngine, opts: ServerOptions = {}): Mcp
     "create_entity",
     {
       title: "Create entity",
-      description: "Creates a wiki page (character, place, faction, ...). Refused if the name or an alias already names an entity; the match is returned so you can use it instead.",
+      description: "Creates a wiki page (character, place, faction, ...). Refused if the name or an alias already names an entity; the match is returned so you can use it instead. A character's \"To the PC\" line is the section key `to-the-pc`.",
       inputSchema: {
         world_id: z.string(),
         campaign_id: z.string().optional().describe("set only for a page that exists in one campaign"),
