@@ -312,7 +312,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-[1_1_420px] flex-col gap-2.5">
-          <h1 className="font-serif text-[40px] leading-[1.1] font-semibold">{page.name}</h1>
+          <h1 className="font-serif text-[32px] leading-[1.1] font-semibold sm:text-[40px]">{page.name}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <span className="pill bg-accent-soft py-[3px] text-accent-ink">{TYPE_LABEL[page.type]}</span>
             {toPc && (
@@ -322,9 +322,10 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             )}
             <SourcePill source={page.source} prefix />
             {page.campaignId && <span className="pill bg-sunken py-[3px] text-body">This campaign only</span>}
-            <details className="group text-[13px] text-muted">
-              <summary className="cursor-pointer list-none">
-                {page.aliases.length ? <>Also called: {page.aliases.join(" · ")}</> : "No aliases"} <span className="link ml-1">Edit</span>
+            <details className="group w-full min-w-0 text-[13px] text-muted sm:w-auto">
+              <summary className="flex cursor-pointer list-none gap-1 [&::-webkit-details-marker]:hidden">
+                <span className="truncate group-open:whitespace-normal sm:whitespace-normal">{page.aliases.length ? <>Also called: {page.aliases.join(" · ")}</> : "No aliases"}</span>
+                <span className="link ml-1 shrink-0">Edit</span>
               </summary>
               <ActionForm action={editAliases} className="mt-2 flex flex-wrap items-center gap-2">
                 <input type="hidden" name="entityId" value={page.id} />
@@ -335,7 +336,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             </details>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="hidden gap-2 sm:flex">
           <a href="#add-section-heading" className="btn-primary">
             Add section
           </a>
@@ -343,19 +344,25 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
       </div>
 
       {page.status === "proposed" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-pending bg-surface px-5 py-3">
-          <p className="font-semibold">Draft: the GM wrote this page and it waits for your approval. Until then the GM sees it labeled proposed.</p>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border-2 border-pending bg-surface px-4 py-2 sm:px-5 sm:py-3">
+          <p className="font-semibold">
+            Draft<span className="hidden sm:inline">: the GM wrote this page and it waits for your approval. Until then the GM sees it labeled proposed.</span>
+          </p>
           <div className="flex gap-2">
             <ActionForm action={approvePage}>
               <input type="hidden" name="entityId" value={page.id} />
               <input type="hidden" name="path" value={path} />
-              <button className="btn-primary btn-sm">Approve page</button>
+              <button className="btn-primary btn-sm">
+                Approve<span className="hidden sm:inline"> page</span>
+              </button>
             </ActionForm>
             <ActionForm action={rejectPage}>
               <input type="hidden" name="entityId" value={page.id} />
               <input type="hidden" name="path" value={path} />
               <input type="hidden" name="back" value={wiki} />
-              <button className="btn btn-sm">Reject page</button>
+              <button className="btn btn-sm">
+                Reject<span className="hidden sm:inline"> page</span>
+              </button>
             </ActionForm>
           </div>
         </div>
@@ -386,19 +393,22 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
 
       {tab === "page" && (
         <>
-          {menu.length > 3 && (
-            <nav
-              aria-label="On this page"
-              className="-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal"
-            >
-              <span className="mr-1 shrink-0 text-faint">On this page</span>
-              {menu.map(([label, id]) => (
+          {/* On a phone this row also carries "+ Section", so it shows even for a short page (UX review #16). */}
+          <nav
+            aria-label="On this page"
+            className={`-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal ${menu.length > 3 ? "" : "sm:hidden"}`}
+          >
+            <a href="#add-section-heading" className="shrink-0 rounded-md px-2 py-1 font-semibold text-accent-ink hover:bg-sunken sm:hidden">
+              + Section
+            </a>
+            {menu.length > 3 && <span className="mr-1 shrink-0 text-faint">On this page</span>}
+            {menu.length > 3 &&
+              menu.map(([label, id]) => (
                 <a key={id} href={`#${id}`} className="shrink-0 rounded-md px-2 py-1 text-muted hover:bg-sunken hover:text-ink">
                   {label}
                 </a>
               ))}
-            </nav>
-          )}
+          </nav>
 
           <div className="flex flex-wrap items-start gap-6">
             <article className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
