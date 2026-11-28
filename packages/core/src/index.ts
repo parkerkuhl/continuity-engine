@@ -2,6 +2,7 @@ export * from "./enums";
 export { openDb, type Db } from "./db";
 export { levenshtein, slugify } from "./slug";
 export { wordDiff, type DiffPart } from "./diff";
+export { autolink, type LinkTarget } from "./autolink";
 export * from "./storage/types";
 export { SqliteStorage } from "./storage/sqlite";
 export { PgStorage } from "./storage/pg";

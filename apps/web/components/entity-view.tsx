@@ -4,7 +4,7 @@ import { findToPcSection, toPcLabel, type Provenance, type Scope, type Version }
 import { redirect } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion } from "@/app/actions";
 import { ago, sceneLabel } from "@/lib/format";
-import { app, basePath, pageChanges } from "@/lib/server";
+import { app, basePath, pageChanges, wikiView } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
 import { Markdown } from "./markdown";
@@ -85,6 +85,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   }
   const { page } = view;
   const unreviewed = (await pageChanges(scope)).filter((c) => c.entity.id === page.id);
+  // Pages this screen may show, for links from names in the text (UX review #14).
+  const links = (await wikiView(scope)).flatMap((g) => g.entities.map(({ entity: e }) => ({ href: `${basePath(scope)}/e/${e.slug}`, name: e.name, aliases: e.aliases, slug: e.slug })));
   const unreviewedSections = new Set(unreviewed.map((c) => c.sectionId));
   const base = basePath(scope);
   const wiki = scope.campaign ? `${base}/wiki` : base;
@@ -199,7 +201,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
           </>
         }
       >
-        <Markdown>{s.bodyMd}</Markdown>
+        <Markdown links={links} self={page.slug}>{s.bodyMd}</Markdown>
         {proposalsFor(s.id).map((v) => (
           <div key={v.update.id} className="mt-3 flex flex-col gap-2 rounded-[10px] border border-warn-line bg-warn-tint px-4 py-3">
             <div className="text-xs font-semibold tracking-[0.6px] text-warn uppercase">The GM proposes · #{v.update.seq}</div>
@@ -454,7 +456,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                   )
                 }
               >
-                <Markdown>{page.summary}</Markdown>
+                <Markdown links={links} self={page.slug}>{page.summary}</Markdown>
               </InlineEditor>
 
               {profile.pcSheet && (
