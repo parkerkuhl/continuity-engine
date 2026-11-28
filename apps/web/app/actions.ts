@@ -3,6 +3,7 @@
  * Server actions. Each one calls RulesEngine (or WebViews) in packages/core and nothing else,
  * so every rule applies to the web app exactly as it does to Claude.
  */
+import { isCampaignExport } from "@continuity/core";
 import { unzipSync, strFromU8 } from "fflate";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -61,10 +62,10 @@ export async function createCampaign(_: ActionState, f: FormData): Promise<Actio
   redirect(`/c/${r.value.id}`);
 }
 
-/** Import a world from a .zip of its Markdown export (the same layout Export produces). */
+/** Import a world or a campaign from a .zip of its Markdown export (the same layout Export produces). */
 export async function importWorld(_: ActionState, f: FormData): Promise<ActionState> {
   const file = f.get("file");
-  if (!(file instanceof File) || file.size === 0) return fail("Choose a .zip exported from a world.");
+  if (!(file instanceof File) || file.size === 0) return fail("Choose a .zip exported from a world or a campaign.");
   let entries: Record<string, Uint8Array>;
   try {
     entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
@@ -72,7 +73,13 @@ export async function importWorld(_: ActionState, f: FormData): Promise<ActionSt
     return fail("That file isn't a readable .zip.");
   }
   const files = new Map(Object.entries(entries).filter(([p]) => p.endsWith(".md")).map(([p, b]) => [p, strFromU8(b)]));
-  const r = await (await app()).engine.importWorld(files);
+  const { engine } = await app();
+  if (isCampaignExport(files)) {
+    const c = await engine.importCampaign(files);
+    if (!c.ok) return fail(`Nothing was imported: ${c.refusal.message}`);
+    redirect(`/c/${c.value.campaign.id}`);
+  }
+  const r = await engine.importWorld(files);
   if (!r.ok) return fail(`Nothing was imported: ${r.refusal.message}`);
   redirect(`/w/${r.value.id}`);
 }

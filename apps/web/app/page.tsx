@@ -48,8 +48,11 @@ export default async function Home() {
                     <Link href={`/c/${c.id}`} className="link font-medium">
                       {c.name}
                     </Link>
-                    <span className="text-xs text-muted">
+                    <span className="flex items-center gap-3 text-xs text-muted">
                       chapter {c.currentChapter} · {c.approvalMode}
+                      <a href={`/c/${c.id}/export`} className="link" aria-label={`Export ${c.name}`}>
+                        Export
+                      </a>
                     </span>
                   </li>
                 ))}
@@ -86,10 +89,12 @@ export default async function Home() {
           </ActionForm>
         </section>
         <section className="card">
-          <h2 className="card-title">Import a world</h2>
-          <p className="mt-1 text-sm text-muted">A .zip made by Export: the world folder with its 00-load-guide.md and pages.</p>
+          <h2 className="card-title">Import a world or campaign</h2>
+          <p className="mt-1 text-sm text-muted">
+            A .zip made by Export. A world export becomes a new world; a campaign export brings its world with it, so it becomes a new world with the campaign in it.
+          </p>
           <ActionForm action={importWorld} className="mt-3 flex flex-wrap gap-2">
-            <input type="file" name="file" accept=".zip" className="text-[13px]" aria-label="World export .zip" required />
+            <input type="file" name="file" accept=".zip" className="text-[13px]" aria-label="World or campaign export .zip" required />
             <button className="btn">Import</button>
           </ActionForm>
         </section>

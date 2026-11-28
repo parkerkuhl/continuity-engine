@@ -342,8 +342,8 @@ export async function WikiHeader({ scope, title }: { scope: Scope; title: string
         )}
       </div>
       <div className="flex gap-2">
-        <a href={`/w/${scope.world.id}/export`} className="btn hidden sm:inline-flex">
-          Export as Markdown
+        <a href={scope.campaign ? `/c/${scope.campaign.id}/export` : `/w/${scope.world.id}/export`} className="btn hidden sm:inline-flex">
+          {scope.campaign ? "Export campaign" : "Export as Markdown"}
         </a>
         <Link href={`${basePath(scope)}/new`} className="btn-primary">
           New page
