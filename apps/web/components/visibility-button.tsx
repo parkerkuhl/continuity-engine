@@ -16,19 +16,31 @@ export function VisibilityButton({ hidden, secret, heading }: { hidden: Record<s
       <input type="hidden" name="visibility" value={secret ? "public" : "secret"} />
     </>
   );
+  // On a phone the button sits in a "⋯" menu, away from Edit, so a thumb can't hit it by mistake (UX review #27).
+  const tucked = (button: React.ReactNode) => (
+    <>
+      <details className="relative sm:hidden">
+        <summary className="btn-ghost list-none text-muted [&::-webkit-details-marker]:hidden" aria-label={`More actions for ${heading}`}>
+          ⋯
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 rounded-lg border border-line bg-surface p-1 shadow-lg">{button}</div>
+      </details>
+      <div className="hidden sm:block">{button}</div>
+    </>
+  );
   if (!secret) {
-    return (
+    return tucked(
       <form action={setSectionVisibility}>
         {fields}
-        <button className="btn-ghost text-muted">Make secret</button>
-      </form>
+        <button className="btn-ghost whitespace-nowrap text-muted">Make secret</button>
+      </form>,
     );
   }
   if (!asking) {
-    return (
-      <button type="button" className="btn-ghost text-muted" onClick={() => setAsking(true)}>
+    return tucked(
+      <button type="button" className="btn-ghost whitespace-nowrap text-muted" onClick={() => setAsking(true)}>
         Make public
-      </button>
+      </button>,
     );
   }
   return (
