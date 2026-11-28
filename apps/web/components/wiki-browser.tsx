@@ -3,6 +3,7 @@ import { levenshtein, slugify, type Entity, type Scope } from "@continuity/core"
 import { app, basePath } from "@/lib/server";
 import { setWorldAsOf } from "@/app/actions";
 import { ActionForm } from "./action-form";
+import { CopyButton } from "./copy-button";
 import { SearchGlyph } from "./nav-link";
 
 export const TYPE_LABEL: Record<Entity["type"], string> = {
@@ -77,6 +78,25 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const draftPills = draftCount * 2 <= all.length;
   const reviewHref = scope.campaign ? `${base}/review?filter=pages` : `${base}/review`;
   const groups = (Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => [t, sorted.filter((r) => r.entity.type === t)] as const).filter(([, rows]) => rows.length > 0);
+
+  // UX review #25: an empty world gets a next step instead of a search box and zero-count filters.
+  if (all.length === 0 && !query) {
+    const prompt = `Let's build ${scope.world.name} together`;
+    return (
+      <div className="card flex flex-col gap-3">
+        <h2 className="card-title">No pages yet</h2>
+        <p className="text-muted">Write the first page yourself, or ask Claude in the chat to interview you and draft the world.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`${base}/new`} className="btn-primary">
+            New page
+          </Link>
+          <span className="text-faint">or ask Claude:</span>
+          <code className="rounded-md bg-sunken px-2 py-1 text-[13px]">{prompt}</code>
+          <CopyButton text={prompt} label="Copy" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
