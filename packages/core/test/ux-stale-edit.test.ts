@@ -30,3 +30,14 @@ describe("UX #18: edits started before a GM change are refused as stale", () => 
     expect((await engine.userEditEntity({ entityId: rickard.id, patch: { summary: "Alive." }, editKind: "retcon", expectedSummary: "Dead." })).ok).toBe(true);
   });
 });
+
+describe("UX #18: form line breaks", () => {
+  it("treats CRLF from a browser form as the same text", async () => {
+    const { storage, world } = await setup();
+    const { rickard } = await seed(storage, world.id);
+    const engine = new RulesEngine(storage);
+    const wants = (await storage.getPage(rickard.id))!.sections.find((s) => s.key === "wants")!;
+    const r = await engine.userEditSection({ entityId: rickard.id, key: "wants", body: "Mine.", editKind: "forward", expectedBody: wants.bodyMd.replace(/\n/g, "\r\n") });
+    expect(r.ok).toBe(true);
+  });
+});

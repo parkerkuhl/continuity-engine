@@ -117,6 +117,7 @@ async function check(name, fn) {
     await fn();
     results.push([name, true]);
   } catch (e) {
+    await page.screenshot({ path: join(out, `fail-${results.length + 1}.png`), fullPage: true }).catch(() => {});
     results.push([name, false, process.env.E2E_LOG ? e.message : e.message.split("\n")[0]]);
   }
 }
@@ -246,7 +247,8 @@ try {
     expect((await text()).includes("First week of the dry season"), "world as-of moment not shown");
     const badge = await page.locator("nav a", { hasText: "Review queue" }).innerText();
     expect(badge.includes("3"), `review badge should count 3 drafts, got "${badge}"`);
-    expect((await page.locator("main a", { hasText: "Gullhaven" }).innerText()).includes("Draft"), "draft pill missing on the wiki card");
+    // A Draft pill per card, or one summary line when most pages are drafts (UX review #8).
+    expect((await page.locator("main a", { hasText: "Gullhaven" }).innerText()).includes("Draft") || /\d+ of \d+ pages are drafts/.test(await text()), "drafts aren't marked on the wiki");
     await page.goto(`${W}/review`);
     expect((await text()).includes("3 pages the GM drafted"), "world review queue doesn't list the drafts");
     await shot("11-world-review");
@@ -259,6 +261,7 @@ try {
     await shot("12-entity-draft");
     await page.getByRole("button", { name: "Reject page" }).click();
     await page.waitForURL(W);
+    await page.locator("main a", { hasText: "Gullhaven" }).first().waitFor(); // past the loading skeleton
     const wiki = await text();
     expect(!wiki.includes("Old Ivo") && wiki.includes("Gullhaven"), "rejected page still listed, or approved page missing");
     await page.goto(`${W}/e/gullhaven`);

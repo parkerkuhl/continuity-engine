@@ -6,7 +6,9 @@ import { useEffect } from "react";
 function busy(): boolean {
   const a = document.activeElement as HTMLElement | null;
   if (a && (a.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(a.tagName))) return true;
+  // An open editor (any visible text box) also pauses it, so a refresh never races the editor's save.
   if (document.querySelector('[role="dialog"], form[aria-busy="true"]')) return true;
+  if ([...document.querySelectorAll("textarea")].some((t) => t.offsetParent !== null)) return true;
   return !!window.getSelection()?.toString(); // don't drop a text selection
 }
 
