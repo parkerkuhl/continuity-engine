@@ -72,6 +72,10 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const sorted = [...shown].sort((a, b) => a.entity.name.localeCompare(b.entity.name));
   // Nothing found: offer the visible pages whose name, alias or any word of them is a near miss ("wrenn", "herron").
   const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await (await app()).views.wiki(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
+  // When most pages are drafts, a Draft pill on every card says nothing: sum them up in one line instead.
+  const draftCount = all.filter((r) => r.entity.status === "proposed").length;
+  const draftPills = draftCount * 2 <= all.length;
+  const reviewHref = scope.campaign ? `${base}/review?filter=pages` : `${base}/review`;
   const groups = (Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => [t, sorted.filter((r) => r.entity.type === t)] as const).filter(([, rows]) => rows.length > 0);
 
   return (
@@ -150,6 +154,15 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
         </p>
       )}
 
+      {!draftPills && shown.length > 0 && (
+        <p className="-mt-2 text-[13px] text-muted">
+          {draftCount} of {all.length} pages are drafts waiting for approval.{" "}
+          <Link href={reviewHref} className="link font-semibold">
+            Review
+          </Link>
+        </p>
+      )}
+
       {shown.length === 0 ? (
         <div className="py-6 text-muted">
           <p>{query || src || type ? `Nothing matches${query ? ` “${query}”` : ""}.` : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}</p>
@@ -193,14 +206,14 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
               <ul className="divide-y divide-line-soft overflow-hidden rounded-xl border border-line bg-surface">
                 {rows.map((r) => (
                   <li key={r.entity.id}>
-                    <Row r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} />
+                    <Row r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} drafts={draftPills} />
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5">
                 {rows.map((r) => (
-                  <WikiCard key={r.entity.id} r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} grouped={groups.length > 1} />
+                  <WikiCard key={r.entity.id} r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} grouped={groups.length > 1} drafts={draftPills} />
                 ))}
               </div>
             )}
@@ -231,10 +244,11 @@ function nearMisses(query: string, pages: Entity[]): Entity[] {
 type WikiRow = { entity: Entity; line: string; toPc: string | null };
 type Pending = { proposed: number; conflict: boolean } | undefined;
 
-function Flag({ e, p }: { e: Entity; p: Pending }) {
-  if (e.status === "proposed") return <span className="rounded-full bg-pending px-2 text-xs font-bold text-[#1c1e21]">Draft</span>;
+/** The one flag a card shows: a conflict first, then pending updates, then Draft (unless drafts are summed up above the grid). */
+function Flag({ e, p, drafts }: { e: Entity; p: Pending; drafts: boolean }) {
   if (p?.conflict) return <span className="rounded-full bg-danger-soft px-2 text-xs font-bold text-danger">Conflict</span>;
   if (p) return <span className="rounded-full bg-pending px-2 text-xs font-bold text-[#1c1e21]">{p.proposed} proposed</span>;
+  if (e.status === "proposed" && drafts) return <span className="rounded-full bg-pending px-2 text-xs font-bold text-[#1c1e21]">Draft</span>;
   return null;
 }
 
@@ -257,10 +271,10 @@ function ToPc({ label }: { label: string }) {
   );
 }
 
-function WikiCard({ r, href, pending, pc, grouped }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined; grouped: boolean }) {
+function WikiCard({ r, href, pending, pc, grouped, drafts }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined; grouped: boolean; drafts: boolean }) {
   const { entity: e, line, toPc } = r;
   const unverified = e.source === "unverified";
-  const flagged = e.status === "proposed" || !!pending;
+  const flagged = (drafts && e.status === "proposed") || !!pending;
   return (
     <Link
       href={href}
@@ -269,7 +283,7 @@ function WikiCard({ r, href, pending, pc, grouped }: { r: WikiRow; href: string;
       {(!grouped || flagged) && (
         <div className="flex justify-between gap-2 text-xs">
           <span className="text-muted">{grouped ? "" : TYPE_LABEL[e.type]}</span>
-          <Flag e={e} p={pending} />
+          <Flag e={e} p={pending} drafts={drafts} />
         </div>
       )}
       <b className="font-serif text-[19px] leading-snug font-semibold">{e.name}</b>
@@ -282,7 +296,7 @@ function WikiCard({ r, href, pending, pc, grouped }: { r: WikiRow; href: string;
   );
 }
 
-function Row({ r, href, pending, pc }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined }) {
+function Row({ r, href, pending, pc, drafts }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined; drafts: boolean }) {
   const { entity: e, line, toPc } = r;
   return (
     <Link
@@ -295,7 +309,7 @@ function Row({ r, href, pending, pc }: { r: WikiRow; href: string; pending: Pend
       </span>
       <span className="truncate text-muted">{line}</span>
       <span className="flex items-center gap-2 sm:justify-end">
-        <Flag e={e} p={pending} />
+        <Flag e={e} p={pending} drafts={drafts} />
         <SourceLine e={e} pc={pc} />
       </span>
     </Link>
