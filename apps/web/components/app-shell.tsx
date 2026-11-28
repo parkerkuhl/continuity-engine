@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app, isRemote, pageChanges } from "@/lib/server";
+import { app, isRemote, pageChanges, reviewQueue, pageQueue, dashboard } from "@/lib/server";
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
@@ -53,7 +53,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
   let nav: ReactNode;
   if (c) {
     const views = (await app()).views;
-    const [d, queue, pages, changes] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!), pageChanges(scope!)]);
+    const [d, queue, pages, changes] = await Promise.all([dashboard(scope!), reviewQueue(scope!), pageQueue(scope!), pageChanges(scope!)]);
     const waiting = queue.items.length + changes.length + pages.length;
     nav = (
       <>
@@ -87,7 +87,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
     );
   } else if (scope) {
     const row = (await (await app()).views.home()).find((r) => r.world.id === scope.world.id);
-    const pages = await (await app()).views.pageQueue(scope);
+    const pages = await pageQueue(scope);
     nav = (
       <>
         <NavLink href={base} exact also={`${base}/e/`}>

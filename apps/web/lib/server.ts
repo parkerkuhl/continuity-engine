@@ -72,21 +72,28 @@ export const app = cache(async (): Promise<App> => {
 export const WORLD_SPOILERS_COOKIE = "spoilers";
 
 /** A world screen's scope. World screens keep their spoiler toggle in a cookie; campaigns keep their own. */
-export async function worldScope(worldId: string): Promise<Scope> {
+export const worldScope = cache(async (worldId: string): Promise<Scope> => {
   const spoilers = (await cookies()).get(WORLD_SPOILERS_COOKIE)?.value === "on";
   const s = await (await app()).views.scope({ worldId, spoilers });
   if (!s) notFound();
   return s;
-}
+});
 
-export async function campaignScope(campaignId: string): Promise<Scope> {
+// Scopes and read models are cached per request (UX review #32): the layout, the sidebar and the page share one
+// scope object, so each of these runs once per request however many components ask.
+export const campaignScope = cache(async (campaignId: string): Promise<Scope> => {
   const { engine, views } = await app();
   const c = await engine.storage.getCampaign(campaignId);
   if (!c) notFound();
   const s = await views.scope({ worldId: c.worldId, campaignId });
   if (!s) notFound();
   return s;
-}
+});
+
+export const wikiView = cache(async (scope: Scope, query?: string) => (await app()).views.wiki(scope, query ? { query } : {}));
+export const reviewQueue = cache(async (scope: Scope) => (await app()).views.reviewQueue(scope));
+export const pageQueue = cache(async (scope: Scope) => (await app()).views.pageQueue(scope));
+export const dashboard = cache(async (scope: Scope) => (await app()).views.dashboard(scope));
 
 /** Where a scope's screens live. */
 export function basePath(s: Scope): string {
@@ -112,10 +119,10 @@ export async function entityName(scope: Scope, slug: string): Promise<string | n
 export const reviewedCookie = (campaignId: string) => `ce-reviewed-${campaignId}`;
 export const keptCookie = (campaignId: string) => `ce-kept-${campaignId}`;
 
-export async function pageChanges(scope: Scope) {
+export const pageChanges = cache(async (scope: Scope) => {
   if (!scope.campaign) return [];
   const jar = await cookies();
   const since = jar.get(reviewedCookie(scope.campaign.id))?.value ?? null;
   const kept = (jar.get(keptCookie(scope.campaign.id))?.value ?? "").split(",").filter(Boolean);
   return (await app()).views.pageChanges(scope, { since, kept });
-}
+});

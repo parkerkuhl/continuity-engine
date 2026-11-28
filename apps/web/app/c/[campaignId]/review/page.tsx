@@ -5,14 +5,14 @@ import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, cha
 import { PageChanges } from "@/components/page-changes";
 import { PageQueue } from "@/components/page-queue";
 import { UpdateItem } from "@/components/update-item";
-import { app, campaignScope, pageChanges, scopeTitle } from "@/lib/server";
+import { app, campaignScope, pageChanges, scopeTitle, reviewQueue, pageQueue, dashboard } from "@/lib/server";
 import { sceneLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
   const scope = await campaignScope((await params).campaignId);
-  const n = ((await (await app()).views.dashboard(scope))?.reviewCount ?? 0) + (await pageChanges(scope)).length;
+  const n = ((await dashboard(scope))?.reviewCount ?? 0) + (await pageChanges(scope)).length;
   return scopeTitle(scope, n ? `Review (${n})` : "Review");
 }
 
@@ -28,7 +28,7 @@ export default async function Review({ params, searchParams }: { params: Promise
   const { campaignId } = await params;
   const f = (FILTERS as readonly string[]).includes((await searchParams).filter ?? "") ? (await searchParams).filter! : "all";
   const scope = await campaignScope(campaignId);
-  const [{ items }, pages, changes] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope), pageChanges(scope)]);
+  const [{ items }, pages, changes] = await Promise.all([reviewQueue(scope), pageQueue(scope), pageChanges(scope)]);
   const base = `/c/${campaignId}`;
   const path = `${base}/review`;
   const c = scope.campaign!;

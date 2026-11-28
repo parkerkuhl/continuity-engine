@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { levenshtein, slugify, type Entity, type Scope } from "@continuity/core";
-import { app, basePath } from "@/lib/server";
+import { app, basePath, wikiView, reviewQueue } from "@/lib/server";
 import { setWorldAsOf } from "@/app/actions";
 import { ActionForm } from "./action-form";
 import { CopyButton } from "./copy-button";
@@ -41,7 +41,7 @@ export function SourcePill({ source, prefix }: { source: Entity["source"]; prefi
 export async function WikiBrowser({ scope, query, source, type, view }: { scope: Scope; query?: string; source?: string; type?: string; view?: string }) {
   const list = view === "list";
   const src = SOURCES.includes(source as Entity["source"]) ? (source as Entity["source"]) : undefined;
-  const all = (await (await app()).views.wiki(scope, { ...(query && { query }) })).flatMap((g) => g.entities);
+  const all = (await wikiView(scope, query)).flatMap((g) => g.entities);
   const typed = all.filter((r) => !type || r.entity.type === type);
   const shown = typed.filter((r) => !src || r.entity.source === src);
   const base = basePath(scope);
@@ -57,7 +57,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   };
 
   const pending = new Map<string, { proposed: number; conflict: boolean }>();
-  for (const i of (await (await app()).views.reviewQueue(scope)).items) {
+  for (const i of (await reviewQueue(scope)).items) {
     for (const e of i.entities) {
       const p = pending.get(e.id) ?? { proposed: 0, conflict: false };
       p.proposed++;
@@ -72,7 +72,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const unlabeled = npcs.filter((r) => !r.toPc).length;
   const sorted = [...shown].sort((a, b) => a.entity.name.localeCompare(b.entity.name));
   // Nothing found: offer the visible pages whose name, alias or any word of them is a near miss ("wrenn", "herron").
-  const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await (await app()).views.wiki(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
+  const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await wikiView(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
   // When most pages are drafts, a Draft pill on every card says nothing: sum them up in one line instead.
   const draftCount = all.filter((r) => r.entity.status === "proposed").length;
   const draftPills = draftCount * 2 <= all.length;
@@ -351,7 +351,7 @@ function Tab({ href, on, children }: { href: string; on: boolean; children: Reac
 
 /** Header for a wiki screen: title, page count, and the world's export. */
 export async function WikiHeader({ scope, title }: { scope: Scope; title: string }) {
-  const n = (await (await app()).views.wiki(scope)).reduce((sum, g) => sum + g.entities.length, 0);
+  const n = (await wikiView(scope)).reduce((sum, g) => sum + g.entities.length, 0);
   const w = scope.world;
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
