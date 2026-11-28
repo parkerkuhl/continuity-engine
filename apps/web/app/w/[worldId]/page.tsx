@@ -1,7 +1,11 @@
 import { WikiBrowser, WikiHeader } from "@/components/wiki-browser";
-import { worldScope } from "@/lib/server";
+import { scopeTitle, worldScope } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ worldId: string }> }) {
+  return scopeTitle(await worldScope((await params).worldId), "Wiki");
+}
 
 export default async function WorldWiki({ params, searchParams }: { params: Promise<{ worldId: string }>; searchParams: Promise<{ q?: string; source?: string; type?: string; view?: string }> }) {
   const scope = await worldScope((await params).worldId);

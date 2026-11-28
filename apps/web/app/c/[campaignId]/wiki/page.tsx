@@ -1,7 +1,11 @@
 import { WikiBrowser, WikiHeader } from "@/components/wiki-browser";
-import { campaignScope } from "@/lib/server";
+import { campaignScope, scopeTitle } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
+  return scopeTitle(await campaignScope((await params).campaignId), "Wiki");
+}
 
 export default async function CampaignWiki({ params, searchParams }: { params: Promise<{ campaignId: string }>; searchParams: Promise<{ q?: string; source?: string; type?: string; view?: string }> }) {
   const scope = await campaignScope((await params).campaignId);

@@ -92,3 +92,30 @@ export async function campaignScope(campaignId: string): Promise<Scope> {
 export function basePath(s: Scope): string {
   return s.campaign ? `/c/${s.campaign.id}` : `/w/${s.world.id}`;
 }
+
+/**
+ * The browser-tab title for a world or campaign screen: "GM · " in GM view, then the screen, then the campaign
+ * (or world) name, so tabs for different worlds never look alike. Only public names go in a title.
+ */
+export async function scopeTitle(scope: Scope, part?: string | null): Promise<{ title: string }> {
+  return { title: [scope.spoilers ? "GM" : null, part, scope.campaign?.name ?? scope.world.name].filter(Boolean).join(" · ") };
+}
+
+/** An entity page's name for its tab title, resolved from the URL slug (or an alias). */
+export async function entityName(scope: Scope, slug: string): Promise<string | null> {
+  const r = await (await app()).engine.storage.resolveEntity(scope.world.id, slug, { campaignId: scope.campaign?.id ?? null });
+  return r.status === "resolved" ? r.entity.name : null;
+}
+
+/** UX review #4: the GM's page edits in play the user hasn't reviewed. Two browser cookies per campaign hold
+ *  "reviewed up to" (Keep all) and the version ids kept one by one since then. */
+export const reviewedCookie = (campaignId: string) => `ce-reviewed-${campaignId}`;
+export const keptCookie = (campaignId: string) => `ce-kept-${campaignId}`;
+
+export async function pageChanges(scope: Scope) {
+  if (!scope.campaign) return [];
+  const jar = await cookies();
+  const since = jar.get(reviewedCookie(scope.campaign.id))?.value ?? null;
+  const kept = (jar.get(keptCookie(scope.campaign.id))?.value ?? "").split(",").filter(Boolean);
+  return (await app()).views.pageChanges(scope, { since, kept });
+}

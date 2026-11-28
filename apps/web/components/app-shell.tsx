@@ -2,11 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app, isRemote } from "@/lib/server";
+import { app, isRemote, pageChanges } from "@/lib/server";
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
 import { HeaderSearch, NavLink } from "./nav-link";
+import { SearchShortcut } from "./search-shortcut";
 
 /**
  * Every screen sits in this shell: the dark sidebar (where you are, and where you can go) and,
@@ -15,18 +16,31 @@ import { HeaderSearch, NavLink } from "./nav-link";
 export async function AppShell({ scope, children }: { scope?: Scope; children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-wrap">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2.5 focus:font-semibold focus:text-ink focus:shadow-lg">
+        Skip to content
+      </a>
       <AutoRefresh everyMs={Number(process.env.CONTINUITY_REFRESH_MS) || 10_000} />
+      <SearchShortcut />
       <Sidebar scope={scope} />
       <div className="flex min-w-0 flex-[999_1_560px] flex-col">
         {scope && <TopBar scope={scope} />}
-        <main className="mx-auto box-border flex w-full max-w-[1200px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto outline-none box-border flex w-full max-w-[1200px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8">{children}</main>
       </div>
     </div>
   );
 }
 
-function Badge({ n }: { n: number }) {
-  return n > 0 ? <span className="rounded-full bg-pending px-2 py-px text-xs font-bold text-[#1c1e21]">{n}</span> : null;
+/** The review count. Red when a conflict is waiting, since that is the one item that needs a decision. */
+function Badge({ n, conflict }: { n: number; conflict?: boolean }) {
+  if (n <= 0) return null;
+  return (
+    <span
+      className={`rounded-full px-2 py-px text-xs font-bold ${conflict ? "bg-danger-line text-white" : "bg-pending text-[#1c1e21]"}`}
+      {...(conflict && { title: "Includes a conflict" })}
+    >
+      {n}
+    </span>
+  );
 }
 
 async function Sidebar({ scope }: { scope?: Scope }) {
@@ -35,8 +49,8 @@ async function Sidebar({ scope }: { scope?: Scope }) {
   let nav: ReactNode;
   if (c) {
     const views = (await app()).views;
-    const [d, queue, pages] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!)]);
-    const waiting = queue.items.length + pages.length;
+    const [d, queue, pages, changes] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!), pageChanges(scope!)]);
+    const waiting = queue.items.length + changes.length + pages.length;
     nav = (
       <>
         <NavLink href={`${base}/wiki`} also={`${base}/e/`}>
@@ -44,7 +58,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
         </NavLink>
         <NavLink href={`${base}/review`}>
           Review queue
-          <Badge n={waiting} />
+          <Badge n={waiting} conflict={queue.items.some((i) => !!i.update.conflictsWith)} />
         </NavLink>
         <NavLink href={`${base}#threads`}>
           Threads <span className="text-xs text-nav-muted">{d!.openThreads.length} open</span>
@@ -153,7 +167,10 @@ function TopBar({ scope }: { scope: Scope }) {
   const wiki = c ? `/c/${c.id}/wiki` : `/w/${scope.world.id}`;
   const on = scope.spoilers;
   return (
-    <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:gap-4 sm:px-8 sm:py-3.5">
+    // Sticky, so the spoiler switch stays in view on long pages; in GM view a violet top edge marks every screen.
+    <header
+      className={`sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:gap-4 sm:px-8 sm:py-3.5 ${on ? "border-t-[3px] border-t-secret" : ""}`}
+    >
       <HeaderSearch action={wiki} wikiPaths={[wiki]} />
       <form action={c ? setCampaignSpoilers : setWorldSpoilers} className="ml-auto shrink-0">
         {c && <input type="hidden" name="campaignId" value={c.id} />}

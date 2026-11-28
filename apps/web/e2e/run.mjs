@@ -141,7 +141,7 @@ try {
     expect((await page.getByRole("switch", { name: "GM spoilers" }).getAttribute("aria-checked")) === "false", "spoilers should default to off");
     let t = await text();
     expect(!t.includes("Hiding") && !t.includes("mother's name"), "secret section shown with spoilers off");
-    expect(t.includes("1 secret section is hidden"), "no hidden-section notice");
+    expect(!/secret section|is hidden/i.test(t), "player view hints that a secret exists (UX review #2)");
     await shot("02-entity-player-view");
     await page.goto(`${C}/e/rickard-snow?tab=updates`);
     t = await text();
@@ -152,7 +152,7 @@ try {
     expect((await text()).includes("GM notes are hidden"), "GM notes page shows notes with spoilers off");
     expect(!(await text()).includes("traitor"), "GM note text leaked");
     await page.goto(`${C}/wiki?q=mother`);
-    expect((await text()).includes("Nothing matches."), "search matched secret-only text");
+    expect((await text()).includes("Nothing matches"), "search matched secret-only text");
 
     await page.getByRole("switch", { name: "GM spoilers" }).click();
     await page.waitForSelector('[role=switch][aria-checked="true"]');
@@ -211,7 +211,7 @@ try {
   await check("Approving in the review queue flips the update to confirmed; restore from history works", async () => {
     await page.goto(`${C}/review`);
     const t = await text();
-    expect(t.includes("1 proposed update the PC doesn't know is hidden"), "hidden proposed update not reported");
+    expect(!t.includes("the PC doesn't know"), "player view hints at hidden updates (UX review #2)");
     await shot("06-review-queue");
     const item = page.locator("section[aria-label='Proposed updates'] li", { hasText: "Rickard limps on his left leg." });
     await item.getByRole("button", { name: "Approve" }).click();

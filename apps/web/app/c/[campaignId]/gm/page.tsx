@@ -1,7 +1,11 @@
 import { Markdown } from "@/components/markdown";
-import { app, campaignScope } from "@/lib/server";
+import { app, campaignScope, scopeTitle } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
+  return scopeTitle(await campaignScope((await params).campaignId), "GM notes");
+}
 
 const KIND_LABEL: Record<string, string> = { design: "Story design", clock: "Clocks", twist: "Twists", ending: "Endings", setup: "Setups", motif: "Motifs" };
 

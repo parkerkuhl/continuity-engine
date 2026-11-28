@@ -520,6 +520,12 @@ export class RulesEngine {
     summary?: string;
     source?: Entity["source"];
     sections?: SectionEdit[];
+    /**
+     * During play: who in the story knows the new text (UX review #1). When the PC isn't among them, a change to a
+     * public section is written to a secret companion section (key `<key>-secret`) known to these characters, so
+     * the player view keeps the old text until log_scene secrets_learned names the PC. Left out, everyone knows.
+     */
+    knows?: string[];
   }): Promise<Result<EntityPage>> {
     let campaign: Campaign | null = null;
     let world: World | null = null;
@@ -549,6 +555,22 @@ export class RulesEngine {
     }
     const where = campaign ? `in campaign "${campaign.name}"` : `while building world "${world!.name}"`;
 
+    // Who knows the new text. Only during play; the PC knowing it (or no list) means a normal edit.
+    let knowers: Entity[] | null = null;
+    if (input.knows !== undefined) {
+      if (!campaign) return refuse("invalid", "knows is for edits during play (campaign_id); while building the world everything is GM knowledge.");
+      const r = await this.resolveAll(campaign, input.knows);
+      if (!r.ok) return r;
+      const pc = await this.pcEntity(campaign);
+      if (!pc || !r.value.some((e) => e.id === pc.id)) knowers = r.value;
+      if (knowers && input.summary !== undefined) {
+        return refuse(
+          "invalid",
+          `The summary is public and the PC doesn't know this. Leave the summary as the PC would see it, and put the new fact in a section (with knows), or log it with log_scene as an update with knows.`,
+        );
+      }
+    }
+
     const edits = [];
     for (const raw of input.sections ?? []) {
       const p = SectionEdit.safeParse(raw);
@@ -576,7 +598,20 @@ export class RulesEngine {
       if (!overlay && !base && !edit.heading && edit.key !== TO_PC_KEY) {
         return refuse("invalid", `${entity.slug} has no section "${edit.key}". Give a heading to add it.`);
       }
-      edits.push({ edit, base, overlay });
+      const current = overlay ?? base;
+      const visibility = edit.visibility ?? current?.visibility ?? "public";
+      if (knowers && visibility === "public" && edit.body !== undefined && edit.key !== TO_PC_KEY) {
+        // The PC doesn't know this yet: keep the public text and write the new text as a secret beside it.
+        const key = `${edit.key}-secret`;
+        const heading = `${edit.heading ?? current?.heading ?? edit.key} (secret)`;
+        const existing = await this.findSection(entity.id, key, campaign!.id);
+        if (existing?.lockedByUser) {
+          return refuse("locked_by_user", `Section "${key}" of ${entity.slug} is locked because the user edited it. Log an update with proposes_section instead.`, { ref: entity.slug });
+        }
+        edits.push({ edit: { key, heading, body: edit.body, visibility: "secret" as const }, base: null, overlay: existing, secretFor: knowers });
+        continue;
+      }
+      edits.push({ edit, base, overlay, secretFor: knowers && visibility === "secret" ? knowers : null });
     }
 
     // In worldbuilding, a changed page goes back through the approval mode.
@@ -590,22 +625,29 @@ export class RulesEngine {
     if (Object.keys(entityPatch).length) {
       await this.storage.updateEntity(entity.id, entityPatch, AI(`edit_entity ${where}`));
     }
-    for (const { edit, base, overlay } of edits) {
-      const perCampaign = !!campaign && edit.key === TO_PC_KEY;
+    for (const { edit, base, overlay, secretFor } of edits) {
+      // A secret companion (knows without the PC) lives in this campaign only, like any fact from play.
+      const perCampaign = !!campaign && (edit.key === TO_PC_KEY || (!!secretFor && edit.key.endsWith("-secret") && !base));
       const target = perCampaign ? overlay : (overlay ?? base);
+      let sectionId: string;
       if (target) {
-        await this.storage.updateSection(
-          target.id,
-          { ...(edit.heading && { heading: edit.heading }), ...(edit.body !== undefined && { bodyMd: edit.body }), ...(edit.visibility && { visibility: edit.visibility }) },
-          AI(`edit_entity ${where}`),
-        );
+        sectionId = (
+          await this.storage.updateSection(
+            target.id,
+            { ...(edit.heading && { heading: edit.heading }), ...(edit.body !== undefined && { bodyMd: edit.body }), ...(edit.visibility && { visibility: edit.visibility }) },
+            AI(`edit_entity ${where}`),
+          )
+        ).id;
       } else {
-        await this.storage.addSection(
-          entity.id,
-          { campaignId: perCampaign ? campaign!.id : entity.campaignId, key: edit.key, heading: edit.heading ?? TO_PC_HEADING, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
-          AI(`edit_entity ${where}`),
-        );
+        sectionId = (
+          await this.storage.addSection(
+            entity.id,
+            { campaignId: perCampaign ? campaign!.id : entity.campaignId, key: edit.key, heading: edit.heading ?? TO_PC_HEADING, bodyMd: edit.body ?? "", visibility: edit.visibility ?? "public" },
+            AI(`edit_entity ${where}`),
+          )
+        ).id;
       }
+      if (secretFor?.length) await this.storage.addSectionKnowers(sectionId, secretFor.map((e) => e.id), AI(`edit_entity ${where}: who knows`));
     }
     return ok((await this.storage.getPage(entity.id, { campaignId: campaign?.id ?? null }))!);
   }
@@ -981,7 +1023,7 @@ export class RulesEngine {
     source: Entity["source"];
     summary?: string;
     sections?: { heading: string; body: string; key?: string; visibility?: "public" | "secret" }[];
-  }, opts: { userAccepted?: boolean } = {}): Promise<Result<EntityPage>> {
+  }, opts: { userAccepted?: boolean; byUser?: boolean } = {}): Promise<Result<EntityPage>> {
     const world = await this.storage.getWorld(input.worldId);
     if (!world) return refuse("not_found", `No world ${input.worldId}. Call list_worlds.`);
     const campaign = input.campaignId ? await this.storage.getCampaign(input.campaignId) : null;
@@ -1013,14 +1055,14 @@ export class RulesEngine {
             aliases: input.aliases ?? [],
             source: input.source,
             summary: input.summary ?? "",
-            status: opts.userAccepted ? "confirmed" : pageStatusFor(campaign ?? world),
+            status: opts.userAccepted || opts.byUser ? "confirmed" : pageStatusFor(campaign ?? world),
             sections: (input.sections ?? []).map((s) => {
               // A "To PC" style section on a character becomes the canonical To the PC label.
               const toPc = input.type === "character" && isToPcKey(s.key ?? slugify(s.heading));
               return { heading: toPc ? TO_PC_HEADING : s.heading, bodyMd: s.body, ...(toPc ? { key: TO_PC_KEY } : s.key && { key: s.key }), visibility: s.visibility ?? "public" };
             }),
           },
-          opts.userAccepted ? AI("confirm_import") : AI("create_entity"),
+          opts.byUser ? { author: "user", reason: "web app" } : opts.userAccepted ? AI("confirm_import") : AI("create_entity"),
         ),
       );
     } catch (e) {
@@ -1308,6 +1350,15 @@ export class RulesEngine {
   }
 
   // ================= user writes (web app) =================
+
+  /**
+   * A page the user creates by hand in the web app: confirmed at once (the user is the one who approves),
+   * written as the user, and refused like the GM's when a name or alias already names a page.
+   * Created from a campaign screen it lives in that campaign's layer.
+   */
+  async userCreateEntity(input: Parameters<RulesEngine["createEntity"]>[0]): Promise<Result<EntityPage>> {
+    return this.createEntity(input, { byUser: true });
+  }
 
   /**
    * A user edit to a section. Changing what a section says needs an edit kind (retcon or forward).

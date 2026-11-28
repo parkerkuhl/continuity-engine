@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { findToPcSection, toPcLabel, type Scope, type Version } from "@continuity/core";
+import { findToPcSection, toPcLabel, type Provenance, type Scope, type Version } from "@continuity/core";
 import { notFound } from "next/navigation";
-import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion, setSectionVisibility } from "@/app/actions";
-import { app, basePath } from "@/lib/server";
+import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion } from "@/app/actions";
+import { ago, sceneLabel } from "@/lib/format";
+import { app, basePath, pageChanges } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
 import { Markdown } from "./markdown";
@@ -12,7 +13,9 @@ import { EmptySlots, type Slot } from "./empty-slots";
 import { ApproveButton, Knows, RejectButton, Severity, StatusPill, TagChips, chapterTag, editProps, extraTags } from "./update-card";
 import { PcSheetBody, text } from "./pc-sheet";
 import { UpdateItem } from "./update-item";
+import { VisibilityButton } from "./visibility-button";
 import { SourcePill, TYPE_LABEL, TYPE_PLURAL } from "./wiki-browser";
+import { WordDiff } from "./word-diff";
 
 function stateText(v: unknown): string {
   if (!v || typeof v !== "object") return "";
@@ -24,14 +27,33 @@ function stateText(v: unknown): string {
     .trim();
 }
 
-const ago = (iso: string) => {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  const d = Math.round(s / 86400);
-  return d < 14 ? `${d} day${d === 1 ? "" : "s"} ago` : new Date(iso).toLocaleDateString("en-US", { dateStyle: "medium" });
-};
+/**
+ * UX review #3: who last wrote a section, in which scene, and when, linked to that row in History. A GM edit
+ * from play that waits in the review queue's Page changes shows a dot and the accent color until it's kept.
+ */
+function ProvenanceLine({ p, locked, unreviewed, history }: { p: Provenance | null; locked?: boolean; unreviewed?: boolean; history: string }) {
+  if (!p && !locked) return null;
+  const who = p?.author === "user" ? "You" : "GM";
+  return (
+    <span className={`flex items-center gap-1.5 text-xs ${unreviewed ? "font-semibold text-accent-ink" : "text-muted"}`}>
+      {unreviewed && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />}
+      {p && (
+        <a href={`${history}#v-${p.versionId}`} className="hover:underline" title={unreviewed ? "The GM changed this during play. It waits in the review queue under Page changes." : "Open this change in History"}>
+          {unreviewed && <span className="sr-only">Not reviewed yet: </span>}
+          {who}
+          {sceneLabel(p.scene) && <> · {sceneLabel(p.scene)}</>} · <time dateTime={p.at}>{ago(p.at)}</time>
+        </a>
+      )}
+      {locked && (
+        <span className="flex items-center gap-1" title="You edited this section, so GM writes to it are refused.">
+          {p && <span aria-hidden>·</span>}
+          <LockIcon className="h-[13px] w-[13px]" />
+          locked
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** "edited the Wants section", "created the page", "restored an earlier version of the Wants section". */
 function historyLine(v: Version & { label: string }) {
@@ -57,6 +79,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   const view = await (await app()).views.entity(scope, slug);
   if (!view) notFound();
   const { page } = view;
+  const unreviewed = (await pageChanges(scope)).filter((c) => c.entity.id === page.id);
+  const unreviewedSections = new Set(unreviewed.map((c) => c.sectionId));
   const base = basePath(scope);
   const wiki = scope.campaign ? `${base}/wiki` : base;
   const path = `${base}/e/${page.slug}`;
@@ -135,7 +159,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
     return null;
   };
 
-  const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode) => {
+  const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode, compact = false) => {
     const secret = s.visibility === "secret";
     return (
       <InlineEditor
@@ -146,30 +170,23 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
         label={`section ${s.heading}`}
         context={`${page.name} · ${s.heading}`}
         labelledBy={`s-${s.id}`}
-        className={secret ? "rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5" : "card"}
+        className={secret ? "rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5" : compact ? "card-sm" : "card"}
         title={
-          <h2 id={`s-${s.id}`} className={TITLE}>
+          <h2 id={`s-${s.id}`} className={compact ? "text-[15px] font-semibold" : TITLE}>
             {s.heading}
           </h2>
         }
         meta={
           <>
-            {s.lockedByUser && (
-              <span className="flex items-center gap-1.5 text-xs text-muted" title="You edited this section, so GM writes to it are refused.">
+            <ProvenanceLine p={s.latest} locked={s.lockedByUser} unreviewed={unreviewedSections.has(s.id)} history={`${path}?tab=history`} />
+            {s.campaignId && <span className="pill bg-sunken text-body">This campaign</span>}
+            {secret && (
+              <span className="flex items-center gap-1 text-xs font-semibold text-secret">
                 <LockIcon className="h-[13px] w-[13px]" />
-                Edited by you · locked
+                {s.knownByPc ? "Secret · the PC knows it" : "Secret section"}
               </span>
             )}
-            {s.campaignId && <span className="pill bg-sunken text-body">This campaign</span>}
-            {secret && <span className="text-xs font-semibold text-secret">{s.knownByPc ? "Secret · the PC knows it" : "Secret section"}</span>}
-            <form action={setSectionVisibility}>
-              <input type="hidden" name="entityId" value={page.id} />
-              <input type="hidden" name="key" value={s.key} />
-              <input type="hidden" name="campaignId" value={s.campaignId ?? ""} />
-              <input type="hidden" name="path" value={path} />
-              <input type="hidden" name="visibility" value={secret ? "public" : "secret"} />
-              <button className="btn-ghost text-muted">Make {secret ? "public" : "secret"}</button>
-            </form>
+            <VisibilityButton hidden={{ entityId: page.id, key: s.key, campaignId: s.campaignId ?? "", path }} secret={secret} heading={s.heading} />
           </>
         }
       >
@@ -185,6 +202,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   for (const o of profile.outline) {
     if (o.sectionId === "hidden") continue;
     const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+    if (sec && sec === toPcSection && toPc) continue; // shown as the pill under the name and a small card in the side column
     if (sec) menu.push([sec.heading, `s-${sec.id}`]);
     else if (recorded(o.key)) menu.push([o.heading, `slot-${o.key}`]);
     else emptySlots.push({ key: o.key, heading: o.heading, hidden: { ...hidden, heading: o.heading }, context: `${page.name} · ${o.heading}` });
@@ -194,7 +212,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
   const tabs: [string, string, number?, boolean?][] = [["page", "Page"]];
   if (scope.campaign) {
     tabs.push(["updates", "Updates", proposedCount || view.updates.length, proposedCount > 0]);
-    tabs.push(["knows", `What ${page.name.split(" ")[0]} knows`, profile.knows.length]);
+    const first = page.name.split(" ")[0] ?? page.name;
+    tabs.push(["knows", `What ${/^(the|a|an)$/i.test(first) ? page.name : first} knows`, profile.knows.length]);
   }
   tabs.push(["history", "History", view.history.length]);
   const tab = tabs.some(([k]) => k === tabParam) ? tabParam! : "page";
@@ -395,7 +414,13 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                     Current state
                   </h2>
                 }
-                meta={<span className="text-xs text-faint">What the GM reads first</span>}
+                meta={
+                  view.summaryLatest ? (
+                    <ProvenanceLine p={view.summaryLatest} unreviewed={unreviewedSections.has(null)} history={`${path}?tab=history`} />
+                  ) : (
+                    <span className="text-xs text-faint">What the GM reads first</span>
+                  )
+                }
               >
                 <Markdown>{page.summary}</Markdown>
               </InlineEditor>
@@ -416,6 +441,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                 if (o.sectionId === "hidden") return null;
                 const extra = recorded(o.key);
                 const sec = o.sectionId ? page.sections.find((x) => x.id === o.sectionId) : undefined;
+                if (sec && sec === toPcSection && toPc) return null;
                 if (sec) return sectionCard(sec, extra);
                 if (!extra) return null;
                 return (
@@ -445,19 +471,6 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
 
               {emptySlots.length > 0 && <EmptySlots action={addSection} slots={emptySlots} />}
 
-              {view.hiddenSections > 0 && (
-                <div className="rounded-xl border border-dashed border-secret-line bg-secret-tint px-6 py-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className={TITLE}>{view.hiddenSections === 1 ? "Secret section" : `${view.hiddenSections} secret sections`}</h2>
-                    <span className="text-xs font-semibold text-secret">Secret</span>
-                  </div>
-                  <p className="mt-2.5 text-muted">
-                    {view.hiddenSections} secret section{view.hiddenSections === 1 ? " is" : "s are"} hidden in player view. The GM still reads{" "}
-                    {view.hiddenSections === 1 ? "it" : "them"}. Switch to GM view to show {view.hiddenSections === 1 ? "it" : "them"} here.
-                  </p>
-                </div>
-              )}
-
               <details id="add-section" className="group rounded-xl border border-dashed border-line-strong px-6 py-4 open:border-solid open:border-line open:bg-surface">
                 <summary className="cursor-pointer list-none text-[15px] font-semibold text-accent hover:text-accent-hover [&::-webkit-details-marker]:hidden">
                   <span className="group-open:text-ink">+ Add a section</span>
@@ -483,6 +496,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             </article>
 
             <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+              {toPcSection && toPc && sectionCard(toPcSection, null, true)}
               {scope.campaign && (
                 <section className="card-sm flex flex-col gap-2.5">
                   <h2 className="text-[15px] font-semibold">Appearances</h2>
@@ -537,13 +551,8 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             <h2 id="updates-h" className="sr-only">
               Updates to this page
             </h2>
-            {view.updates.length === 0 && view.hiddenUpdates === 0 && <p className="text-muted">None yet.</p>}
+            {view.updates.length === 0 && <p className="text-muted">None yet.</p>}
             <ul className="flex flex-col gap-2">{view.updates.map((v) => updateItem(v))}</ul>
-            {view.hiddenUpdates > 0 && (
-              <p className="text-xs text-muted">
-                {view.hiddenUpdates} update{view.hiddenUpdates === 1 ? "" : "s"} the PC doesn&apos;t know {view.hiddenUpdates === 1 ? "is" : "are"} hidden.
-              </p>
-            )}
           </section>
         </div>
       )}
@@ -572,7 +581,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                 const restorable = v.before !== null && v.after !== null;
                 const name = v.label === "Page" ? `${page.name} · page` : `${page.name} · ${v.label.replace(/^Section "(.*)"$/, "$1")}`;
                 return (
-                  <li key={v.id}>
+                  <li key={v.id} id={`v-${v.id}`} className="scroll-mt-24 rounded-lg target:bg-accent-tint target:ring-4 target:ring-accent-tint">
                     <div>
                       <b>{v.author === "user" ? "You" : "GM"}</b> {historyLine(v)}{" "}
                       {v.editKind && (
@@ -580,11 +589,16 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                       )}
                     </div>
                     <div className="text-faint">
+                      {sceneLabel(v.scene) && <>{sceneLabel(v.scene)} · </>}
                       <time dateTime={v.createdAt} title={new Date(v.createdAt).toLocaleString("en-US")}>
                         {ago(v.createdAt)}
                       </time>
                     </div>
-                    {stateText(v.after) && <p className="mt-1 line-clamp-2 font-serif text-sm text-muted">{stateText(v.after)}</p>}
+                    {restorable && stateText(v.before) !== stateText(v.after) ? (
+                      <WordDiff before={stateText(v.before)} after={stateText(v.after)} className="mt-1 line-clamp-4 font-serif text-sm text-muted" />
+                    ) : (
+                      stateText(v.after) && <p className="mt-1 line-clamp-2 font-serif text-sm text-muted">{stateText(v.after)}</p>
+                    )}
                     {restorable && (
                       <div className="mt-1 flex flex-wrap gap-x-1">
                         <ConfirmedForm

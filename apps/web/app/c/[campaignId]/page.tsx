@@ -3,9 +3,13 @@ import { editVoiceAnchor, setApprovalMode, setCampaignSpoilers } from "@/app/act
 import { ActionForm } from "@/components/action-form";
 import { PcSheetBody, cap, text } from "@/components/pc-sheet";
 import { chapterTag } from "@/components/update-card";
-import { app, campaignScope } from "@/lib/server";
+import { app, campaignScope, scopeTitle, pageChanges } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ campaignId: string }> }) {
+  return scopeTitle(await campaignScope((await params).campaignId), "Settings");
+}
 
 const MODES = [
   ["review", "Review everything", "Nothing counts until you approve it."],
@@ -33,7 +37,7 @@ const SETTING_LABEL: Record<string, string> = {
 
 function Card({ title, id, action, children, className = "" }: { title: string; id?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section id={id} aria-labelledby={id ? `${id}-h` : undefined} className={`card flex scroll-mt-6 flex-col gap-3 ${className}`}>
+    <section id={id} aria-labelledby={id ? `${id}-h` : undefined} className={`card flex scroll-mt-24 flex-col gap-3 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 id={id ? `${id}-h` : undefined} className="card-title">
           {title}
@@ -46,7 +50,7 @@ function Card({ title, id, action, children, className = "" }: { title: string; 
 }
 
 /** One "What's next" tile: a count and what it counts, or a quiet all-clear line when the count is zero. */
-function NextTile({ href, n, label, done, hot, prefix }: { href: string; n: number; label: string; done?: string; hot?: boolean; prefix?: string }) {
+function NextTile({ href, n, label, done, hot, prefix, sub }: { href: string; n: number; label: string; done?: string; hot?: boolean; prefix?: string; sub?: string }) {
   const clear = n === 0 && done;
   return (
     <Link
@@ -62,6 +66,7 @@ function NextTile({ href, n, label, done, hot, prefix }: { href: string; n: numb
             {n}
           </span>
           <span className="text-[13px] text-muted">{label}</span>
+          {sub && <span className="text-xs text-faint">{sub}</span>}
         </>
       )}
     </Link>
@@ -72,16 +77,16 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
   const { campaignId } = await params;
   const scope = await campaignScope(campaignId);
   const d = (await (await app()).views.dashboard(scope))!;
+  const [{ items: queued }, draftPages, changes] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope), pageChanges(scope)]);
+  const reviewSplit = [
+    queued.length > 0 && `${queued.length} update${queued.length === 1 ? "" : "s"}`,
+    changes.length > 0 && `${changes.length} page change${changes.length === 1 ? "" : "s"}`,
+    draftPages.length > 0 && `${draftPages.length} new page${draftPages.length === 1 ? "" : "s"}`,
+  ].filter(Boolean).join(" · ");
   const c = d.campaign;
   const path = `/c/${campaignId}`;
   const s = c.settings;
   const pc = (d.pcSheet?.data ?? null) as Record<string, unknown> | null;
-  const h = d.hidden;
-  const hiddenParts = [
-    h.gmNotes && `${h.gmNotes} GM note${h.gmNotes === 1 ? "" : "s"}`,
-    h.secretSections && `${h.secretSections} secret section${h.secretSections === 1 ? "" : "s"}`,
-    h.updates && `${h.updates} update${h.updates === 1 ? "" : "s"} the PC doesn't know`,
-  ].filter(Boolean);
   const va = d.voiceAnchor;
   const pcName = pc && typeof pc.name === "string" ? pc.name : scope.pc?.name;
   const unlabeled = scope.pc
@@ -102,7 +107,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
       </div>
 
       <nav aria-label="What's next" className="grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-        <NextTile href={`${path}/review`} n={d.reviewCount} label={d.reviewCount === 1 ? "update to review" : "updates to review"} done="Review queue is clear" hot />
+        <NextTile href={`${path}/review`} n={queued.length + changes.length + draftPages.length} label="to review" sub={reviewSplit} done="Review queue is clear" hot />
         <NextTile href={`${path}#threads`} n={d.openThreads.length} label={d.openThreads.length === 1 ? "open thread" : "open threads"} done="No open threads" />
         {scope.pc && (
           <NextTile
@@ -205,7 +210,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
               </button>
             </form>
             <div className="rounded-lg bg-canvas px-3 py-2.5 text-[13px] text-muted">
-              {scope.spoilers ? "GM view: everything is showing." : hiddenParts.length ? `Hidden right now: ${hiddenParts.join(", ")}.` : "Nothing is hidden right now."}
+              {scope.spoilers ? "GM view: everything is showing, secrets included." : `Player view: only what ${pcName ?? "the PC"} knows is showing.`}
             </div>
           </Card>
 

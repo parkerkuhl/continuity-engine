@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Entity, Scope } from "@continuity/core";
+import { levenshtein, slugify, type Entity, type Scope } from "@continuity/core";
 import { app, basePath } from "@/lib/server";
 import { setWorldAsOf } from "@/app/actions";
 import { ActionForm } from "./action-form";
@@ -70,11 +70,13 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const characters = npcs.length;
   const unlabeled = npcs.filter((r) => !r.toPc).length;
   const sorted = [...shown].sort((a, b) => a.entity.name.localeCompare(b.entity.name));
+  // Nothing found: offer the visible pages whose name, alias or any word of them is a near miss ("wrenn", "herron").
+  const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await (await app()).views.wiki(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
   const groups = (Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => [t, sorted.filter((r) => r.entity.type === t)] as const).filter(([, rows]) => rows.length > 0);
 
   return (
     <>
-      <form role="search" action={wiki} className="flex h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3">
+      <form role="search" action={wiki} className="flex h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
         <SearchGlyph />
         <input
           type="search"
@@ -141,7 +143,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
         </div>
       </div>
 
-      {!scope.spoilers && query && <p className="-mt-2 text-xs text-faint">Player view: matches only in secret sections are left out.</p>}
+      {!scope.spoilers && query && <p className="-mt-2 text-xs text-faint">Player view: search covers only what the PC knows.</p>}
       {unlabeled > 0 && (!type || type === "character") && (
         <p className="-mt-2 text-[13px] text-faint">
           {unlabeled} of {characters} characters have no “To the PC” label yet. The GM fills them in when the next chat opens the campaign.
@@ -149,16 +151,43 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
       )}
 
       {shown.length === 0 ? (
-        <p className="py-6 text-muted">
-          {query || src || type ? "Nothing matches." : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}
-        </p>
+        <div className="py-6 text-muted">
+          <p>{query || src || type ? `Nothing matches${query ? ` “${query}”` : ""}.` : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}</p>
+          {!query && !src && !type && (
+            <p className="mt-3">
+              <Link href={`${base}/new`} className="btn-primary">
+                Write the first page
+              </Link>
+            </p>
+          )}
+          {suggestions.length > 0 && (
+            <p className="mt-2">
+              Did you mean{" "}
+              {suggestions.map((e, i) => (
+                <span key={e.id}>
+                  {i > 0 && (i === suggestions.length - 1 ? " or " : ", ")}
+                  <Link href={`${base}/e/${e.slug}`} className="link font-semibold">
+                    {e.name}
+                  </Link>
+                  {e.aliases.length > 0 && <span className="text-faint"> ({e.aliases.slice(0, 2).join(", ")})</span>}
+                </span>
+              ))}
+              ?
+            </p>
+          )}
+        </div>
       ) : (
         groups.map(([t, rows]) => (
           <section key={t} aria-labelledby={groups.length > 1 ? `g-${t}` : undefined} className="flex flex-col gap-3">
             {groups.length > 1 && (
-              <h2 id={`g-${t}`} className="flex items-baseline gap-2 border-b border-line pb-1.5 font-serif text-xl font-semibold">
-                {TYPE_PLURAL[t]} <span className="font-sans text-[13px] font-normal text-faint">{rows.length}</span>
-              </h2>
+              <div className="flex items-baseline justify-between gap-3 border-b border-line pb-1.5">
+                <h2 id={`g-${t}`} className="flex items-baseline gap-2 font-serif text-xl font-semibold">
+                  {TYPE_PLURAL[t]} <span className="font-sans text-[13px] font-normal text-faint">{rows.length}</span>
+                </h2>
+                <Link href={`${base}/new?type=${t}`} className="link text-[13px]" aria-label={`New ${TYPE_LABEL[t].toLowerCase()} page`}>
+                  + New {TYPE_LABEL[t].toLowerCase()}
+                </Link>
+              </div>
             )}
             {list ? (
               <ul className="divide-y divide-line-soft overflow-hidden rounded-xl border border-line bg-surface">
@@ -180,6 +209,23 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
       )}
     </>
   );
+}
+
+/** Up to three pages within a typo or two of the query, by whole name or alias, or by any word in them. */
+function nearMisses(query: string, pages: Entity[]): Entity[] {
+  const q = slugify(query);
+  if (q.length < 3) return [];
+  const allowed = q.length <= 4 ? 1 : 2;
+  return pages
+    .map((e) => {
+      const keys = [slugify(e.name), ...e.aliases.map(slugify)];
+      const words = keys.flatMap((k) => k.split("-")).filter((w) => w.length >= 3);
+      return { e, d: Math.min(...keys.map((k) => levenshtein(q, k)), ...words.map((w) => levenshtein(q, w))) };
+    })
+    .filter((x) => x.d <= allowed)
+    .sort((a, b) => a.d - b.d || a.e.name.localeCompare(b.e.name))
+    .slice(0, 3)
+    .map((x) => x.e);
 }
 
 type WikiRow = { entity: Entity; line: string; toPc: string | null };
@@ -295,9 +341,14 @@ export async function WikiHeader({ scope, title }: { scope: Scope; title: string
           </details>
         )}
       </div>
-      <a href={`/w/${scope.world.id}/export`} className="btn">
-        Export as Markdown
-      </a>
+      <div className="flex gap-2">
+        <a href={`/w/${scope.world.id}/export`} className="btn hidden sm:inline-flex">
+          Export as Markdown
+        </a>
+        <Link href={`${basePath(scope)}/new`} className="btn-primary">
+          New page
+        </Link>
+      </div>
     </div>
   );
 }

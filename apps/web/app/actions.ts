@@ -7,7 +7,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { app, campaignScope, WORLD_SPOILERS_COOKIE } from "@/lib/server";
+import { app, campaignScope, keptCookie, reviewedCookie, WORLD_SPOILERS_COOKIE } from "@/lib/server";
 import type { ActionState } from "@/components/action-form";
 
 const str = (f: FormData, k: string) => {
@@ -196,6 +196,28 @@ export async function restoreVersion(_: ActionState, f: FormData): Promise<Actio
 
 // ---------------- review queue ----------------
 
+const YEAR = 60 * 60 * 24 * 365;
+
+/** Keep one GM page edit (UX review #4): its version ids join the campaign's kept list in a browser cookie. */
+export async function keepPageChange(_: ActionState, f: FormData): Promise<ActionState> {
+  const campaignId = req(f, "campaignId");
+  const jar = await cookies();
+  const cur = (jar.get(keptCookie(campaignId))?.value ?? "").split(",").filter(Boolean);
+  // A cookie holds about 4 KB, so the list keeps the newest 90 ids; Keep all clears it.
+  const next = [...new Set([...cur, ...req(f, "versionIds").split(",").filter(Boolean)])].slice(-90);
+  jar.set(keptCookie(campaignId), next.join(","), { path: "/", maxAge: YEAR, sameSite: "lax" });
+  return done(f, "Kept.");
+}
+
+/** Keep every GM page edit shown: "reviewed up to now", and the kept list starts over. */
+export async function keepAllPageChanges(_: ActionState, f: FormData): Promise<ActionState> {
+  const campaignId = req(f, "campaignId");
+  const jar = await cookies();
+  jar.set(reviewedCookie(campaignId), new Date().toISOString(), { path: "/", maxAge: YEAR, sameSite: "lax" });
+  jar.delete(keptCookie(campaignId));
+  return done(f, "All kept.");
+}
+
 export async function approveUpdate(_: ActionState, f: FormData): Promise<ActionState> {
   const r = await (await app()).engine.approveUpdate(req(f, "updateId"));
   if (!r.ok) return fail(r.refusal.message);
@@ -246,4 +268,38 @@ export async function setApprovalMode(_: ActionState, f: FormData): Promise<Acti
   const r = await (await app()).engine.setApprovalMode(req(f, "campaignId"), mode, minor && major ? { minor, major } : undefined);
   if (!r.ok) return fail(r.refusal.message);
   return done(f, "Approval mode saved.");
+}
+
+// ---------------- new page ----------------
+
+const TYPES = ["character", "place", "faction", "item", "event", "concept", "rule"] as const;
+const SOURCES = ["canon", "invention", "unverified"] as const;
+
+/** A page the user writes by hand (UX review #5): confirmed at once, then opened so they can fill in its sections. */
+export async function createPage(_: ActionState, f: FormData): Promise<ActionState> {
+  const type = TYPES.find((t) => t === str(f, "type"));
+  if (!type) return fail("Choose what kind of page this is.");
+  const name = req(f, "name").trim();
+  if (!name) return fail("Give the page a name.");
+  const campaignId = str(f, "campaignId") || null;
+  const r = await (await app()).engine.userCreateEntity({
+    worldId: req(f, "worldId"),
+    campaignId,
+    type,
+    name,
+    aliases: (str(f, "aliases") ?? "").split(",").map((a) => a.trim()).filter(Boolean),
+    source: SOURCES.find((s) => s === str(f, "source")) ?? "canon",
+    summary: (str(f, "summary") ?? "").trim(),
+  });
+  if (!r.ok) {
+    if (r.refusal.rule === "duplicate" && r.refusal.ref) {
+      const res = await (await app()).engine.storage.resolveEntity(req(f, "worldId"), r.refusal.ref, { campaignId });
+      const other = res.status === "resolved" ? res.entity.name : r.refusal.ref;
+      const taken = r.refusal.message.match(/^"([^"]+)"/)?.[1] ?? name;
+      return fail(`“${taken}” is already used by ${other}. Open that page and add to it, or pick another name.`);
+    }
+    return fail(r.refusal.message);
+  }
+  revalidatePath("/", "layout");
+  redirect(`${req(f, "base")}/e/${r.value.slug}`);
 }
