@@ -159,6 +159,10 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
     return null;
   };
 
+  // UX review #17: a proposed update that clashes with a locked section shows on that section.
+  const proposalsFor = (sectionId: string) =>
+    view.updates.filter((v) => v.update.status === "proposed" && v.update.conflictsWith?.type === "section" && v.update.conflictsWith.id === sectionId);
+
   const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode, compact = false) => {
     const secret = s.visibility === "secret";
     return (
@@ -191,6 +195,19 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
         }
       >
         <Markdown>{s.bodyMd}</Markdown>
+        {proposalsFor(s.id).map((v) => (
+          <div key={v.update.id} className="mt-3 flex flex-col gap-2 rounded-[10px] border border-warn-line bg-warn-tint px-4 py-3">
+            <div className="text-xs font-semibold tracking-[0.6px] text-warn uppercase">The GM proposes · #{v.update.seq}</div>
+            <p className="font-serif text-[16px]">{v.update.bodyMd}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <RejectButton v={v} path={path} label="Keep yours" primary />
+              <ApproveButton v={v} path={path} label="Accept" />
+              <Link href={`${path}?tab=updates`} className="link text-[13px]">
+                Edit
+              </Link>
+            </div>
+          </div>
+        ))}
         {extra}
       </InlineEditor>
     );
