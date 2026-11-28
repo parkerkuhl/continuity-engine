@@ -122,4 +122,14 @@ describe("To the PC label", () => {
     expect(r.value.sections.filter((s) => s.key === TO_PC_KEY || s.key === "to-pc")).toHaveLength(1);
     expect((await g.card("cobb")).toPc).toBe("Older brother");
   });
+
+  it("a label longer than a few words is refused, with a hint to use Relationships", async () => {
+    const g = await game();
+    await g.engine.readEntity({ sessionId: g.sessionId, ref: "rickard-snow" });
+    const r = await g.engine.editEntity({ sessionId: g.sessionId, entity: "rickard-snow", sections: [{ key: TO_PC_KEY, body: "Gail's little sister, the only sibling younger than him" }] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.refusal.message).toMatch(/Relationships/);
+    const made = await g.engine.createEntity({ worldId: g.world.id, campaignId: g.campaign.id, type: "character", name: "Pip", source: "invention", sections: [{ heading: "To PC", body: "Gail's little sister, the only sibling younger than him" }] });
+    expect(made.ok).toBe(false);
+  });
 });
