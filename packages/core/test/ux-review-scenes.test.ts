@@ -47,3 +47,21 @@ describe("UX #26: alias URLs and near misses", () => {
     expect("suggestions" in miss && miss.suggestions.map((e) => e.slug)).toContain("volantis");
   });
 });
+
+describe("UX #11: search says why a hit matched", () => {
+  it("names the alias, or quotes the section, but never a hidden secret", async () => {
+    const { storage, world } = await setup();
+    await seed(storage, world.id);
+    const engine = new RulesEngine(storage);
+    const views = new WebViews(engine);
+    const scope = (await views.scope({ worldId: world.id, spoilers: false }))!;
+    const rows = async (q: string) => (await views.wiki(scope, { query: q })).flatMap((g) => g.entities);
+    expect((await rows("bastard"))[0]!.match).toEqual({ alias: "the bastard sellsword" });
+    expect((await rows("winter"))[0]!.match).toMatchObject({ section: "Wants", snippet: expect.stringContaining("before winter") });
+    expect((await rows("Rickard"))[0]!.match).toBeNull();
+    const gm = (await views.scope({ worldId: world.id, spoilers: true }))!;
+    const secret = (await views.wiki(gm, { query: "mother" })).flatMap((g) => g.entities)[0]!;
+    expect(secret.match).toMatchObject({ section: "Hiding" });
+    expect(await rows("mother")).toEqual([]);
+  });
+});

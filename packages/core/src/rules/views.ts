@@ -171,10 +171,40 @@ export class WebViews {
     }
     if (filter.source) rows = rows.filter((r) => r.entity.source === filter.source);
     rows = rows.map((r) => ({ ...r, line: unescapeQuotes(r.line) }));
-    const withPc = await Promise.all(rows.map(async (r) => ({ ...r, toPc: await this.toPc(scope, r.entity) })));
+    const withPc = await Promise.all(
+      rows.map(async (r) => ({ ...r, toPc: await this.toPc(scope, r.entity), match: filter.query?.trim() ? await this.whyMatched(scope, r.entity, filter.query) : null })),
+    );
     return TYPE_ORDER.map((type) => ({ type, entities: withPc.filter((r) => r.entity.type === type).sort((a, b) => a.entity.name.localeCompare(b.entity.name)) })).filter(
       (g) => g.entities.length,
     );
+  }
+
+  /**
+   * Why a search hit matched, when its name doesn't say so (UX review #11): the alias that matched, or a short
+   * snippet of the section that did. Only text the current view may show is used.
+   */
+  async whyMatched(scope: Scope, e: Entity, query: string): Promise<{ alias: string } | { section: string; snippet: string } | null> {
+    const terms = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (!terms.length) return null;
+    const has = (text: string) => {
+      const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+      return terms.every((t) => words.some((w) => w.startsWith(t)));
+    };
+    if (has(e.name)) return null;
+    const alias = e.aliases.find(has);
+    if (alias) return { alias };
+    if (has(e.summary)) return null;
+    const page = await this.storage.getPage(e.id, { campaignId: scope.campaign?.id ?? null });
+    for (const sec of page?.sections ?? []) {
+      if (!scope.spoilers && sec.visibility === "secret" && !(await this.pcKnows(scope, "section", sec.id))) continue;
+      const lower = sec.bodyMd.toLowerCase();
+      const at = lower.search(new RegExp(`(?<![\\p{L}\\p{N}])${terms[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u"));
+      if (at < 0) continue;
+      const from = Math.max(0, at - 50);
+      const text = sec.bodyMd.slice(from, at + 90).replace(/\s+/g, " ").replace(/[#*_`>]/g, "").trim();
+      return { section: sec.heading, snippet: `${from > 0 ? "…" : ""}${text}${at + 90 < sec.bodyMd.length ? "…" : ""}` };
+    }
+    return null;
   }
 
   /** A character's "To the PC" line in this campaign, or null (no campaign, not a character, no line, or hidden in the player view). */

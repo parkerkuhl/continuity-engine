@@ -4,6 +4,7 @@ import { app, basePath, wikiView, reviewQueue } from "@/lib/server";
 import { setWorldAsOf } from "@/app/actions";
 import { ActionForm } from "./action-form";
 import { CopyButton } from "./copy-button";
+import { QuickJumpInput } from "./quick-jump";
 import { SearchGlyph } from "./nav-link";
 
 export const TYPE_LABEL: Record<Entity["type"], string> = {
@@ -46,6 +47,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const shown = typed.filter((r) => !src || r.entity.source === src);
   const base = basePath(scope);
   const wiki = scope.campaign ? `${base}/wiki` : base;
+  const jumpIndex = (await wikiView(scope)).flatMap((g) => g.entities.map(({ entity: e }) => ({ slug: e.slug, name: e.name, aliases: e.aliases, type: e.type })));
   const href = (p: { type?: string | undefined; source?: string | undefined; list?: boolean }) => {
     const q = new URLSearchParams();
     if (p.list ?? list) q.set("view", "list");
@@ -102,14 +104,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
     <>
       <form role="search" action={wiki} className="flex h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
         <SearchGlyph />
-        <input
-          type="search"
-          name="q"
-          defaultValue={query}
-          placeholder="Search names, aliases, places…"
-          aria-label="Search the wiki"
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint"
-        />
+        <QuickJumpInput index={jumpIndex} base={base} {...(query && { defaultValue: query })} />
         {type && <input type="hidden" name="type" value={type} />}
         {src && <input type="hidden" name="source" value={src} />}
         {list && <input type="hidden" name="view" value="list" />}
@@ -261,7 +256,19 @@ function nearMisses(query: string, pages: Entity[]): Entity[] {
     .map((x) => x.e);
 }
 
-type WikiRow = { entity: Entity; line: string; toPc: string | null };
+type WikiRow = { entity: Entity; line: string; toPc: string | null; match?: { alias: string } | { section: string; snippet: string } | null };
+
+/** Why a search hit matched, when its name doesn't show it (UX review #11). */
+function Why({ m }: { m: WikiRow["match"] }) {
+  if (!m) return null;
+  return "alias" in m ? (
+    <span className="text-xs text-faint">matched alias: {m.alias}</span>
+  ) : (
+    <span className="line-clamp-2 text-xs text-faint">
+      in {m.section}: {m.snippet}
+    </span>
+  );
+}
 type Pending = { proposed: number; conflict: boolean } | undefined;
 
 /** The one flag a card shows: a conflict first, then pending updates, then Draft (unless drafts are summed up above the grid). */
@@ -309,6 +316,7 @@ function WikiCard({ r, href, pending, pc, grouped, drafts }: { r: WikiRow; href:
       <b className="font-serif text-[19px] leading-snug font-semibold">{e.name}</b>
       {toPc && <ToPc label={toPc} />}
       {line && <span className="line-clamp-2 text-muted">{line}</span>}
+      <Why m={r.match} />
       <span className="mt-auto pt-0.5">
         <SourceLine e={e} pc={pc} />
       </span>
@@ -327,7 +335,10 @@ function Row({ r, href, pending, pc, drafts }: { r: WikiRow; href: string; pendi
         <b className="font-serif text-[16px] font-semibold text-ink">{e.name}</b>
         {toPc && <span className="text-[12px] text-accent-ink">{toPc}</span>}
       </span>
-      <span className="truncate text-muted">{line}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-muted">{line}</span>
+        <Why m={r.match} />
+      </span>
       <span className="flex items-center gap-2 sm:justify-end">
         <Flag e={e} p={pending} drafts={drafts} />
         <SourceLine e={e} pc={pc} />

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app, isRemote, pageChanges, reviewQueue, pageQueue, dashboard } from "@/lib/server";
+import { app, isRemote, pageChanges, reviewQueue, pageQueue, dashboard, wikiView } from "@/lib/server";
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
@@ -172,8 +172,9 @@ async function Sidebar({ scope }: { scope?: Scope }) {
   );
 }
 
-function TopBar({ scope }: { scope: Scope }) {
+async function TopBar({ scope }: { scope: Scope }) {
   const c = scope.campaign;
+  const index = (await wikiView(scope)).flatMap((g) => g.entities.map(({ entity: e }) => ({ slug: e.slug, name: e.name, aliases: e.aliases, type: e.type })));
   const wiki = c ? `/c/${c.id}/wiki` : `/w/${scope.world.id}`;
   const on = scope.spoilers;
   return (
@@ -181,7 +182,7 @@ function TopBar({ scope }: { scope: Scope }) {
     <header
       className={`sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:gap-4 sm:px-8 sm:py-3.5 ${on ? "border-t-[3px] border-t-secret" : ""}`}
     >
-      <HeaderSearch action={wiki} wikiPaths={[wiki]} />
+      <HeaderSearch action={wiki} wikiPaths={[wiki]} index={index} base={c ? `/c/${c.id}` : `/w/${scope.world.id}`} />
       <form action={c ? setCampaignSpoilers : setWorldSpoilers} className="ml-auto shrink-0">
         {c && <input type="hidden" name="campaignId" value={c.id} />}
         <input type="hidden" name="on" value={on ? "0" : "1"} />
