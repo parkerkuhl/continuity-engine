@@ -1399,6 +1399,8 @@ export class RulesEngine {
     visibility?: "public" | "secret";
     editKind?: "retcon" | "forward";
     reason?: string;
+    /** The body the user started editing from. If the stored body differs, someone (the GM) changed it meanwhile: refused as `stale`. */
+    expectedBody?: string;
   }): Promise<Result<Section>> {
     const entity = await this.storage.getEntity(input.entityId);
     if (!entity) return refuse("not_found", `No entity ${input.entityId}.`);
@@ -1409,6 +1411,9 @@ export class RulesEngine {
     if (input.body !== undefined && hasLevel2Heading(input.body)) return refuse("invalid", "Use ### or deeper inside a section, not ##.");
     const meta: WriteMeta = { author: "user", editKind: input.editKind ?? null, reason: input.reason ?? null };
     const existing = await this.findSection(entity.id, input.key, input.campaignId ?? null);
+    if (input.expectedBody !== undefined && !sameText(existing?.bodyMd ?? "", input.expectedBody)) {
+      return refuse("stale", "The GM changed this section while you were editing. Compare the two versions and choose which to keep.");
+    }
     if (existing) {
       return ok(
         await this.storage.updateSection(
@@ -1445,9 +1450,14 @@ export class RulesEngine {
     patch: { name?: string; aliases?: string[]; summary?: string; source?: Entity["source"]; type?: Entity["type"] };
     editKind?: "retcon" | "forward";
     reason?: string;
+    /** The summary the user started editing from; a different stored summary is refused as `stale`. */
+    expectedSummary?: string;
   }): Promise<Result<Entity>> {
     const entity = await this.storage.getEntity(input.entityId);
     if (!entity) return refuse("not_found", `No entity ${input.entityId}.`);
+    if (input.expectedSummary !== undefined && !sameText(entity.summary, input.expectedSummary)) {
+      return refuse("stale", "The GM changed the summary while you were editing. Compare the two versions and choose which to keep.");
+    }
     const factChange = input.patch.summary !== undefined || input.patch.name !== undefined || input.patch.type !== undefined;
     if (factChange && !EditKind.safeParse(input.editKind).success) {
       return refuse("edit_kind_required", "Choose whether this edit is a retcon (always true) or a change from now on (forward).");
@@ -1676,4 +1686,10 @@ function dedupe(es: Entity[]): Entity[] {
 
 function slugish(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/** Text compared as the user saw it: forms send line breaks as CRLF, and trailing whitespace doesn't count. */
+function sameText(a: string, b: string): boolean {
+  const n = (s: string) => s.replace(/\r\n?/g, "\n").trimEnd();
+  return n(a) === n(b);
 }

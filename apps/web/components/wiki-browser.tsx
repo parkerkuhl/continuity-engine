@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { levenshtein, slugify, type Entity, type Scope } from "@continuity/core";
-import { app, basePath } from "@/lib/server";
+import { app, basePath, wikiView, reviewQueue } from "@/lib/server";
 import { setWorldAsOf } from "@/app/actions";
 import { ActionForm } from "./action-form";
+import { CopyButton } from "./copy-button";
+import { QuickJumpInput } from "./quick-jump";
 import { SearchGlyph } from "./nav-link";
 
 export const TYPE_LABEL: Record<Entity["type"], string> = {
@@ -40,11 +42,12 @@ export function SourcePill({ source, prefix }: { source: Entity["source"]; prefi
 export async function WikiBrowser({ scope, query, source, type, view }: { scope: Scope; query?: string; source?: string; type?: string; view?: string }) {
   const list = view === "list";
   const src = SOURCES.includes(source as Entity["source"]) ? (source as Entity["source"]) : undefined;
-  const all = (await (await app()).views.wiki(scope, { ...(query && { query }) })).flatMap((g) => g.entities);
+  const all = (await wikiView(scope, query)).flatMap((g) => g.entities);
   const typed = all.filter((r) => !type || r.entity.type === type);
   const shown = typed.filter((r) => !src || r.entity.source === src);
   const base = basePath(scope);
   const wiki = scope.campaign ? `${base}/wiki` : base;
+  const jumpIndex = (await wikiView(scope)).flatMap((g) => g.entities.map(({ entity: e }) => ({ slug: e.slug, name: e.name, aliases: e.aliases, type: e.type })));
   const href = (p: { type?: string | undefined; source?: string | undefined; list?: boolean }) => {
     const q = new URLSearchParams();
     if (p.list ?? list) q.set("view", "list");
@@ -56,7 +59,7 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   };
 
   const pending = new Map<string, { proposed: number; conflict: boolean }>();
-  for (const i of (await (await app()).views.reviewQueue(scope)).items) {
+  for (const i of (await reviewQueue(scope)).items) {
     for (const e of i.entities) {
       const p = pending.get(e.id) ?? { proposed: 0, conflict: false };
       p.proposed++;
@@ -71,21 +74,37 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
   const unlabeled = npcs.filter((r) => !r.toPc).length;
   const sorted = [...shown].sort((a, b) => a.entity.name.localeCompare(b.entity.name));
   // Nothing found: offer the visible pages whose name, alias or any word of them is a near miss ("wrenn", "herron").
-  const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await (await app()).views.wiki(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
+  const suggestions = query?.trim() && shown.length === 0 ? nearMisses(query, (await wikiView(scope)).flatMap((g) => g.entities.map((r) => r.entity))) : [];
+  // When most pages are drafts, a Draft pill on every card says nothing: sum them up in one line instead.
+  const draftCount = all.filter((r) => r.entity.status === "proposed").length;
+  const draftPills = draftCount * 2 <= all.length;
+  const reviewHref = scope.campaign ? `${base}/review?filter=pages` : `${base}/review`;
   const groups = (Object.keys(TYPE_LABEL) as Entity["type"][]).map((t) => [t, sorted.filter((r) => r.entity.type === t)] as const).filter(([, rows]) => rows.length > 0);
+
+  // UX review #25: an empty world gets a next step instead of a search box and zero-count filters.
+  if (all.length === 0 && !query) {
+    const prompt = `Let's build ${scope.world.name} together`;
+    return (
+      <div className="card flex flex-col gap-3">
+        <h2 className="card-title">No pages yet</h2>
+        <p className="text-muted">Write the first page yourself, or ask Claude in the chat to interview you and draft the world.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`${base}/new`} className="btn-primary">
+            New page
+          </Link>
+          <span className="text-faint">or ask Claude:</span>
+          <code className="rounded-md bg-sunken px-2 py-1 text-[13px]">{prompt}</code>
+          <CopyButton text={prompt} label="Copy" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <form role="search" action={wiki} className="flex h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
         <SearchGlyph />
-        <input
-          type="search"
-          name="q"
-          defaultValue={query}
-          placeholder="Search names, aliases, places…"
-          aria-label="Search the wiki"
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-faint"
-        />
+        <QuickJumpInput index={jumpIndex} base={base} {...(query && { defaultValue: query })} />
         {type && <input type="hidden" name="type" value={type} />}
         {src && <input type="hidden" name="source" value={src} />}
         {list && <input type="hidden" name="view" value="list" />}
@@ -150,6 +169,15 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
         </p>
       )}
 
+      {!draftPills && shown.length > 0 && (
+        <p className="-mt-2 text-[13px] text-muted">
+          {draftCount} of {all.length} pages are drafts waiting for approval.{" "}
+          <Link href={reviewHref} className="link font-semibold">
+            Review
+          </Link>
+        </p>
+      )}
+
       {shown.length === 0 ? (
         <div className="py-6 text-muted">
           <p>{query || src || type ? `Nothing matches${query ? ` “${query}”` : ""}.` : "No pages yet. The GM creates them during worldbuilding, or import a world from the home page."}</p>
@@ -193,14 +221,14 @@ export async function WikiBrowser({ scope, query, source, type, view }: { scope:
               <ul className="divide-y divide-line-soft overflow-hidden rounded-xl border border-line bg-surface">
                 {rows.map((r) => (
                   <li key={r.entity.id}>
-                    <Row r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} />
+                    <Row r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} drafts={draftPills} />
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5">
                 {rows.map((r) => (
-                  <WikiCard key={r.entity.id} r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} grouped={groups.length > 1} />
+                  <WikiCard key={r.entity.id} r={r} href={`${base}/e/${r.entity.slug}`} pending={pending.get(r.entity.id)} pc={pc} grouped={groups.length > 1} drafts={draftPills} />
                 ))}
               </div>
             )}
@@ -228,13 +256,26 @@ function nearMisses(query: string, pages: Entity[]): Entity[] {
     .map((x) => x.e);
 }
 
-type WikiRow = { entity: Entity; line: string; toPc: string | null };
+type WikiRow = { entity: Entity; line: string; toPc: string | null; match?: { alias: string } | { section: string; snippet: string } | null };
+
+/** Why a search hit matched, when its name doesn't show it (UX review #11). */
+function Why({ m }: { m: WikiRow["match"] }) {
+  if (!m) return null;
+  return "alias" in m ? (
+    <span className="text-xs text-faint">matched alias: {m.alias}</span>
+  ) : (
+    <span className="line-clamp-2 text-xs text-faint">
+      in {m.section}: {m.snippet}
+    </span>
+  );
+}
 type Pending = { proposed: number; conflict: boolean } | undefined;
 
-function Flag({ e, p }: { e: Entity; p: Pending }) {
-  if (e.status === "proposed") return <span className="rounded-full bg-pending px-2 text-xs font-bold text-[#1c1e21]">Draft</span>;
+/** The one flag a card shows: a conflict first, then pending updates, then Draft (unless drafts are summed up above the grid). */
+function Flag({ e, p, drafts }: { e: Entity; p: Pending; drafts: boolean }) {
   if (p?.conflict) return <span className="rounded-full bg-danger-soft px-2 text-xs font-bold text-danger">Conflict</span>;
   if (p) return <span className="rounded-full bg-pending px-2 text-xs font-bold text-[#1c1e21]">{p.proposed} proposed</span>;
+  if (e.status === "proposed" && drafts) return <span className="rounded-full bg-pending px-2 text-xs font-bold text-[#1c1e21]">Draft</span>;
   return null;
 }
 
@@ -257,10 +298,10 @@ function ToPc({ label }: { label: string }) {
   );
 }
 
-function WikiCard({ r, href, pending, pc, grouped }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined; grouped: boolean }) {
+function WikiCard({ r, href, pending, pc, grouped, drafts }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined; grouped: boolean; drafts: boolean }) {
   const { entity: e, line, toPc } = r;
   const unverified = e.source === "unverified";
-  const flagged = e.status === "proposed" || !!pending;
+  const flagged = (drafts && e.status === "proposed") || !!pending;
   return (
     <Link
       href={href}
@@ -269,12 +310,13 @@ function WikiCard({ r, href, pending, pc, grouped }: { r: WikiRow; href: string;
       {(!grouped || flagged) && (
         <div className="flex justify-between gap-2 text-xs">
           <span className="text-muted">{grouped ? "" : TYPE_LABEL[e.type]}</span>
-          <Flag e={e} p={pending} />
+          <Flag e={e} p={pending} drafts={drafts} />
         </div>
       )}
       <b className="font-serif text-[19px] leading-snug font-semibold">{e.name}</b>
       {toPc && <ToPc label={toPc} />}
       {line && <span className="line-clamp-2 text-muted">{line}</span>}
+      <Why m={r.match} />
       <span className="mt-auto pt-0.5">
         <SourceLine e={e} pc={pc} />
       </span>
@@ -282,7 +324,7 @@ function WikiCard({ r, href, pending, pc, grouped }: { r: WikiRow; href: string;
   );
 }
 
-function Row({ r, href, pending, pc }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined }) {
+function Row({ r, href, pending, pc, drafts }: { r: WikiRow; href: string; pending: Pending; pc: string | undefined; drafts: boolean }) {
   const { entity: e, line, toPc } = r;
   return (
     <Link
@@ -293,9 +335,12 @@ function Row({ r, href, pending, pc }: { r: WikiRow; href: string; pending: Pend
         <b className="font-serif text-[16px] font-semibold text-ink">{e.name}</b>
         {toPc && <span className="text-[12px] text-accent-ink">{toPc}</span>}
       </span>
-      <span className="truncate text-muted">{line}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-muted">{line}</span>
+        <Why m={r.match} />
+      </span>
       <span className="flex items-center gap-2 sm:justify-end">
-        <Flag e={e} p={pending} />
+        <Flag e={e} p={pending} drafts={drafts} />
         <SourceLine e={e} pc={pc} />
       </span>
     </Link>
@@ -317,7 +362,7 @@ function Tab({ href, on, children }: { href: string; on: boolean; children: Reac
 
 /** Header for a wiki screen: title, page count, and the world's export. */
 export async function WikiHeader({ scope, title }: { scope: Scope; title: string }) {
-  const n = (await (await app()).views.wiki(scope)).reduce((sum, g) => sum + g.entities.length, 0);
+  const n = (await wikiView(scope)).reduce((sum, g) => sum + g.entities.length, 0);
   const w = scope.world;
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">

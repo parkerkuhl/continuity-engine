@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Scope } from "@continuity/core";
 import { approvePage, approvePages, rejectPage } from "@/app/actions";
-import { app, basePath } from "@/lib/server";
+import { app, basePath, pageQueue } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { TYPE_LABEL } from "./wiki-browser";
 
 /** Pages the GM drafted that wait for approval (SPEC Phase 0: nothing drafted becomes canon without it). */
 export async function PageQueue({ scope, path, collapse = false }: { scope: Scope; path: string; collapse?: boolean }) {
-  const pages = await (await app()).views.pageQueue(scope);
+  const pages = await pageQueue(scope);
   if (!pages.length) return null;
   const base = basePath(scope);
   const list = (

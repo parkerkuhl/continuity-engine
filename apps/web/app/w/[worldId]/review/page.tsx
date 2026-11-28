@@ -1,11 +1,11 @@
 import { PageQueue } from "@/components/page-queue";
-import { app, scopeTitle, worldScope } from "@/lib/server";
+import { app, scopeTitle, worldScope, pageQueue } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ worldId: string }> }) {
   const scope = await worldScope((await params).worldId);
-  const n = (await (await app()).views.pageQueue(scope)).length;
+  const n = (await pageQueue(scope)).length;
   return scopeTitle(scope, n ? `Review (${n})` : "Review");
 }
 
@@ -18,7 +18,7 @@ const MODE: Record<string, string> = {
 
 export default async function WorldReview({ params }: { params: Promise<{ worldId: string }> }) {
   const scope = await worldScope((await params).worldId);
-  const n = (await (await app()).views.pageQueue(scope)).length;
+  const n = (await pageQueue(scope)).length;
   return (
     <>
       <div>

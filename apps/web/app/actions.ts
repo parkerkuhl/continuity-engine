@@ -95,8 +95,9 @@ export async function editSection(_: ActionState, f: FormData): Promise<ActionSt
     body: req(f, "body"),
     ...(str(f, "heading") && { heading: str(f, "heading") }),
     ...(kind && { editKind: kind }),
+    ...(f.has("expected") && { expectedBody: str(f, "expected") }),
   });
-  if (!r.ok) return fail(r.refusal.message);
+  if (!r.ok) return r.refusal.rule === "stale" ? { ...fail(r.refusal.message), stale: true } : fail(r.refusal.message);
   return done(f, `Saved as ${kind === "retcon" ? "a retcon" : "a change from now on"}. The section is now locked against AI edits.`);
 }
 
@@ -131,8 +132,13 @@ export async function setSectionVisibility(f: FormData) {
 
 export async function editSummary(_: ActionState, f: FormData): Promise<ActionState> {
   const kind = editKind(f);
-  const r = await (await app()).engine.userEditEntity({ entityId: req(f, "entityId"), patch: { summary: req(f, "body") }, ...(kind && { editKind: kind }) });
-  if (!r.ok) return fail(r.refusal.message);
+  const r = await (await app()).engine.userEditEntity({
+    entityId: req(f, "entityId"),
+    patch: { summary: req(f, "body") },
+    ...(kind && { editKind: kind }),
+    ...(f.has("expected") && { expectedSummary: str(f, "expected") }),
+  });
+  if (!r.ok) return r.refusal.rule === "stale" ? { ...fail(r.refusal.message), stale: true } : fail(r.refusal.message);
   return done(f, `Summary saved as ${kind === "retcon" ? "a retcon" : "a change from now on"}.`);
 }
 
@@ -251,6 +257,13 @@ export async function approveAllMinor(_: ActionState, f: FormData): Promise<Acti
   const scope = await campaignScope(req(f, "campaignId"));
   const approved = await (await app()).views.approveVisibleMinor(scope);
   return done(f, approved.length ? `Approved ${approved.length} minor update${approved.length === 1 ? "" : "s"}.` : "No minor updates to approve.");
+}
+
+/** Approve one scene's updates together (UX review #23); parked conflicts stay for their own decision. */
+export async function approveScene(_: ActionState, f: FormData): Promise<ActionState> {
+  const scope = await campaignScope(req(f, "campaignId"));
+  const approved = await (await app()).views.approveVisibleScene(scope, req(f, "sceneId"));
+  return done(f, approved.length ? `Approved ${approved.length} update${approved.length === 1 ? "" : "s"} from that scene.` : "Nothing in that scene to approve.");
 }
 
 // ---------------- campaign dashboard ----------------

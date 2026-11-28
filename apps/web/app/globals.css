@@ -69,8 +69,10 @@
   --color-tag-chapter-line: #c9c5bc;
 }
 
+/* Dark tokens apply with the system setting unless the user picked Light, or always when they picked Dark
+   (the theme switch in the sidebar sets data-theme on <html>, UX review #33). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Dark mode: cards sit clearly above the canvas, secondary text stays at 5.5:1 or more, and link teal
        is lighter than the button fill so both pass contrast. */
     --color-canvas: #111315;
@@ -129,9 +131,73 @@
     --color-tag-chapter-line: #4a4f55;
   }
 }
+:root[data-theme="dark"] {
+  /* Dark mode: cards sit clearly above the canvas, secondary text stays at 5.5:1 or more, and link teal
+     is lighter than the button fill so both pass contrast. */
+  --color-canvas: #111315;
+  --color-surface: #1e2125;
+  --color-subtle: #23272b;
+  --color-sunken: #282c31;
+  --color-ink: #ebe9e4;
+  --color-body: #d2cfc9;
+  --color-muted: #aeb3b8;
+  --color-faint: #9a9ea4;
+  --color-line: #33383e;
+  --color-line-soft: #2b2f34;
+  --color-line-strong: #41474e;
+
+  --color-accent: #43b0a7;
+  --color-accent-hover: #5cc2b8;
+  --color-accent-solid: #156e68;
+  --color-accent-solid-hover: #1a7f78;
+  --color-accent-ink: #7fd0c9;
+  --color-accent-soft: #163533;
+  --color-accent-tint: #142826;
+  --color-canon-tint: #152a28;
+
+  --color-pending: #f2b54a;
+  --color-warn: #f2c46b;
+  --color-warn-soft: #3a2c12;
+  --color-warn-tint: #2a2213;
+  --color-warn-line: #6b5320;
+  --color-warn-dash: #b07a1f;
+
+  --color-danger: #f0958b;
+  --color-danger-soft: #3a1a17;
+  --color-danger-line: #b7443a;
+  --color-danger-border: #6e2b25;
+
+  --color-secret: #c1b1f2;
+  --color-secret-soft: #2a2340;
+  --color-secret-tint: #1d1a29;
+  --color-secret-line: #5e4e8f;
+
+  --color-ok: #8bd8a5;
+  --color-ok-soft: #173322;
+
+  --color-nav: #0d0f11;
+  --color-nav-line: #262a2f;
+  --color-nav-active: #22262b;
+
+  --color-tag-character: #9cc2f2;
+  --color-tag-character-soft: #1a2a40;
+  --color-tag-place: #94d4a8;
+  --color-tag-place-soft: #16301f;
+  --color-tag-faction: #eda3c6;
+  --color-tag-faction-soft: #3a1a2a;
+  --color-tag-thing: #e0c48e;
+  --color-tag-thing-soft: #33291a;
+  --color-tag-chapter-line: #4a4f55;
+}
 
 html {
   color-scheme: light dark;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 body {
   @apply bg-canvas text-ink font-sans text-sm leading-normal antialiased;
@@ -153,8 +219,9 @@ body {
   .btn-xs {
     @apply h-8 rounded-md px-2.5 text-[13px];
   }
+  /* At least 44px tall on phones, so Edit and friends are easy to hit (UX review #27). */
   .btn-ghost {
-    @apply inline-flex items-center gap-1 rounded-md px-2 py-1 text-[13px] font-medium text-accent hover:bg-accent-tint hover:text-accent-hover;
+    @apply inline-flex min-h-11 items-center gap-1 rounded-md px-2.5 py-1 text-[14px] font-medium text-accent hover:bg-accent-tint hover:text-accent-hover sm:min-h-0 sm:px-2 sm:text-[13px];
   }
   .input {
     @apply h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-ink placeholder:text-faint;
@@ -228,4 +295,9 @@ body {
 h2[id],
 section[id] {
   scroll-margin-top: 5.5rem;
+}
+
+@keyframes nav-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
 }

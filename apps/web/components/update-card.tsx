@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { UpdateView } from "@continuity/core";
 import { approveUpdate, editUpdate, rejectUpdate } from "@/app/actions";
 import { ActionForm } from "./action-form";
+import { LockIcon } from "./icons";
+import { ago } from "@/lib/format";
 
 const STATUS: Record<string, [string, string]> = {
   proposed: ["Proposed", "bg-pending text-[#1c1e21]"],
@@ -64,6 +66,18 @@ export function UpdateMeta({ v, base, status = true }: { v: UpdateView; base: st
             <span aria-hidden>·</span>
             <span>{chapterTag(u.chapter)}</span>
           </>
+        )}
+        {v.at && (
+          <>
+            <span aria-hidden>·</span>
+            <time dateTime={v.at}>{ago(v.at)}</time>
+          </>
+        )}
+        {v.pcKnows === false && (
+          <span className="flex items-center gap-1 font-semibold text-secret" title="The PC doesn't know this. It shows only in GM view.">
+            <LockIcon className="h-[12px] w-[12px]" />
+            GM only
+          </span>
         )}
       </div>
       {v.entities.length > 0 && (

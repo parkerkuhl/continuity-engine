@@ -12,6 +12,7 @@ export type RuleCode =
   | "user_only"
   | "duplicate"
   | "intake_only"
+  | "stale"
   | "invalid";
 
 export interface Refusal {

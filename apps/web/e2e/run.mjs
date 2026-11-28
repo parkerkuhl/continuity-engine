@@ -117,6 +117,7 @@ async function check(name, fn) {
     await fn();
     results.push([name, true]);
   } catch (e) {
+    await page.screenshot({ path: join(out, `fail-${results.length + 1}.png`), fullPage: true }).catch(() => {});
     results.push([name, false, process.env.E2E_LOG ? e.message : e.message.split("\n")[0]]);
   }
 }
@@ -213,7 +214,7 @@ try {
     const t = await text();
     expect(!t.includes("the PC doesn't know"), "player view hints at hidden updates (UX review #2)");
     await shot("06-review-queue");
-    const item = page.locator("section[aria-label='Proposed updates'] li", { hasText: "Rickard limps on his left leg." });
+    const item = page.locator("section[aria-label^='Updates'] li", { hasText: "Rickard limps on his left leg." });
     await item.getByRole("button", { name: "Approve" }).click();
     await item.waitFor({ state: "detached" }); // approved updates leave the queue
     await page.goto(`${C}/e/rickard-snow?tab=updates`);
@@ -246,7 +247,8 @@ try {
     expect((await text()).includes("First week of the dry season"), "world as-of moment not shown");
     const badge = await page.locator("nav a", { hasText: "Review queue" }).innerText();
     expect(badge.includes("3"), `review badge should count 3 drafts, got "${badge}"`);
-    expect((await page.locator("main a", { hasText: "Gullhaven" }).innerText()).includes("Draft"), "draft pill missing on the wiki card");
+    // A Draft pill per card, or one summary line when most pages are drafts (UX review #8).
+    expect((await page.locator("main a", { hasText: "Gullhaven" }).innerText()).includes("Draft") || /\d+ of \d+ pages are drafts/.test(await text()), "drafts aren't marked on the wiki");
     await page.goto(`${W}/review`);
     expect((await text()).includes("3 pages the GM drafted"), "world review queue doesn't list the drafts");
     await shot("11-world-review");
@@ -259,6 +261,7 @@ try {
     await shot("12-entity-draft");
     await page.getByRole("button", { name: "Reject page" }).click();
     await page.waitForURL(W);
+    await page.locator("main a", { hasText: "Gullhaven" }).first().waitFor(); // past the loading skeleton
     const wiki = await text();
     expect(!wiki.includes("Old Ivo") && wiki.includes("Gullhaven"), "rejected page still listed, or approved page missing");
     await page.goto(`${W}/e/gullhaven`);
@@ -324,7 +327,7 @@ try {
     await page.waitForURL(/filter=pages/);
     const t = await text();
     expect(t.includes("Ser Wyl") && t.includes("The Tidewatch"), "the New pages filter doesn't list the drafts");
-    expect(!t.includes("Proposed updates"), "the New pages filter still shows updates");
+    expect((await page.locator("section[aria-label^='Updates']").count()) === 0, "the New pages filter still shows updates");
     await shot("12-review-pages-filter");
     await page.getByRole("button", { name: "Approve all pages (2)" }).click();
     await page.locator("section[aria-label='New pages']").waitFor({ state: "detached" }); // approved pages leave the queue

@@ -11,3 +11,11 @@ export const ago = (iso: string) => {
 
 /** "ch-02, scene 1" */
 export const sceneLabel = (s: { chapter: number; number: number } | null) => (s ? `ch-${String(s.chapter).padStart(2, "0")}, scene ${s.number}` : null);
+
+/** The approval modes with one line each (campaign settings and the create-world form). */
+export const APPROVAL_MODES = [
+  ["review", "Review everything", "Nothing counts until you approve it."],
+  ["batch", "Batch review", "Usable right away as soft canon; you approve later."],
+  ["autopilot", "Autopilot", "Straight to canon; fix things afterward."],
+  ["mixed", "Mixed by severity", "Pick a rule for minor and for major updates."],
+] as const;

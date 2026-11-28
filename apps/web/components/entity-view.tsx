@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { findToPcSection, toPcLabel, type Provenance, type Scope, type Version } from "@continuity/core";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion } from "@/app/actions";
 import { ago, sceneLabel } from "@/lib/format";
-import { app, basePath, pageChanges } from "@/lib/server";
+import { app, basePath, pageChanges, wikiView } from "@/lib/server";
 import { ActionForm } from "./action-form";
 import { LockIcon } from "./icons";
 import { Markdown } from "./markdown";
@@ -77,9 +77,16 @@ function FromPlay({ children }: { children: ReactNode }) {
 
 export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope; slug: string; tab?: string }) {
   const view = await (await app()).views.entity(scope, slug);
-  if (!view) notFound();
+  if (!view) {
+    // UX review #26: an alias URL goes to its page; anything else gets a not-found screen inside the app.
+    const found = await (await app()).views.lookup(scope, decodeURIComponent(slug));
+    if ("slug" in found && found.slug !== slug) redirect(`${basePath(scope)}/e/${found.slug}${tabParam ? `?tab=${tabParam}` : ""}`);
+    return <PageNotFound scope={scope} slug={decodeURIComponent(slug)} suggestions={"suggestions" in found ? found.suggestions : []} />;
+  }
   const { page } = view;
   const unreviewed = (await pageChanges(scope)).filter((c) => c.entity.id === page.id);
+  // Pages this screen may show, for links from names in the text (UX review #14).
+  const links = (await wikiView(scope)).flatMap((g) => g.entities.map(({ entity: e }) => ({ href: `${basePath(scope)}/e/${e.slug}`, name: e.name, aliases: e.aliases, slug: e.slug })));
   const unreviewedSections = new Set(unreviewed.map((c) => c.sectionId));
   const base = basePath(scope);
   const wiki = scope.campaign ? `${base}/wiki` : base;
@@ -159,6 +166,10 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
     return null;
   };
 
+  // UX review #17: a proposed update that clashes with a locked section shows on that section.
+  const proposalsFor = (sectionId: string) =>
+    view.updates.filter((v) => v.update.status === "proposed" && v.update.conflictsWith?.type === "section" && v.update.conflictsWith.id === sectionId);
+
   const sectionCard = (s: (typeof page.sections)[number], extra: ReactNode, compact = false) => {
     const secret = s.visibility === "secret";
     return (
@@ -190,7 +201,20 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
           </>
         }
       >
-        <Markdown>{s.bodyMd}</Markdown>
+        <Markdown links={links} self={page.slug}>{s.bodyMd}</Markdown>
+        {proposalsFor(s.id).map((v) => (
+          <div key={v.update.id} className="mt-3 flex flex-col gap-2 rounded-[10px] border border-warn-line bg-warn-tint px-4 py-3">
+            <div className="text-xs font-semibold tracking-[0.6px] text-warn uppercase">The GM proposes · #{v.update.seq}</div>
+            <p className="font-serif text-[16px]">{v.update.bodyMd}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <RejectButton v={v} path={path} label="Keep yours" primary />
+              <ApproveButton v={v} path={path} label="Accept" />
+              <Link href={`${path}?tab=updates`} className="link text-[13px]">
+                Edit
+              </Link>
+            </div>
+          </div>
+        ))}
         {extra}
       </InlineEditor>
     );
@@ -312,7 +336,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-[1_1_420px] flex-col gap-2.5">
-          <h1 className="font-serif text-[40px] leading-[1.1] font-semibold">{page.name}</h1>
+          <h1 className="font-serif text-[32px] leading-[1.1] font-semibold sm:text-[40px]">{page.name}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <span className="pill bg-accent-soft py-[3px] text-accent-ink">{TYPE_LABEL[page.type]}</span>
             {toPc && (
@@ -322,9 +346,10 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             )}
             <SourcePill source={page.source} prefix />
             {page.campaignId && <span className="pill bg-sunken py-[3px] text-body">This campaign only</span>}
-            <details className="group text-[13px] text-muted">
-              <summary className="cursor-pointer list-none">
-                {page.aliases.length ? <>Also called: {page.aliases.join(" · ")}</> : "No aliases"} <span className="link ml-1">Edit</span>
+            <details className="group w-full min-w-0 text-[13px] text-muted sm:w-auto">
+              <summary className="flex cursor-pointer list-none gap-1 [&::-webkit-details-marker]:hidden">
+                <span className="truncate group-open:whitespace-normal sm:whitespace-normal">{page.aliases.length ? <>Also called: {page.aliases.join(" · ")}</> : "No aliases"}</span>
+                <span className="link ml-1 shrink-0">Edit</span>
               </summary>
               <ActionForm action={editAliases} className="mt-2 flex flex-wrap items-center gap-2">
                 <input type="hidden" name="entityId" value={page.id} />
@@ -335,7 +360,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
             </details>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="hidden gap-2 sm:flex">
           <a href="#add-section-heading" className="btn-primary">
             Add section
           </a>
@@ -343,19 +368,25 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
       </div>
 
       {page.status === "proposed" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-pending bg-surface px-5 py-3">
-          <p className="font-semibold">Draft: the GM wrote this page and it waits for your approval. Until then the GM sees it labeled proposed.</p>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border-2 border-pending bg-surface px-4 py-2 sm:px-5 sm:py-3">
+          <p className="font-semibold">
+            Draft<span className="hidden sm:inline">: the GM wrote this page and it waits for your approval. Until then the GM sees it labeled proposed.</span>
+          </p>
           <div className="flex gap-2">
             <ActionForm action={approvePage}>
               <input type="hidden" name="entityId" value={page.id} />
               <input type="hidden" name="path" value={path} />
-              <button className="btn-primary btn-sm">Approve page</button>
+              <button className="btn-primary btn-sm">
+                Approve<span className="hidden sm:inline"> page</span>
+              </button>
             </ActionForm>
             <ActionForm action={rejectPage}>
               <input type="hidden" name="entityId" value={page.id} />
               <input type="hidden" name="path" value={path} />
               <input type="hidden" name="back" value={wiki} />
-              <button className="btn btn-sm">Reject page</button>
+              <button className="btn btn-sm">
+                Reject<span className="hidden sm:inline"> page</span>
+              </button>
             </ActionForm>
           </div>
         </div>
@@ -386,19 +417,22 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
 
       {tab === "page" && (
         <>
-          {menu.length > 3 && (
-            <nav
-              aria-label="On this page"
-              className="-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal"
-            >
-              <span className="mr-1 shrink-0 text-faint">On this page</span>
-              {menu.map(([label, id]) => (
+          {/* On a phone this row also carries "+ Section", so it shows even for a short page (UX review #16). */}
+          <nav
+            aria-label="On this page"
+            className={`-mt-2 flex items-center gap-x-1 overflow-x-auto border-y border-line-soft py-2 text-[13px] whitespace-nowrap sm:flex-wrap sm:whitespace-normal ${menu.length > 3 ? "" : "sm:hidden"}`}
+          >
+            <a href="#add-section-heading" className="shrink-0 rounded-md px-2 py-1 font-semibold text-accent-ink hover:bg-sunken sm:hidden">
+              + Section
+            </a>
+            {menu.length > 3 && <span className="mr-1 shrink-0 text-faint">On this page</span>}
+            {menu.length > 3 &&
+              menu.map(([label, id]) => (
                 <a key={id} href={`#${id}`} className="shrink-0 rounded-md px-2 py-1 text-muted hover:bg-sunken hover:text-ink">
                   {label}
                 </a>
               ))}
-            </nav>
-          )}
+          </nav>
 
           <div className="flex flex-wrap items-start gap-6">
             <article className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
@@ -422,7 +456,7 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
                   )
                 }
               >
-                <Markdown>{page.summary}</Markdown>
+                <Markdown links={links} self={page.slug}>{page.summary}</Markdown>
               </InlineEditor>
 
               {profile.pcSheet && (
@@ -632,5 +666,38 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
         </div>
       )}
     </>
+  );
+}
+
+function PageNotFound({ scope, slug, suggestions }: { scope: Scope; slug: string; suggestions: { slug: string; name: string }[] }) {
+  const base = basePath(scope);
+  const wiki = scope.campaign ? `${base}/wiki` : base;
+  return (
+    <div className="flex flex-col gap-3">
+      <h1 className="page-title">No page called “{slug}”</h1>
+      <p className="text-muted">There&apos;s no page by that name or alias in {scope.campaign?.name ?? scope.world.name}.</p>
+      {suggestions.length > 0 && (
+        <p>
+          Did you mean{" "}
+          {suggestions.map((e, i) => (
+            <span key={e.slug}>
+              {i > 0 && (i === suggestions.length - 1 ? " or " : ", ")}
+              <Link href={`${base}/e/${e.slug}`} className="link font-semibold">
+                {e.name}
+              </Link>
+            </span>
+          ))}
+          ?
+        </p>
+      )}
+      <p className="flex flex-wrap gap-2">
+        <Link href={`${wiki}?q=${encodeURIComponent(slug.replace(/-/g, " "))}`} className="btn">
+          Search for “{slug.replace(/-/g, " ")}”
+        </Link>
+        <Link href={`${base}/new`} className="btn">
+          New page
+        </Link>
+      </p>
+    </div>
   );
 }

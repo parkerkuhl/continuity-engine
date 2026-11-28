@@ -1,11 +1,14 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
-import { app, isRemote, pageChanges } from "@/lib/server";
+import { app, isRemote, pageChanges, reviewQueue, pageQueue, dashboard, wikiView } from "@/lib/server";
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
+import { ThemeSwitch } from "./theme-switch";
+import { cookies } from "next/headers";
+import { NavProgress } from "./nav-progress";
 import { HeaderSearch, NavLink } from "./nav-link";
 import { SearchShortcut } from "./search-shortcut";
 
@@ -21,6 +24,9 @@ export async function AppShell({ scope, children }: { scope?: Scope; children: R
       </a>
       <AutoRefresh everyMs={Number(process.env.CONTINUITY_REFRESH_MS) || 10_000} />
       <SearchShortcut />
+      <Suspense>
+        <NavProgress />
+      </Suspense>
       <Sidebar scope={scope} />
       <div className="flex min-w-0 flex-[999_1_560px] flex-col">
         {scope && <TopBar scope={scope} />}
@@ -44,12 +50,13 @@ function Badge({ n, conflict }: { n: number; conflict?: boolean }) {
 }
 
 async function Sidebar({ scope }: { scope?: Scope }) {
+  const theme = (await cookies()).get("theme")?.value;
   const c = scope?.campaign ?? null;
   const base = c ? `/c/${c.id}` : scope ? `/w/${scope.world.id}` : "/";
   let nav: ReactNode;
   if (c) {
     const views = (await app()).views;
-    const [d, queue, pages, changes] = await Promise.all([views.dashboard(scope!), views.reviewQueue(scope!), views.pageQueue(scope!), pageChanges(scope!)]);
+    const [d, queue, pages, changes] = await Promise.all([dashboard(scope!), reviewQueue(scope!), pageQueue(scope!), pageChanges(scope!)]);
     const waiting = queue.items.length + changes.length + pages.length;
     nav = (
       <>
@@ -83,7 +90,7 @@ async function Sidebar({ scope }: { scope?: Scope }) {
     );
   } else if (scope) {
     const row = (await (await app()).views.home()).find((r) => r.world.id === scope.world.id);
-    const pages = await (await app()).views.pageQueue(scope);
+    const pages = await pageQueue(scope);
     nav = (
       <>
         <NavLink href={base} exact also={`${base}/e/`}>
@@ -157,13 +164,17 @@ async function Sidebar({ scope }: { scope?: Scope }) {
             <button className="px-3 py-2 text-left text-nav-muted hover:text-white">Sign out</button>
           </form>
         )}
+        <div className={scope || isRemote() ? "pt-2" : "mt-auto border-t border-nav-line pt-4"}>
+          <ThemeSwitch initial={theme === "light" || theme === "dark" ? theme : "system"} />
+        </div>
       </MobileMenu>
     </nav>
   );
 }
 
-function TopBar({ scope }: { scope: Scope }) {
+async function TopBar({ scope }: { scope: Scope }) {
   const c = scope.campaign;
+  const index = (await wikiView(scope)).flatMap((g) => g.entities.map(({ entity: e }) => ({ slug: e.slug, name: e.name, aliases: e.aliases, type: e.type })));
   const wiki = c ? `/c/${c.id}/wiki` : `/w/${scope.world.id}`;
   const on = scope.spoilers;
   return (
@@ -171,7 +182,7 @@ function TopBar({ scope }: { scope: Scope }) {
     <header
       className={`sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 sm:gap-4 sm:px-8 sm:py-3.5 ${on ? "border-t-[3px] border-t-secret" : ""}`}
     >
-      <HeaderSearch action={wiki} wikiPaths={[wiki]} />
+      <HeaderSearch action={wiki} wikiPaths={[wiki]} index={index} base={c ? `/c/${c.id}` : `/w/${scope.world.id}`} />
       <form action={c ? setCampaignSpoilers : setWorldSpoilers} className="ml-auto shrink-0">
         {c && <input type="hidden" name="campaignId" value={c.id} />}
         <input type="hidden" name="on" value={on ? "0" : "1"} />

@@ -28,6 +28,19 @@ export interface UpdateView {
   conflictWith: { label: string; body: string } | null;
   /** Each tag's type: "time" for ch-NN, else the tagged entity's type ("other" if it no longer resolves). */
   tagTypes: { tag: string; type: Entity["type"] | "time" | "other" }[];
+  /** Review queue only (UX review #22): whether the PC knows it, when it was written, and its scene. */
+  pcKnows?: boolean;
+  at?: string | null;
+  scene?: ReviewScene | null;
+}
+
+/** The scene an update came from, as the review queue groups and labels it. */
+export interface ReviewScene {
+  id: string;
+  chapter: number;
+  number: number;
+  place: Pick<Entity, "id" | "slug" | "name"> | null;
+  summary: string;
 }
 
 /**
@@ -158,10 +171,40 @@ export class WebViews {
     }
     if (filter.source) rows = rows.filter((r) => r.entity.source === filter.source);
     rows = rows.map((r) => ({ ...r, line: unescapeQuotes(r.line) }));
-    const withPc = await Promise.all(rows.map(async (r) => ({ ...r, toPc: await this.toPc(scope, r.entity) })));
+    const withPc = await Promise.all(
+      rows.map(async (r) => ({ ...r, toPc: await this.toPc(scope, r.entity), match: filter.query?.trim() ? await this.whyMatched(scope, r.entity, filter.query) : null })),
+    );
     return TYPE_ORDER.map((type) => ({ type, entities: withPc.filter((r) => r.entity.type === type).sort((a, b) => a.entity.name.localeCompare(b.entity.name)) })).filter(
       (g) => g.entities.length,
     );
+  }
+
+  /**
+   * Why a search hit matched, when its name doesn't say so (UX review #11): the alias that matched, or a short
+   * snippet of the section that did. Only text the current view may show is used.
+   */
+  async whyMatched(scope: Scope, e: Entity, query: string): Promise<{ alias: string } | { section: string; snippet: string } | null> {
+    const terms = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (!terms.length) return null;
+    const has = (text: string) => {
+      const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+      return terms.every((t) => words.some((w) => w.startsWith(t)));
+    };
+    if (has(e.name)) return null;
+    const alias = e.aliases.find(has);
+    if (alias) return { alias };
+    if (has(e.summary)) return null;
+    const page = await this.storage.getPage(e.id, { campaignId: scope.campaign?.id ?? null });
+    for (const sec of page?.sections ?? []) {
+      if (!scope.spoilers && sec.visibility === "secret" && !(await this.pcKnows(scope, "section", sec.id))) continue;
+      const lower = sec.bodyMd.toLowerCase();
+      const at = lower.search(new RegExp(`(?<![\\p{L}\\p{N}])${terms[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u"));
+      if (at < 0) continue;
+      const from = Math.max(0, at - 50);
+      const text = sec.bodyMd.slice(from, at + 90).replace(/\s+/g, " ").replace(/[#*_`>]/g, "").trim();
+      return { section: sec.heading, snippet: `${from > 0 ? "…" : ""}${text}${at + 90 < sec.bodyMd.length ? "…" : ""}` };
+    }
+    return null;
   }
 
   /** A character's "To the PC" line in this campaign, or null (no campaign, not a character, no line, or hidden in the player view). */
@@ -220,6 +263,18 @@ export class WebViews {
     const shown = [];
     for (const u of updates) if (await this.pcKnows(scope, "update", u.id)) shown.push(u);
     return { shown, hidden: updates.length - shown.length };
+  }
+
+  /**
+   * A page reference from a URL that isn't a slug (UX review #26): an alias or name resolves to the page's
+   * slug; otherwise the closest pages in this scope, for a "did you mean" list.
+   */
+  async lookup(scope: Scope, ref: string): Promise<{ slug: string } | { suggestions: Pick<Entity, "slug" | "name">[] }> {
+    const r = await this.storage.resolveEntity(scope.world.id, ref.replace(/-/g, " "), { campaignId: scope.campaign?.id ?? null });
+    const visible = (e: Entity) => !e.campaignId || e.campaignId === scope.campaign?.id;
+    if (r.status === "resolved" && visible(r.entity)) return { slug: r.entity.slug };
+    const list = r.status === "ambiguous" ? r.candidates : r.status === "unknown" ? r.suggestions : [];
+    return { suggestions: list.filter(visible).slice(0, 5).map((e) => ({ slug: e.slug, name: e.name })) };
   }
 
   async entity(scope: Scope, slug: string): Promise<EntityView | null> {
@@ -396,7 +451,31 @@ export class WebViews {
   async reviewQueue(scope: Scope): Promise<{ items: UpdateView[]; hidden: number }> {
     if (!scope.campaign) return { items: [], hidden: 0 };
     const v = await this.visibleUpdates(scope, await this.engine.reviewQueue(scope.campaign.id));
-    return { items: await Promise.all(v.shown.map((u) => this.updateView(u))), hidden: v.hidden };
+    const scenes = new Map<string, ReviewScene>();
+    for (const sc of await this.storage.listScenes(scope.campaign.id)) {
+      const place = sc.placeEntityId ? (await this.describe([sc.placeEntityId]))[0] ?? null : null;
+      scenes.set(sc.id, { id: sc.id, chapter: sc.chapter, number: sc.number, place, summary: sc.summaryMd });
+    }
+    const items = await Promise.all(
+      v.shown.map(async (u) => ({
+        ...(await this.updateView(u)),
+        pcKnows: await this.pcKnows(scope, "update", u.id),
+        at: (await this.storage.listVersions({ objectType: "update", objectId: u.id }))[0]?.createdAt ?? null,
+        scene: (u.sceneId && scenes.get(u.sceneId)) || null,
+      })),
+    );
+    return { items, hidden: v.hidden };
+  }
+
+  /** Approve every update of one scene this view shows, skipping parked conflicts (UX review #23). */
+  async approveVisibleScene(scope: Scope, sceneId: string): Promise<Update[]> {
+    const { items } = await this.reviewQueue(scope);
+    const out = [];
+    for (const i of items.filter((x) => x.update.sceneId === sceneId && !x.update.conflictsWith)) {
+      const r = await this.engine.approveUpdate(i.update.id);
+      if (r.ok) out.push(r.value);
+    }
+    return out;
   }
 
   /** Pages Claude drafted that wait for approval: the world's own, plus this campaign's. Oldest layer first. */

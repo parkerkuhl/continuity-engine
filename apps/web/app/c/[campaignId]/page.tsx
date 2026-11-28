@@ -1,9 +1,10 @@
+import { APPROVAL_MODES } from "@/lib/format";
 import Link from "next/link";
 import { editVoiceAnchor, setApprovalMode, setCampaignSpoilers } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { PcSheetBody, cap, text } from "@/components/pc-sheet";
 import { chapterTag } from "@/components/update-card";
-import { app, campaignScope, scopeTitle, pageChanges } from "@/lib/server";
+import { app, campaignScope, scopeTitle, pageChanges, wikiView, reviewQueue, pageQueue, dashboard } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ campaignI
   return scopeTitle(await campaignScope((await params).campaignId), "Settings");
 }
 
-const MODES = [
-  ["review", "Review everything", "Nothing counts until you approve it."],
-  ["batch", "Batch review", "Usable right away as soft canon; you approve later."],
-  ["autopilot", "Autopilot", "Straight to canon; fix things afterward."],
-  ["mixed", "Mixed by severity", "Pick a rule for minor and for major updates."],
-] as const;
+const MODES = APPROVAL_MODES;
 const MODE_NAME: Record<string, string> = { review: "review", batch: "batch review", autopilot: "autopilot" };
 
 const INTERIOR_LEVELS = [
@@ -76,8 +72,8 @@ function NextTile({ href, n, label, done, hot, prefix, sub }: { href: string; n:
 export default async function Dashboard({ params }: { params: Promise<{ campaignId: string }> }) {
   const { campaignId } = await params;
   const scope = await campaignScope(campaignId);
-  const d = (await (await app()).views.dashboard(scope))!;
-  const [{ items: queued }, draftPages, changes] = await Promise.all([(await app()).views.reviewQueue(scope), (await app()).views.pageQueue(scope), pageChanges(scope)]);
+  const d = (await dashboard(scope))!;
+  const [{ items: queued }, draftPages, changes] = await Promise.all([reviewQueue(scope), pageQueue(scope), pageChanges(scope)]);
   const reviewSplit = [
     queued.length > 0 && `${queued.length} update${queued.length === 1 ? "" : "s"}`,
     changes.length > 0 && `${changes.length} page change${changes.length === 1 ? "" : "s"}`,
@@ -90,7 +86,7 @@ export default async function Dashboard({ params }: { params: Promise<{ campaign
   const va = d.voiceAnchor;
   const pcName = pc && typeof pc.name === "string" ? pc.name : scope.pc?.name;
   const unlabeled = scope.pc
-    ? (await (await app()).views.wiki(scope)).flatMap((g) => g.entities).filter((r) => r.entity.type === "character" && r.entity.id !== scope.pc!.id && !r.toPc).length
+    ? (await wikiView(scope)).flatMap((g) => g.entities).filter((r) => r.entity.type === "character" && r.entity.id !== scope.pc!.id && !r.toPc).length
     : 0;
 
   return (
