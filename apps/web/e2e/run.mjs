@@ -213,7 +213,7 @@ try {
     const t = await text();
     expect(!t.includes("the PC doesn't know"), "player view hints at hidden updates (UX review #2)");
     await shot("06-review-queue");
-    const item = page.locator("section[aria-label='Proposed updates'] li", { hasText: "Rickard limps on his left leg." });
+    const item = page.locator("section[aria-label^='Updates'] li", { hasText: "Rickard limps on his left leg." });
     await item.getByRole("button", { name: "Approve" }).click();
     await item.waitFor({ state: "detached" }); // approved updates leave the queue
     await page.goto(`${C}/e/rickard-snow?tab=updates`);
@@ -324,7 +324,7 @@ try {
     await page.waitForURL(/filter=pages/);
     const t = await text();
     expect(t.includes("Ser Wyl") && t.includes("The Tidewatch"), "the New pages filter doesn't list the drafts");
-    expect(!t.includes("Proposed updates"), "the New pages filter still shows updates");
+    expect((await page.locator("section[aria-label^='Updates']").count()) === 0, "the New pages filter still shows updates");
     await shot("12-review-pages-filter");
     await page.getByRole("button", { name: "Approve all pages (2)" }).click();
     await page.locator("section[aria-label='New pages']").waitFor({ state: "detached" }); // approved pages leave the queue

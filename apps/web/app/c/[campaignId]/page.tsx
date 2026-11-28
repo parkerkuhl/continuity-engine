@@ -1,3 +1,4 @@
+import { APPROVAL_MODES } from "@/lib/format";
 import Link from "next/link";
 import { editVoiceAnchor, setApprovalMode, setCampaignSpoilers } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
@@ -11,12 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ campaignI
   return scopeTitle(await campaignScope((await params).campaignId), "Settings");
 }
 
-const MODES = [
-  ["review", "Review everything", "Nothing counts until you approve it."],
-  ["batch", "Batch review", "Usable right away as soft canon; you approve later."],
-  ["autopilot", "Autopilot", "Straight to canon; fix things afterward."],
-  ["mixed", "Mixed by severity", "Pick a rule for minor and for major updates."],
-] as const;
+const MODES = APPROVAL_MODES;
 const MODE_NAME: Record<string, string> = { review: "review", batch: "batch review", autopilot: "autopilot" };
 
 const INTERIOR_LEVELS = [
