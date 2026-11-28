@@ -6,6 +6,8 @@ import { app, isRemote, pageChanges, reviewQueue, pageQueue, dashboard } from "@
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
+import { ThemeSwitch } from "./theme-switch";
+import { cookies } from "next/headers";
 import { NavProgress } from "./nav-progress";
 import { HeaderSearch, NavLink } from "./nav-link";
 import { SearchShortcut } from "./search-shortcut";
@@ -48,6 +50,7 @@ function Badge({ n, conflict }: { n: number; conflict?: boolean }) {
 }
 
 async function Sidebar({ scope }: { scope?: Scope }) {
+  const theme = (await cookies()).get("theme")?.value;
   const c = scope?.campaign ?? null;
   const base = c ? `/c/${c.id}` : scope ? `/w/${scope.world.id}` : "/";
   let nav: ReactNode;
@@ -161,6 +164,9 @@ async function Sidebar({ scope }: { scope?: Scope }) {
             <button className="px-3 py-2 text-left text-nav-muted hover:text-white">Sign out</button>
           </form>
         )}
+        <div className={scope || isRemote() ? "pt-2" : "mt-auto border-t border-nav-line pt-4"}>
+          <ThemeSwitch initial={theme === "light" || theme === "dark" ? theme : "system"} />
+        </div>
       </MobileMenu>
     </nav>
   );
