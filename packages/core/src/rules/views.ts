@@ -28,6 +28,19 @@ export interface UpdateView {
   conflictWith: { label: string; body: string } | null;
   /** Each tag's type: "time" for ch-NN, else the tagged entity's type ("other" if it no longer resolves). */
   tagTypes: { tag: string; type: Entity["type"] | "time" | "other" }[];
+  /** Review queue only (UX review #22): whether the PC knows it, when it was written, and its scene. */
+  pcKnows?: boolean;
+  at?: string | null;
+  scene?: ReviewScene | null;
+}
+
+/** The scene an update came from, as the review queue groups and labels it. */
+export interface ReviewScene {
+  id: string;
+  chapter: number;
+  number: number;
+  place: Pick<Entity, "id" | "slug" | "name"> | null;
+  summary: string;
 }
 
 /**
@@ -396,7 +409,31 @@ export class WebViews {
   async reviewQueue(scope: Scope): Promise<{ items: UpdateView[]; hidden: number }> {
     if (!scope.campaign) return { items: [], hidden: 0 };
     const v = await this.visibleUpdates(scope, await this.engine.reviewQueue(scope.campaign.id));
-    return { items: await Promise.all(v.shown.map((u) => this.updateView(u))), hidden: v.hidden };
+    const scenes = new Map<string, ReviewScene>();
+    for (const sc of await this.storage.listScenes(scope.campaign.id)) {
+      const place = sc.placeEntityId ? (await this.describe([sc.placeEntityId]))[0] ?? null : null;
+      scenes.set(sc.id, { id: sc.id, chapter: sc.chapter, number: sc.number, place, summary: sc.summaryMd });
+    }
+    const items = await Promise.all(
+      v.shown.map(async (u) => ({
+        ...(await this.updateView(u)),
+        pcKnows: await this.pcKnows(scope, "update", u.id),
+        at: (await this.storage.listVersions({ objectType: "update", objectId: u.id }))[0]?.createdAt ?? null,
+        scene: (u.sceneId && scenes.get(u.sceneId)) || null,
+      })),
+    );
+    return { items, hidden: v.hidden };
+  }
+
+  /** Approve every update of one scene this view shows, skipping parked conflicts (UX review #23). */
+  async approveVisibleScene(scope: Scope, sceneId: string): Promise<Update[]> {
+    const { items } = await this.reviewQueue(scope);
+    const out = [];
+    for (const i of items.filter((x) => x.update.sceneId === sceneId && !x.update.conflictsWith)) {
+      const r = await this.engine.approveUpdate(i.update.id);
+      if (r.ok) out.push(r.value);
+    }
+    return out;
   }
 
   /** Pages Claude drafted that wait for approval: the world's own, plus this campaign's. Oldest layer first. */

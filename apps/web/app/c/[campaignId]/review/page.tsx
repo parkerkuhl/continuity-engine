@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { approveAllMinor } from "@/app/actions";
+import { approveAllMinor, approveScene } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { ApproveButton, Knows, RejectButton, Severity, TagChips, UpdateMeta, chapterTag, editProps, extraTags } from "@/components/update-card";
 import { PageChanges } from "@/components/page-changes";
 import { PageQueue } from "@/components/page-queue";
 import { UpdateItem } from "@/components/update-item";
 import { app, campaignScope, pageChanges, scopeTitle } from "@/lib/server";
+import { sceneLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,16 @@ export default async function Review({ params, searchParams }: { params: Promise
   const showChanges = f === "all" || f === "changes";
   const [modeName, modeNote] = MODE[c.approvalMode] ?? ["", ""];
   const n = items.length + changes.length;
+  // UX review #22/#23: updates grouped under the scene they came from, newest scene first.
+  const groups = new Map<string, { scene: (typeof items)[number]["scene"]; rows: typeof items }>();
+  for (const v of rest.filter(keep)) {
+    const k = v.scene?.id ?? "";
+    if (!groups.has(k)) groups.set(k, { scene: v.scene ?? null, rows: [] });
+    groups.get(k)!.rows.push(v);
+  }
+  const sceneGroups = [...groups.values()].sort((a, b) =>
+    !a.scene ? 1 : !b.scene ? -1 : b.scene.chapter - a.scene.chapter || b.scene.number - a.scene.number,
+  );
 
   return (
     <>
@@ -112,14 +123,33 @@ export default async function Review({ params, searchParams }: { params: Promise
         </section>
       ))}
 
-      {rest.filter(keep).length > 0 && (
-        <section aria-label="Proposed updates" className="overflow-hidden rounded-xl border border-line bg-surface">
-          <div className="flex items-center justify-between gap-3 border-b border-line bg-subtle px-5 py-3 text-[13px] text-muted">
-            <span>Proposed updates</span>
-            <span>Oldest first</span>
+      {sceneGroups.map(({ scene, rows }) => (
+        <section key={scene?.id ?? "none"} aria-label={scene ? `Updates from ${sceneLabel(scene)}` : "Updates without a scene"} className="overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-subtle px-5 py-3 text-[13px]">
+            <div className="min-w-0 flex-1">
+              {scene ? (
+                <>
+                  <Link href={`${base}#chapters`} className="font-semibold text-ink hover:underline">
+                    {sceneLabel(scene)}
+                    {scene.place && <> at {scene.place.name}</>}
+                  </Link>
+                  {scene.summary && <p className="line-clamp-1 text-muted">{scene.summary}</p>}
+                </>
+              ) : (
+                <span className="font-semibold text-muted">Not from a logged scene</span>
+              )}
+            </div>
+            {scene && rows.length > 1 && (
+              <ActionForm action={approveScene}>
+                <input type="hidden" name="campaignId" value={campaignId} />
+                <input type="hidden" name="sceneId" value={scene.id} />
+                <input type="hidden" name="path" value={path} />
+                <button className="btn btn-sm">Approve scene ({rows.length})</button>
+              </ActionForm>
+            )}
           </div>
           <ul>
-            {rest.filter(keep).map((v) => (
+            {rows.map((v) => (
               <li key={v.update.id} className="border-b border-line-soft px-5 py-4 last:border-b-0">
                 <UpdateItem
                   head={<UpdateMeta v={v} base={base} status={false} />}
@@ -138,7 +168,7 @@ export default async function Review({ params, searchParams }: { params: Promise
             ))}
           </ul>
         </section>
-      )}
+      ))}
 
       {showChanges && <PageChanges changes={changes} base={base} path={path} campaignId={campaignId} />}
 

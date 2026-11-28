@@ -259,6 +259,13 @@ export async function approveAllMinor(_: ActionState, f: FormData): Promise<Acti
   return done(f, approved.length ? `Approved ${approved.length} minor update${approved.length === 1 ? "" : "s"}.` : "No minor updates to approve.");
 }
 
+/** Approve one scene's updates together (UX review #23); parked conflicts stay for their own decision. */
+export async function approveScene(_: ActionState, f: FormData): Promise<ActionState> {
+  const scope = await campaignScope(req(f, "campaignId"));
+  const approved = await (await app()).views.approveVisibleScene(scope, req(f, "sceneId"));
+  return done(f, approved.length ? `Approved ${approved.length} update${approved.length === 1 ? "" : "s"} from that scene.` : "Nothing in that scene to approve.");
+}
+
 // ---------------- campaign dashboard ----------------
 
 export async function editVoiceAnchor(_: ActionState, f: FormData): Promise<ActionState> {
