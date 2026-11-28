@@ -7,3 +7,24 @@ dist/
 .env
 .env.*
 .vercel/
+
+# Build and test output
+*.tsbuildinfo
+coverage/
+
+# Local SQLite files not covered above
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Keep a committed example env file
+!.env.example
+
+
+# Editors and OS
+.DS_Store
+.idea/
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
