@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ActionState } from "./action-form";
 import { ActionForm } from "./action-form";
 import { EditConfirm } from "./edit-confirm";
@@ -44,18 +45,71 @@ export function InlineEditor({
   /** Called after Cancel, so a parent can close what it opened. */
   onCancel?: () => void;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(startEditing);
   const [draft, setDraft] = useState(body);
+  // The stored text when editing started: sent with the save, so a GM change in between is caught (UX review #18).
+  const [base, setBase] = useState(body);
+  const [conflict, setConflict] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [flash, setFlash] = useState<string | undefined>();
   const cancelConfirm = useCallback(() => setConfirming(false), []);
+  // UX review #19: an unsaved draft survives navigation and reloads in this tab.
+  const storeKey = `ce-draft:${hidden.entityId ?? ""}:${hidden.campaignId ?? ""}:${hidden.key ?? hidden.heading ?? label}`;
+  const dirty = editing && draft !== base;
+  const forget = useCallback(() => {
+    try {
+      sessionStorage.removeItem(storeKey);
+    } catch {}
+  }, [storeKey]);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storeKey) ?? "null") as { draft: string; base: string } | null;
+      if (saved && typeof saved.draft === "string" && saved.draft !== body) {
+        setDraft(saved.draft);
+        setBase(typeof saved.base === "string" ? saved.base : body);
+        setEditing(true);
+        setFlash("Draft restored");
+      }
+    } catch {}
+    // Only on mount: later body changes must not overwrite what the user is typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeKey]);
+  useEffect(() => {
+    if (!editing) return;
+    try {
+      if (draft !== base) sessionStorage.setItem(storeKey, JSON.stringify({ draft, base }));
+      else sessionStorage.removeItem(storeKey);
+    } catch {}
+  }, [editing, draft, base, storeKey]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const start = () => {
+    setDraft(body);
+    setBase(body);
+    setFlash(undefined);
+    setConflict(false);
+    setEditing(true);
+  };
+  const save = () => {
+    if (body !== base) setConflict(true);
+    else setConfirming(true);
+  };
   const head = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       {title}
       <div className="flex flex-wrap items-center gap-2">
         {meta}
         {!editing && (
-          <button type="button" onClick={() => { setDraft(body); setFlash(undefined); setEditing(true); }} className="btn-ghost" aria-label={`Edit ${label}`}>
+          <button type="button" onClick={start} className="btn-ghost" aria-label={`Edit ${label}`}>
             {editText}
           </button>
         )}
@@ -79,11 +133,26 @@ export function InlineEditor({
           className="mt-2.5"
           action={async (prev, f) => {
             const r = await action(prev, f);
-            if (r.ok) { setEditing(false); setConfirming(false); setFlash(r.ok); }
+            if (r.ok) {
+              forget();
+              setEditing(false);
+              setConfirming(false);
+              setFlash(r.ok);
+            } else if (r.stale) {
+              setConfirming(false);
+              setConflict(true);
+              router.refresh();
+            }
             return r;
           }}
         >
           {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+          <input type="hidden" name="expected" value={base} />
+          {flash === "Draft restored" && (
+            <p role="status" className="mb-2 text-[13px] text-accent-ink">
+              Draft restored: you hadn&apos;t saved this yet.
+            </p>
+          )}
           <textarea
             name="body"
             value={draft}
@@ -93,9 +162,51 @@ export function InlineEditor({
             className="w-full rounded-lg border border-line-strong bg-surface p-3 font-serif text-[17px] leading-[1.6] focus:border-accent focus:outline-none"
           />
           <p className="mt-1 text-xs text-faint">Markdown. Use ### or deeper for headings inside a section.</p>
+          {conflict && (
+            <div role="alert" className="mt-3 flex flex-col gap-3 rounded-[10px] border border-warn-line bg-warn-tint px-4 py-3">
+              <p className="font-semibold">The GM changed this section while you were editing. Which version do you want to keep?</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <div className="text-xs font-semibold tracking-[0.6px] text-muted uppercase">The GM&apos;s version now</div>
+                  <p className="mt-1 font-serif whitespace-pre-wrap">{body === base ? "Loading…" : body || "(empty)"}</p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold tracking-[0.6px] text-muted uppercase">Yours</div>
+                  <p className="mt-1 font-serif whitespace-pre-wrap">{draft || "(empty)"}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  disabled={body === base}
+                  onClick={() => {
+                    setBase(body);
+                    setConflict(false);
+                    setConfirming(true);
+                  }}
+                >
+                  Keep mine
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    forget();
+                    setDraft(body);
+                    setBase(body);
+                    setConflict(false);
+                    setEditing(false);
+                  }}
+                >
+                  Use the GM&apos;s version
+                </button>
+              </div>
+            </div>
+          )}
           <div className="mt-3 flex gap-2">
-            <button type="button" className="btn-primary btn-sm" disabled={draft === body} onClick={() => setConfirming(true)}>Save</button>
-            <button type="button" className="btn btn-sm" onClick={() => { setEditing(false); onCancel?.(); }}>Cancel</button>
+            <button type="button" className="btn-primary btn-sm" disabled={draft === base || conflict} onClick={save}>Save</button>
+            <button type="button" className="btn btn-sm" onClick={() => { forget(); setEditing(false); setConflict(false); onCancel?.(); }}>Cancel</button>
           </div>
           {confirming && <EditConfirm onCancel={cancelConfirm} context={context} before={body} after={draft} />}
         </ActionForm>

@@ -1,7 +1,8 @@
 "use client";
 import { startTransition, useActionState, type FormEvent, type ReactNode } from "react";
 
-export type ActionState = { ok?: string; error?: string; at?: number };
+/** `stale`: the text changed on the server since the user started editing (UX review #18). */
+export type ActionState = { ok?: string; error?: string; at?: number; stale?: boolean };
 type Action = (prev: ActionState, f: FormData) => Promise<ActionState>;
 
 /** A form bound to a server action, showing the engine's refusal or confirmation under it. */
