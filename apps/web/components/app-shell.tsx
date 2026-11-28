@@ -144,8 +144,8 @@ async function Sidebar({ scope }: { scope?: Scope }) {
         <div className="flex flex-col gap-0.5">{nav}</div>
         {scope && (
           <div className="mt-auto flex flex-col gap-0.5 border-t border-nav-line pt-4">
-            <a href={`/w/${scope.world.id}/export`} className="px-3 py-2 text-nav-muted hover:text-white">
-              Export as Markdown
+            <a href={c ? `/c/${c.id}/export` : `/w/${scope.world.id}/export`} className="px-3 py-2 text-nav-muted hover:text-white">
+              {c ? "Export campaign as Markdown" : "Export as Markdown"}
             </a>
             <Link href="/" className="px-3 py-2 text-nav-muted hover:text-white">
               All worlds

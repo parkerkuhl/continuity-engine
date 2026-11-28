@@ -28,6 +28,7 @@ import {
 } from "../enums";
 import { hasLevel2Heading } from "../markdown/sections";
 import { exportWorld, importWorld, type Files } from "../markdown/world";
+import { exportCampaign, importCampaign } from "../markdown/campaign";
 import { slugify } from "../slug";
 import type {
   Chapter,
@@ -1185,6 +1186,31 @@ export class RulesEngine {
   async importWorld(files: Files): Promise<Result<World>> {
     try {
       return ok(await importWorld(this.storage, files, { ownerId: await this.owner(), meta: { author: "user", reason: "imported from Markdown" } }));
+    } catch (e) {
+      return refuse("invalid", (e as Error).message);
+    }
+  }
+
+  /** Markdown export of a campaign, with its world (SPEC "Page format and export layout"). */
+  async exportCampaign(campaignId: string): Promise<Result<Files>> {
+    if (!(await this.storage.getCampaign(campaignId))) return refuse("not_found", `No campaign ${campaignId}.`);
+    return ok(await exportCampaign(this.storage, campaignId));
+  }
+
+  /**
+   * Import a campaign from its Markdown export, as the user: into the existing world `worldId`, or
+   * (without it) together with the world folder in the export, as a new world.
+   */
+  async importCampaign(files: Files, opts: { worldId?: string } = {}): Promise<Result<{ world: World; campaign: Campaign }>> {
+    if (opts.worldId && !(await this.storage.getWorld(opts.worldId))) return refuse("not_found", `No world ${opts.worldId}.`);
+    try {
+      return ok(
+        await importCampaign(this.storage, files, {
+          ownerId: await this.owner(),
+          meta: { author: "user", reason: "imported from Markdown" },
+          ...(opts.worldId && { worldId: opts.worldId }),
+        }),
+      );
     } catch (e) {
       return refuse("invalid", (e as Error).message);
     }

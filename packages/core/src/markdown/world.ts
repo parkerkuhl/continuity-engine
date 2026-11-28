@@ -10,7 +10,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { z } from "zod";
 import { ApprovalMode, Depth, type EntityType } from "../enums";
 import { slugify } from "../slug";
-import type { Entity, EntityPage, Storage, World, WriteMeta } from "../storage/types";
+import type { Entity, EntityPage, NewEntity, Storage, World, WriteMeta } from "../storage/types";
 import { PageFormatError, parseEntityPage, renderEntityPage, renderFrontMatter, splitFrontMatter } from "./entity-page";
 
 export type Files = Map<string, string>;
@@ -97,15 +97,14 @@ export async function exportWorld(storage: Storage, worldId: string): Promise<Fi
   return new Map([...files].sort(([a], [b]) => a.localeCompare(b)));
 }
 
-/**
- * Import one exported world as a new world owned by `ownerId`. Every file is parsed and validated
- * before anything is written, so a malformed export writes nothing.
- */
-export async function importWorld(
-  storage: Storage,
-  files: Files,
-  opts: { ownerId: string; meta: WriteMeta },
-): Promise<World> {
+export interface WorldImportPlan {
+  root: string;
+  world: z.infer<typeof WorldFrontMatter>;
+  pages: { path: string; page: Omit<NewEntity, "worldId"> }[];
+}
+
+/** Find, parse and validate one exported world in `files` without writing anything. */
+export function planWorldImport(files: Files): WorldImportPlan {
   const guides = [...files.keys()].filter((p) => p.endsWith(`/${LOAD_GUIDE}`) || p === LOAD_GUIDE);
   if (guides.length !== 1) throw new Error(`expected exactly one ${LOAD_GUIDE}, found ${guides.length}`);
   const guidePath = guides[0]!;
@@ -113,7 +112,6 @@ export async function importWorld(
 
   const fmResult = WorldFrontMatter.safeParse(splitFrontMatter(files.get(guidePath)!, guidePath).data);
   if (!fmResult.success) throw new PageFormatError(guidePath, fmResult.error.issues.map((i) => i.message).join("; "));
-  const wfm = fmResult.data;
 
   const pages = [...files]
     .filter(([p]) => p.startsWith(root) && p.endsWith(".md") && p !== guidePath)
@@ -125,13 +123,30 @@ export async function importWorld(
     if (prior) throw new PageFormatError(path, `id "${page.slug}" is also used by ${prior}`);
     seen.set(page.slug!, path);
   }
+  return { root, world: fmResult.data, pages };
+}
 
+/** Write a validated world import as a new world owned by `ownerId`. */
+export async function applyWorldImport(storage: Storage, plan: WorldImportPlan, opts: { ownerId: string; meta: WriteMeta }): Promise<World> {
+  const wfm = plan.world;
   const world = await storage.createWorld(
     { ownerId: opts.ownerId, name: wfm.name, pitch: wfm.pitch, depth: wfm.depth, defaultApprovalMode: wfm.default_approval_mode, asOfStoryTime: wfm.as_of ?? null },
     opts.meta,
   );
-  for (const { page } of pages) await storage.createEntity({ ...page, worldId: world.id }, opts.meta);
+  for (const { page } of plan.pages) await storage.createEntity({ ...page, worldId: world.id }, opts.meta);
   return world;
+}
+
+/**
+ * Import one exported world as a new world owned by `ownerId`. Every file is parsed and validated
+ * before anything is written, so a malformed export writes nothing.
+ */
+export async function importWorld(
+  storage: Storage,
+  files: Files,
+  opts: { ownerId: string; meta: WriteMeta },
+): Promise<World> {
+  return applyWorldImport(storage, planWorldImport(files), opts);
 }
 
 export async function writeFiles(dir: string, files: Files): Promise<void> {

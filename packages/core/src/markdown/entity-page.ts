@@ -8,7 +8,7 @@ import { Document, isSeq, parse, visit } from "yaml";
 import { z } from "zod";
 import { EntityType, Kebab, Source, Visibility } from "../enums";
 import { slugify } from "../slug";
-import type { EntityPage, NewEntity, NewSection } from "../storage/types";
+import type { EntityPage, NewEntity, NewSection, Section } from "../storage/types";
 import { splitSections } from "./sections";
 
 export const PageFrontMatter = z.object({
@@ -46,9 +46,13 @@ export class PageFormatError extends Error {
   }
 }
 
-/** Render a world-canon page. Campaign overlay sections are not part of a world page. */
-export function renderEntityPage(page: EntityPage): string {
-  const sections = page.sections.filter((s) => s.campaignId === null).sort((a, b) => a.order - b.order);
+/**
+ * Render one layer of a page: world canon by default (campaign overlay sections are not part of a
+ * world page), or a campaign's own sections when `campaignId` is given. `extra` adds front matter fields.
+ */
+export function renderEntityPage(page: EntityPage, opts: { campaignId?: string | null; extra?: Record<string, unknown> } = {}): string {
+  const layer = opts.campaignId ?? null;
+  const sections = page.sections.filter((s) => s.campaignId === layer).sort((a, b) => a.order - b.order);
   const fm = renderFrontMatter({
     id: page.slug,
     type: page.type,
@@ -59,8 +63,14 @@ export function renderEntityPage(page: EntityPage): string {
     ...(sections.some((s) => s.lockedByUser)
       ? { locked_sections: sections.filter((s) => s.lockedByUser).map((s) => s.key) }
       : {}),
+    ...opts.extra,
   });
-  const parts = [`## Summary\n${page.summary}`.trimEnd()];
+  return `${fm}${renderSectionList(page.summary, sections)}\n`;
+}
+
+/** `## Summary` (when `summary` is not null) and then each section with its heading attributes. */
+export function renderSectionList(summary: string | null, sections: Pick<Section, "heading" | "key" | "visibility" | "bodyMd">[]): string {
+  const parts = summary === null ? [] : [`## Summary\n${summary}`.trimEnd()];
   for (const s of sections) {
     const attrs: string[] = [];
     if (s.visibility !== "public") attrs.push(`visibility: ${s.visibility}`);
@@ -68,7 +78,7 @@ export function renderEntityPage(page: EntityPage): string {
     const head = attrs.length ? `## ${s.heading}  <!-- ${attrs.join("; ")} -->` : `## ${s.heading}`;
     parts.push(`${head}\n${s.bodyMd}`.trimEnd());
   }
-  return `${fm}${parts.join("\n\n")}\n`;
+  return parts.join("\n\n");
 }
 
 /** Parse a page into the input for `Storage.createEntity` (minus `worldId`). */
@@ -79,28 +89,36 @@ export function parseEntityPage(md: string, file: string): Omit<NewEntity, "worl
     throw new PageFormatError(file, fmResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   }
   const fm = fmResult.data;
+  const { summary, sections } = parseSectionList(body, file, fm.locked_sections);
+  return { slug: fm.id, type: fm.type, name: fm.name, aliases: fm.aliases, source: fm.source, ...(fm.status && { status: fm.status }), summary, sections };
+}
+
+/** The inverse of `renderSectionList`. `summary` is "" when there is no `## Summary`. */
+export function parseSectionList(body: string, file: string, lockedSections: string[] = []): { summary: string; hasSummary: boolean; sections: NewSection[] } {
   const { preamble, sections: raw } = splitSections(body);
   if (preamble) throw new PageFormatError(file, "text before the first ## heading");
 
   let summary = "";
+  let hasSummary = false;
   const sections: NewSection[] = [];
   for (const r of raw) {
     const [, heading = "", attrText] = HEADING.exec(r.headingLine)!;
     const attrs = parseAttrs(attrText ?? "", file);
     if (slugify(heading) === "summary" && !attrs.key) {
       summary = r.body;
+      hasSummary = true;
       continue;
     }
     const key = attrs.key ?? slugify(heading);
     const vis = Visibility.safeParse(attrs.visibility ?? "public");
     if (!vis.success) throw new PageFormatError(file, `section "${heading}": bad visibility "${attrs.visibility}"`);
-    sections.push({ key, heading, bodyMd: r.body, visibility: vis.data, lockedByUser: fm.locked_sections.includes(key) });
+    if (sections.some((s) => s.key === key)) throw new PageFormatError(file, `two sections have the key "${key}"`);
+    sections.push({ key, heading, bodyMd: r.body, visibility: vis.data, lockedByUser: lockedSections.includes(key) });
   }
   const keys = new Set(sections.map((s) => s.key));
-  const missing = fm.locked_sections.filter((k) => !keys.has(k));
+  const missing = lockedSections.filter((k) => !keys.has(k));
   if (missing.length) throw new PageFormatError(file, `locked_sections names unknown sections: ${missing.join(", ")}`);
-
-  return { slug: fm.id, type: fm.type, name: fm.name, aliases: fm.aliases, source: fm.source, ...(fm.status && { status: fm.status }), summary, sections };
+  return { summary, hasSummary, sections };
 }
 
 function parseAttrs(text: string, file: string): Record<string, string> {
