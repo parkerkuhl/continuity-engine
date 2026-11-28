@@ -230,3 +230,8 @@ h2[id],
 section[id] {
   scroll-margin-top: 5.5rem;
 }
+
+@keyframes nav-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { Scope } from "@continuity/core";
 import { setCampaignSpoilers, setWorldSpoilers } from "@/app/actions";
 import { app, isRemote, pageChanges } from "@/lib/server";
 import { AutoRefresh } from "./auto-refresh";
 import { LockIcon } from "./icons";
 import { MobileMenu } from "./mobile-menu";
+import { NavProgress } from "./nav-progress";
 import { HeaderSearch, NavLink } from "./nav-link";
 import { SearchShortcut } from "./search-shortcut";
 
@@ -21,6 +22,9 @@ export async function AppShell({ scope, children }: { scope?: Scope; children: R
       </a>
       <AutoRefresh everyMs={Number(process.env.CONTINUITY_REFRESH_MS) || 10_000} />
       <SearchShortcut />
+      <Suspense>
+        <NavProgress />
+      </Suspense>
       <Sidebar scope={scope} />
       <div className="flex min-w-0 flex-[999_1_560px] flex-col">
         {scope && <TopBar scope={scope} />}
