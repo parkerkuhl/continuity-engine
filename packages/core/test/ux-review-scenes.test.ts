@@ -35,3 +35,15 @@ describe("UX #22/#23: review queue by scene", () => {
     expect((await storage.getUpdate(other.id))!.status).toBe("proposed");
   });
 });
+
+describe("UX #26: alias URLs and near misses", () => {
+  it("resolves an alias to its slug and suggests close pages for an unknown one", async () => {
+    const { storage, world } = await setup();
+    await seed(storage, world.id);
+    const views = new WebViews(new RulesEngine(storage));
+    const scope = (await views.scope({ worldId: world.id }))!;
+    expect(await views.lookup(scope, "the-bastard-sellsword")).toEqual({ slug: "rickard-snow" });
+    const miss = await views.lookup(scope, "volantys");
+    expect("suggestions" in miss && miss.suggestions.map((e) => e.slug)).toContain("volantis");
+  });
+});

@@ -235,6 +235,18 @@ export class WebViews {
     return { shown, hidden: updates.length - shown.length };
   }
 
+  /**
+   * A page reference from a URL that isn't a slug (UX review #26): an alias or name resolves to the page's
+   * slug; otherwise the closest pages in this scope, for a "did you mean" list.
+   */
+  async lookup(scope: Scope, ref: string): Promise<{ slug: string } | { suggestions: Pick<Entity, "slug" | "name">[] }> {
+    const r = await this.storage.resolveEntity(scope.world.id, ref.replace(/-/g, " "), { campaignId: scope.campaign?.id ?? null });
+    const visible = (e: Entity) => !e.campaignId || e.campaignId === scope.campaign?.id;
+    if (r.status === "resolved" && visible(r.entity)) return { slug: r.entity.slug };
+    const list = r.status === "ambiguous" ? r.candidates : r.status === "unknown" ? r.suggestions : [];
+    return { suggestions: list.filter(visible).slice(0, 5).map((e) => ({ slug: e.slug, name: e.name })) };
+  }
+
   async entity(scope: Scope, slug: string): Promise<EntityView | null> {
     const e = await this.storage.getEntityBySlug(scope.world.id, slug);
     if (!e) return null;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { findToPcSection, toPcLabel, type Provenance, type Scope, type Version } from "@continuity/core";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { addSection, approvePage, editAliases, editSection, editSummary, markCanon, rejectPage, restoreVersion } from "@/app/actions";
 import { ago, sceneLabel } from "@/lib/format";
 import { app, basePath, pageChanges } from "@/lib/server";
@@ -77,7 +77,12 @@ function FromPlay({ children }: { children: ReactNode }) {
 
 export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope; slug: string; tab?: string }) {
   const view = await (await app()).views.entity(scope, slug);
-  if (!view) notFound();
+  if (!view) {
+    // UX review #26: an alias URL goes to its page; anything else gets a not-found screen inside the app.
+    const found = await (await app()).views.lookup(scope, decodeURIComponent(slug));
+    if ("slug" in found && found.slug !== slug) redirect(`${basePath(scope)}/e/${found.slug}${tabParam ? `?tab=${tabParam}` : ""}`);
+    return <PageNotFound scope={scope} slug={decodeURIComponent(slug)} suggestions={"suggestions" in found ? found.suggestions : []} />;
+  }
   const { page } = view;
   const unreviewed = (await pageChanges(scope)).filter((c) => c.entity.id === page.id);
   const unreviewedSections = new Set(unreviewed.map((c) => c.sectionId));
@@ -659,5 +664,38 @@ export async function EntityView({ scope, slug, tab: tabParam }: { scope: Scope;
         </div>
       )}
     </>
+  );
+}
+
+function PageNotFound({ scope, slug, suggestions }: { scope: Scope; slug: string; suggestions: { slug: string; name: string }[] }) {
+  const base = basePath(scope);
+  const wiki = scope.campaign ? `${base}/wiki` : base;
+  return (
+    <div className="flex flex-col gap-3">
+      <h1 className="page-title">No page called “{slug}”</h1>
+      <p className="text-muted">There&apos;s no page by that name or alias in {scope.campaign?.name ?? scope.world.name}.</p>
+      {suggestions.length > 0 && (
+        <p>
+          Did you mean{" "}
+          {suggestions.map((e, i) => (
+            <span key={e.slug}>
+              {i > 0 && (i === suggestions.length - 1 ? " or " : ", ")}
+              <Link href={`${base}/e/${e.slug}`} className="link font-semibold">
+                {e.name}
+              </Link>
+            </span>
+          ))}
+          ?
+        </p>
+      )}
+      <p className="flex flex-wrap gap-2">
+        <Link href={`${wiki}?q=${encodeURIComponent(slug.replace(/-/g, " "))}`} className="btn">
+          Search for “{slug.replace(/-/g, " ")}”
+        </Link>
+        <Link href={`${base}/new`} className="btn">
+          New page
+        </Link>
+      </p>
+    </div>
   );
 }
